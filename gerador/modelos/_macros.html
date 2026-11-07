@@ -1,0 +1,23 @@
+{% macro kpi(rotulo, numero, unidade, variacao=None, classe='') -%}
+<div class="kpi">
+<div class="rot">{{ rotulo }}</div>
+<div class="val"><span class="num">{{ numero }}</span><span class="uni">{{ unidade }}</span></div>
+{% if variacao and not variacao.startswith('—') %}<div class="var {{ classe }}">{{ variacao }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro var_classe(v, inverter=False) -%}
+{%- if v is none -%}{%- elif (v > 0) != inverter and v != 0 -%}sobe{%- elif v != 0 -%}cai{%- endif -%}
+{%- endmacro %}
+
+{% macro barras(itens, maximo, campo_valor, casas=0) -%}
+<div class="barras">
+{% for b in itens %}
+<div class="barra">
+<div class="nome">{{ b.nome }}</div>
+<div class="trilho"><div class="cheio" style="width: {{ [((b[campo_valor] / maximo * 100) if maximo else 0)|round(1), 1]|max }}%"></div></div>
+<div class="valor">{{ fmt(b[campo_valor], casas) }}</div>
+</div>
+{% endfor %}
+</div>
+{%- endmacro %}

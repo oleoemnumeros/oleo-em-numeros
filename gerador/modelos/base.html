@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ titulo }}{% if titulo != site.nome %} | {{ site.nome }}{% endif %}</title>
+<meta name="description" content="{{ descricao }}">
+<link rel="canonical" href="{{ site.url }}/{{ caminho }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ site.nome }}">
+<meta property="og:title" content="{{ titulo }}">
+<meta property="og:description" content="{{ descricao }}">
+<meta property="og:url" content="{{ site.url }}/{{ caminho }}">
+<meta property="og:locale" content="pt_BR">
+{% if site.teste %}<meta name="robots" content="noindex">{% endif %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ raiz }}estilo.css">
+<link rel="icon" href="{{ raiz }}icone.svg" type="image/svg+xml">
+</head>
+<body>
+{% if site.teste %}<div class="faixa-teste">Versão de teste com dados FICTÍCIOS. Nenhum número desta página é real.</div>{% endif %}
+<header class="topo">
+<div class="miolo">
+<a class="marca" href="{{ u('') }}">
+<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 2c4.5 5.6 8 10.2 8 14.6a8 8 0 0 1-16 0C7 12.2 10.5 7.6 15 2z" fill="#B45309"/><rect x="10.5" y="16" width="2.2" height="6" rx="1" fill="#fff"/><rect x="13.9" y="12.5" width="2.2" height="9.5" rx="1" fill="#fff"/><rect x="17.3" y="14.5" width="2.2" height="7.5" rx="1" fill="#fff"/></svg>
+<span>{{ site.nome }}</span>
+</a>
+<nav class="nav" aria-label="Principal">
+<a href="{{ u('') }}"{% if secao == 'inicio' %} aria-current="page"{% endif %}>Produção</a>
+<a href="{{ u('operadoras/') }}"{% if secao == 'operadoras' %} aria-current="page"{% endif %}>Operadoras</a>
+<a href="{{ u('campos/') }}"{% if secao == 'campos' %} aria-current="page"{% endif %}>Campos</a>
+<a href="{{ u('rankings/') }}"{% if secao == 'rankings' %} aria-current="page"{% endif %}>Rankings</a>
+<a href="{{ u('sobre/') }}"{% if secao == 'sobre' %} aria-current="page"{% endif %}>Metodologia</a>
+</nav>
+</div>
+</header>
+<main>
+{% block conteudo %}{% endblock %}
+</main>
+<footer class="rodape">
+<div class="miolo">
+<div>
+<div class="nome">{{ site.nome }}</div>
+<p>Dados públicos de petróleo e gás do Brasil, organizados todo mês. Fonte: ANP. Dado mais recente: {{ mes_extenso(ag.ultimo) }}. Nada neste site é recomendação de investimento.</p>
+</div>
+<nav aria-label="Rodapé">
+<a href="{{ u('sobre/') }}">Sobre e metodologia</a>
+<a href="{{ u('sobre/') }}#erro">Reportar um erro</a>
+<a href="{{ u('sobre/') }}#privacidade">Privacidade</a>
+</nav>
+</div>
+</footer>
+</body>
+</html>

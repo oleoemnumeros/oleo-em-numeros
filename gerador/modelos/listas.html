@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import var_classe %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<h1>{{ h1 }}</h1>
+<p class="sub">{{ sub }}</p>
+<div class="filtro">
+<label for="busca">Filtrar a lista</label>
+<input id="busca" type="search" placeholder="Digite um nome, bacia ou estado" autocomplete="off">
+</div>
+</section>
+<section class="miolo secao">
+<div class="cartao">
+<div class="tabela">
+<table id="lista">
+{% if tipo == 'campos' %}
+<thead><tr><th>#</th><th>Campo</th><th>Operadora</th><th>Bacia</th><th>UF</th><th>Ambiente</th><th class="n">Petróleo (bbl/d)</th><th class="n">12 meses</th></tr></thead>
+<tbody>
+{% for c in itens %}
+<tr><td>{{ loop.index }}</td><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.operador }}</td><td>{{ c.bacia }}</td><td>{{ c.estado.uf }}</td><td>{{ 'Terra' if c.ambiente == 'terra' else 'Mar' }}</td><td class="n">{{ fmt(c.petroleo) }}</td><td class="n {{ var_classe(c.var12) }}">{{ fmt_var(c.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+{% else %}
+<thead><tr><th>#</th><th>Operadora</th><th class="n">Petróleo (mil bbl/d)</th><th class="n">Gás (milhões m³/d)</th><th class="n">Poços ativos</th><th class="n">Campos</th><th class="n">Em terra</th><th class="n">12 meses</th></tr></thead>
+<tbody>
+{% for o in itens %}
+<tr><td>{{ o.rank }}</td><td><a href="{{ u('operadoras/' ~ o.slug ~ '/') }}">{{ o.nome }}</a></td><td class="n">{{ fmt_inteligente(o.petroleo) }}</td><td class="n">{{ fmt_inteligente(o.gas) }}</td><td class="n">{{ fmt(o.pocos) }}</td><td class="n">{{ o.n_campos }}</td><td class="n">{{ fmt(o.terra_pct, 0) }}%</td><td class="n {{ var_classe(o.var12) }}">{{ fmt_var(o.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+{% endif %}
+</table>
+</div>
+</div>
+</section>
+<script>
+(function () {
+  var campo = document.getElementById('busca');
+  var linhas = document.querySelectorAll('#lista tbody tr');
+  var tira = function (s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); };
+  campo.addEventListener('input', function () {
+    var q = tira(campo.value.trim());
+    linhas.forEach(function (tr) { tr.hidden = q && tira(tr.textContent).indexOf(q) === -1; });
+  });
+})();
+</script>
+{% endblock %}

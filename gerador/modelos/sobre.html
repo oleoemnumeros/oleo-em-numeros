@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="miolo cabeca texto">
+<h1>Sobre e metodologia</h1>
+<p class="sub" style="font-size: 19px; color: var(--tinta)">O {{ site.nome }} organiza os dados públicos de petróleo e gás do Brasil em gráficos e tabelas fáceis de usar e de compartilhar.</p>
+<p>É um projeto independente: não é mantido pela ANP nem por nenhuma operadora. Os dados são atualizados por um processo automático, que confere os números antes de publicar. Última atualização: {{ mes_extenso(ag.ultimo) }}.</p>
+
+<h2 id="dados">De onde vêm os dados</h2>
+<div class="cartao" style="padding: 0; margin-top: 12px">
+<div class="tabela" style="margin-top: 0">
+<table>
+<thead><tr><th>Conjunto</th><th>Fonte</th><th>Atualização</th><th>Defasagem</th></tr></thead>
+<tbody>
+<tr><td><strong>Produção por poço</strong></td><td>ANP, dados abertos</td><td>Mensal</td><td>Cerca de 2 meses: os dados de janeiro saem em março</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<h2 id="calculo">Como calculamos</h2>
+<ul>
+<li><strong>Produção operada:</strong> 100% da produção do campo é atribuída à operadora, como a ANP publica. Não é a parcela de cada sócio.</li>
+<li><strong>Petróleo</strong> = óleo + condensado, em barris por dia, pela definição da ANP.</li>
+<li><strong>Taxas diárias:</strong> quando a ANP publica o volume do mês em metros cúbicos, dividimos pelos dias do mês e convertemos com 1 m³ = 6,2898 barris.</li>
+<li><strong>Gás natural</strong> = associado + não associado.</li>
+<li><strong>BSW</strong> = água ÷ (petróleo + água), em %.</li>
+<li><strong>Poços ativos</strong> = poços que produziram petróleo ou gás no mês.</li>
+<li><strong>Variações</strong> comparam com o mês anterior ou com o mesmo mês do ano anterior, como indicado em cada número.</li>
+<li><strong>Operadora de um campo</strong> = a última operadora informada à ANP para aquele campo.</li>
+</ul>
+
+<h2 id="erro">Encontrou um erro?</h2>
+<p>Envie a página e o número com problema{% if site.contato %} para <a href="mailto:{{ site.contato }}">{{ site.contato }}</a>{% endif %}. Corrigimos e registramos a correção na própria página.</p>
+
+<h2 id="aviso">Aviso legal</h2>
+<p>Conteúdo informativo, baseado em dados públicos. Nada neste site é recomendação de compra ou venda de valores mobiliários. Confira sempre a fonte oficial antes de tomar decisões.</p>
+
+<h2 id="privacidade">Privacidade</h2>
+<p>Este site não pede cadastro nem usa cookies de rastreamento.</p>
+</section>
+{% endblock %}

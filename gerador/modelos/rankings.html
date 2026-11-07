@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "_macros.html" import var_classe %}
+{% macro tabela_campos(lista, sinal) -%}
+{% if lista %}
+<div class="tabela">
+<table>
+<thead><tr><th>#</th><th>Campo</th><th>Operadora</th><th class="n">bbl/d</th><th class="n">%</th></tr></thead>
+<tbody>
+{% for c in lista %}
+<tr><td>{{ loop.index }}</td><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.operador }}</td><td class="n {{ var_classe(c.delta_mes) }}">{{ '+' if c.delta_mes > 0 else '' }}{{ fmt(c.delta_mes) }}</td><td class="n {{ var_classe(c.varmes) }}">{{ fmt_var(c.varmes) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}
+<p class="legenda">Nenhum campo {{ sinal }} neste recorte.</p>
+{% endif %}
+{%- endmacro %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<h1>{{ h1 }}</h1>
+<p class="sub">Quem mais cresceu e quem mais caiu em {{ mes_extenso(ag.ultimo) }}, comparado a {{ mes_extenso(ag.anterior) }}.</p>
+<nav class="abas" aria-label="Ambiente">
+<a href="{{ u('rankings/') }}"{% if recorte == 'todos' %} aria-current="page"{% endif %}>Terra e mar</a>
+<a href="{{ u('rankings/terra/') }}"{% if recorte == 'terra' %} aria-current="page"{% endif %}>Só terra</a>
+<a href="{{ u('rankings/mar/') }}"{% if recorte == 'mar' %} aria-current="page"{% endif %}>Só mar</a>
+</nav>
+</section>
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Campos que mais cresceram</h2>
+<p class="legenda">Variação do petróleo, em bbl/d</p>
+{{ tabela_campos(r.altas, 'cresceu') }}
+</div>
+<div class="cartao">
+<h2>Campos que mais caíram</h2>
+<p class="legenda">Variação do petróleo, em bbl/d</p>
+{{ tabela_campos(r.quedas, 'caiu') }}
+</div>
+</section>
+{% if recorte == 'todos' %}
+<section class="miolo secao">
+<div class="cartao">
+<div class="linha-titulo"><h2>Ranking de operadoras</h2><a href="{{ u('operadoras/') }}">Ver todas</a></div>
+<div class="tabela">
+<table>
+<thead><tr><th>#</th><th>Operadora</th><th class="n">Petróleo (mil bbl/d)</th><th class="n">Gás (milhões m³/d)</th><th class="n">Poços ativos</th><th class="n">Petróleo em 12 meses</th></tr></thead>
+<tbody>
+{% for o in ag.operadores[:15] %}
+<tr><td>{{ o.rank }}</td><td><a href="{{ u('operadoras/' ~ o.slug ~ '/') }}">{{ o.nome }}</a></td><td class="n">{{ fmt_inteligente(o.petroleo) }}</td><td class="n">{{ fmt_inteligente(o.gas) }}</td><td class="n">{{ fmt(o.pocos) }}</td><td class="n {{ var_classe(o.var12) }}">{{ fmt_var(o.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+{% endif %}
+{% endblock %}

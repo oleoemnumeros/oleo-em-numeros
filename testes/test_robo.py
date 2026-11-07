@@ -1,0 +1,114 @@
+"""Testes do robô e do gerador com dados fictícios nos dois formatos da ANP."""
+import io
+import zipfile
+
+import pytest
+
+from gerador.gerar import gerar
+from robo.agregar import agregar
+from robo.conferir import conferir
+from robo.ler import consolidar, ler_csv
+from robo.util import fmt, fmt_var, numero_br, periodo
+from testes.gerar_amostras import gerar as gerar_amostras
+
+
+@pytest.fixture(scope="module")
+def pasta(tmp_path_factory):
+    return gerar_amostras(tmp_path_factory.mktemp("brutos"))
+
+
+@pytest.fixture(scope="module")
+def base(pasta):
+    return consolidar(pasta, manual=pasta / "nao_existe.csv")
+
+
+def test_numeros_no_padrao_brasileiro():
+    assert numero_br("3.127,441") == pytest.approx(3127.441)
+    assert numero_br("74,4653") == pytest.approx(74.4653)
+    assert numero_br("1.234") == 1234
+    assert numero_br("") == 0
+    assert numero_br("12.5") == 12.5
+
+
+@pytest.mark.parametrize("entrada,saida", [
+    ("2021/05", "2021-05"), ("05/2021", "2021-05"), ("2021-5", "2021-05"),
+    ("mai/2021", "2021-05"), ("01/05/2021", "2021-05"), ("", None),
+])
+def test_periodos(entrada, saida):
+    assert periodo(entrada) == saida
+
+
+def test_formatacao():
+    assert fmt(3612.4) == "3.612"
+    assert fmt(31.44, 1) == "31,4"
+    assert fmt_var(0.041) == "+4,1%"
+    assert fmt_var(-0.031) == "−3,1%"
+
+
+def test_presal_nao_conta_duas_vezes():
+    assert ler_csv(b"qualquer", "2023_12_producao_PreSal.csv").empty
+
+
+def test_conversao_m3_mensal_para_bbl_dia():
+    csv = ("﻿[Ano],[Mês/Ano],[Estado],[Bacia],[Campo],[Poço],[Ambiente],[Produção de Óleo (m³)],"
+           "[Produção de Água (m³)]\r\n2024,01/2024,BA,Recôncavo,CAMPO X,7-X-1-BA,Terra,\"493,000\",\"0\"\r\n")
+    df = ler_csv(csv.encode("utf-8"), "producao_por_poco_terra_2024_1_trim.csv")
+    # 493 m³ em janeiro (31 dias) = 493 × 6,289811 / 31 ≈ 100 bbl/d
+    assert df.iloc[0]["petroleo_bbl_d"] == pytest.approx(100.03, abs=0.01)
+    assert df.iloc[0]["ambiente"] == "terra"
+
+
+def test_base_continua_na_troca_de_formato(base):
+    """Dez/2023 (formato por poço) e jan/2024 (formato mensal) devem ficar próximos."""
+    total = base.groupby("periodo")["petroleo_bbl_d"].sum()
+    assert abs(total["2024-01"] / total["2023-12"] - 1) < 0.03
+
+
+def test_sobreposicao_prefere_formato_por_poco(base):
+    linhas_2023 = base[base["periodo"].str.startswith("2023")]
+    assert linhas_2023["horas"].notna().any()  # só o formato por poço traz horas
+
+
+def test_operador_preenchido_pelo_campo(base):
+    assert (base["operador"] != "Não identificado").all()
+    assert set(base[base["campo"] == "CAMPO EXEMPLO 3"]["operador"]) == {"Operadora K"}
+
+
+def test_estado_unificado_em_sigla(base):
+    assert set(base["estado"]) <= {"RJ", "SP", "SE", "RN", "BA", "ES"}
+
+
+def test_injetores_ficam_de_fora(base):
+    assert not base["poco"].str.startswith("7-INJ").any()
+
+
+def test_agregados_e_conferencia(base):
+    ag = agregar(base)
+    assert ag["ultimo"] == "2026-09"
+    soma_op = sum(o["petroleo"] for o in ag["operadores"])
+    assert soma_op == pytest.approx(ag["brasil"]["petroleo"], rel=1e-9)
+    soma_campos = sum(c["petroleo"] for c in ag["campos"]) / 1000
+    assert soma_campos == pytest.approx(ag["brasil"]["petroleo"], rel=1e-9)
+    ok, criticos, _ = conferir(base, ag)
+    assert ok, criticos
+
+
+def test_conferencia_trava_queda_brusca(base):
+    alterada = base.copy()
+    ultimo = alterada["periodo"].max()
+    alterada.loc[alterada["periodo"] == ultimo, "petroleo_bbl_d"] *= 0.5
+    ok, criticos, _ = conferir(alterada, agregar(alterada))
+    assert not ok and any("Petróleo do Brasil" in c for c in criticos)
+
+
+def test_gera_site(base, tmp_path):
+    import json
+    from robo.executar import _leve
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "agregados.json").write_text(json.dumps(_leve(agregar(base)), ensure_ascii=False, default=str), "utf-8")
+    paginas = gerar(proc, tmp_path / "site", teste=True)
+    assert "campos/campo-exemplo-3/" in paginas
+    html = (tmp_path / "site" / "campos" / "campo-exemplo-3" / "index.html").read_text("utf-8")
+    assert "Campo Exemplo 3" in html and "<svg" in html
+    assert (tmp_path / "site" / "sitemap.xml").exists()

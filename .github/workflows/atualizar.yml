@@ -1,0 +1,70 @@
+# Ciclo mensal do Óleo em Números: baixa da ANP, confere, gera e publica o site.
+# A ANP não tem data fixa de publicação, então o robô tenta três vezes por mês.
+# Se a conferência encontrar algo crítico, o job falha, o GitHub manda e-mail
+# e o site continua com a última versão boa.
+name: Atualização mensal
+
+on:
+  schedule:
+    - cron: "17 11 5,15,25 * *"   # dias 5, 15 e 25, às 8h17 de Brasília
+  workflow_dispatch: {}             # botão "Run workflow" para rodar na mão
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: atualizar
+  cancel-in-progress: false
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Testes
+        run: python -m pytest -q
+
+      - name: Recupera os arquivos já baixados da ANP
+        uses: actions/cache@v4
+        with:
+          path: dados/brutos
+          key: brutos-${{ github.run_id }}
+          restore-keys: brutos-
+
+      - name: Robô de dados (baixar, ler, agregar, conferir)
+        run: python -m robo.executar
+
+      - name: Relatório da conferência
+        if: always()
+        run: cat dados/processados/conferencia.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Gera o site
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          SITE_CONTATO: ${{ vars.SITE_CONTATO }}
+        run: python -m gerador.gerar --links-limpos
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: publico
+
+  publicar:
+    needs: atualizar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
