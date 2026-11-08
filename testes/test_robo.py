@@ -209,3 +209,22 @@ def test_operador_do_campo_e_o_que_mais_produz_no_ultimo_mes():
     })
     # a linha da empresa vizinha vem por último, mas produz pouco
     assert _operador_por_campo(b) == {"ALBACORA": "Petrobras"}
+
+
+def test_campo_dividido_entre_empresas_fica_dividido_por_poco():
+    import pandas as pd
+    from robo.ler import _operador_por_campo, _operador_por_poco
+    b = pd.DataFrame({
+        "periodo": ["2019-05", "2023-12", "2023-12", "2023-12"],
+        "campo": ["GOMO"] * 4,
+        "poco": ["7-GO-0001-BA", "7-GO-0010-BA", "7-GO-0020-BA", "7-GO-0030-BA"],
+        "operador": ["Petrobras", "3R Bahia", "3R Bahia", "PetroRecôncavo"],
+        "petroleo_bbl_d": [10.0, 50.0, 32.0, 65.0],
+        "gas_mil_m3_d": [0.0] * 4,
+    })
+    por_poco = _operador_por_poco(b)
+    assert por_poco[("GOMO", "7go0030ba")] == "PetroRecôncavo"
+    assert por_poco[("GOMO", "7go0010ba")] == "3R Bahia"
+    # poço que só aparece antes do último mês segue o operador do campo
+    assert ("GOMO", "7go0001ba") not in por_poco
+    assert _operador_por_campo(b) == {"GOMO": "3R Bahia"}

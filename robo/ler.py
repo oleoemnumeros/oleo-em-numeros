@@ -271,6 +271,24 @@ def _operador_por_campo(base: pd.DataFrame) -> dict:
     return tot.sort_values("peso").groupby("campo")["operador"].last().to_dict()
 
 
+def _chave_poco(nome) -> str:
+    return re.sub(r"[^0-9a-z]", "", sem_acento(str(nome)).casefold())
+
+
+def _operador_por_poco(base: pd.DataFrame) -> dict:
+    """Operador de cada poço que produzia no último mês com operador informado do seu campo.
+
+    Resolve campos divididos entre empresas (Gomo: parte 3R Bahia, parte PetroRecôncavo).
+    Poço que só aparece antes disso fica com o operador do campo: um poço antigo
+    reativado depois de uma venda pertence a quem comprou o campo, não a quem o fechou.
+    """
+    com_op = base[base["operador"].notna() & (base["operador"] != "")]
+    if com_op.empty:
+        return {}
+    u = com_op[com_op["periodo"] == com_op.groupby("campo")["periodo"].transform("max")]
+    return {(c, _chave_poco(p)): o for c, p, o in zip(u["campo"], u["poco"], u["operador"])}
+
+
 def consolidar(pasta: Path = config.BRUTOS, manual: Path = config.MANUAIS / "operador_por_campo.csv",
                ano_inicial: int = config.ANO_INICIAL) -> tuple[pd.DataFrame, list[dict]]:
     """Devolve a base poço a poço e o registro de leitura de cada arquivo."""
@@ -306,6 +324,8 @@ def consolidar(pasta: Path = config.BRUTOS, manual: Path = config.MANUAIS / "ope
     base["estado"] = base["estado"].map(lambda v: estado_info(v)["uf"])
 
     mapa = _operador_por_campo(base)
+    mapa_poco = _operador_por_poco(base)
+    fixos = {}   # planilha manual: vale para o campo inteiro e tem prioridade
     if manual.exists():
         m = pd.read_csv(manual, dtype=str).dropna()
         conhecidos = sorted(set(base["operador"].dropna()) - {""})
@@ -314,9 +334,25 @@ def consolidar(pasta: Path = config.BRUTOS, manual: Path = config.MANUAIS / "ope
         for campo, op in zip(m["campo"].str.strip(), m["operador"].str.strip()):
             # 'Equinor' na planilha manual vira 'Equinor Brasil Energia' se for o único nome da ANP que começa assim
             iguais = [k for k in conhecidos if chave(k).startswith(chave(op))]
-            mapa[por_campo.get(chave(campo), campo)] = iguais[0] if len(iguais) == 1 else op
+            fixos[por_campo.get(chave(campo), campo)] = iguais[0] if len(iguais) == 1 else op
     faltando = base["operador"].isna() | (base["operador"] == "")
-    base.loc[faltando, "operador"] = base.loc[faltando, "campo"].map(mapa)
+    f = base.loc[faltando]
+    origem, ops = [], []
+    for campo, poco in zip(f["campo"], f["poco"]):
+        if campo in fixos:
+            origem.append("planilha manual"); ops.append(fixos[campo])
+        elif (campo, _chave_poco(poco)) in mapa_poco:
+            origem.append("poço"); ops.append(mapa_poco[(campo, _chave_poco(poco))])
+        elif campo in mapa:
+            origem.append("campo"); ops.append(mapa[campo])
+        else:
+            origem.append("sem operadora"); ops.append(None)
+    base.loc[faltando, "operador"] = ops
+    if len(f):
+        ultimo = f["periodo"].max()
+        o = pd.Series(origem, index=f.index)[f["periodo"] == ultimo]
+        print(f"Operadora em {ultimo} definida por: " +
+              ", ".join(f"{k} {v:.1%}" for k, v in o.value_counts(normalize=True).items()) + " dos poços")
     base["operador"] = base["operador"].fillna("Não identificado")
 
     # um poço aparece uma vez por mês; se a ANP repetir a linha, soma
