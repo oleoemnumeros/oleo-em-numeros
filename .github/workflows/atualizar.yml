@@ -7,7 +7,11 @@ name: Atualização mensal
 on:
   schedule:
     - cron: "17 11 5,15,25 * *"   # dias 5, 15 e 25, às 8h17 de Brasília
-  workflow_dispatch: {}             # botão "Run workflow" para rodar na mão
+  workflow_dispatch:                # botão "Run workflow" para rodar na mão
+    inputs:
+      ano_inicial:
+        description: "Primeiro ano da base (2018 = histórico completo)"
+        default: "2018"
 
 permissions:
   contents: read
@@ -43,6 +47,8 @@ jobs:
           restore-keys: brutos-
 
       - name: Robô de dados (baixar, ler, agregar, conferir)
+        env:
+          ANO_INICIAL: ${{ inputs.ano_inicial || '2018' }}
         run: python -m robo.executar
 
       - name: Relatório da conferência

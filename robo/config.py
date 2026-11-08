@@ -1,4 +1,5 @@
 """Configurações do robô de dados do Óleo em Números."""
+import os
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -26,7 +27,8 @@ USER_AGENT = (
     "Chrome/126.0 Safari/537.36 OleoEmNumeros/0.1"
 )
 
-ANO_INICIAL = 2018          # primeiro ano carregado na base
+# primeiro ano carregado na base; dá para reduzir numa execução manual (ANO_INICIAL=2023)
+ANO_INICIAL = int(os.environ.get("ANO_INICIAL") or 2018)
 M3_PARA_BBL = 6.289811      # 1 m³ = 6,289811 barris
 
 # Limites da conferência automática: acima disso, a publicação trava.
