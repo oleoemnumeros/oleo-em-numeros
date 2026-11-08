@@ -1,0 +1,11 @@
+# Grupo econômico de cada operadora registrada na ANP.
+# operador: nome como aparece na ANP (aceita * no fim). grupo: nome exibido no site.
+operador,grupo
+3R *,Brava Energia
+Enauta*,Brava Energia
+Prio*,PRIO
+Petro Rio*,PRIO
+PetroRio*,PRIO
+Seacrest*,Seacrest Petróleo
+Origem*,Origem Energia
+BW *,BW Energy

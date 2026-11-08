@@ -8,8 +8,9 @@
 <span class="chip">Bacia {{ c.bacia }}</span>
 <span class="chip">{{ c.estado.nome }}</span>
 <span class="chip">{{ 'Terra' if c.ambiente == 'terra' else 'Mar' }}</span>
-<a class="chip" href="{{ u('operadoras/' ~ c.operador_slug ~ '/') }}">{{ c.operador }}</a>
+<a class="chip" href="{{ u('operadoras/' ~ c.operador_slug ~ '/') }}">{{ c.grupo }}</a>
 </div>
+{% if c.operador != c.grupo %}<p class="nota">Operadora registrada na ANP: {{ c.operador }}, do grupo {{ c.grupo }}.</p>{% endif %}
 <div class="kpis kpis-6">
 {{ kpi('Petróleo', fmt(c.petroleo), 'bbl/d', fmt_var(c.var12) ~ ' em 12 meses', var_classe(c.var12)) }}
 {{ kpi('Gás natural', fmt_inteligente(c.gas), 'mil m³/d', fmt_var(c.var12_gas) ~ ' em 12 meses', var_classe(c.var12_gas)) }}

@@ -165,3 +165,17 @@ def test_arquivos_antigos_com_titulo_e_linhas_entre_aspas():
     )
     df = ler_csv(por_poco.encode("latin-1"), "2018_producao_terra.csv")
     assert len(df) == 1 and df.iloc[0]["periodo"] == "2018-01" and df.iloc[0]["operador"] == "Operadora Y"
+
+
+def test_grupo_economico_soma_empresas(base):
+    from robo.grupos import grupo_de
+    regras = [("operadora k", "Grupo KL"), ("operadora l*", "Grupo KL")]
+    assert grupo_de("Operadora K", regras) == "Grupo KL" and grupo_de("Operadora A", regras) == "Operadora A"
+    ag = agregar(base, regras_grupo=regras)
+    g = next(o for o in ag["operadores"] if o["nome"] == "Grupo KL")
+    sem = agregar(base, regras_grupo=[])
+    soma = sum(o["petroleo"] for o in sem["operadores"] if o["nome"] in ("Operadora K", "Operadora L"))
+    assert g["petroleo"] == pytest.approx(soma)
+    assert {e["nome"] for e in g["entidades"]} == {"Operadora K", "Operadora L"}
+    c = next(x for x in ag["campos"] if x["slug"] == "campo-exemplo-9")
+    assert c["grupo"] == "Grupo KL" and c["operador"] == "Operadora L" and c["operador_slug"] == "grupo-kl"

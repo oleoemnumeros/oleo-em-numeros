@@ -80,7 +80,7 @@ def destaques(ag, u):
         c = altas[0]
         lista.append({"tag": "Maior alta do mês", "link": u(f"campos/{c['slug']}/"),
                       "titulo": f"{c['nome']} cresce {fmt((c['varmes'] or 0) * 100, 0)}% sobre {nome_ant}",
-                      "texto": f"Bacia {c['bacia']} · {c['operador']} · {fmt(c['petroleo'])} bbl/d em "
+                      "texto": f"Bacia {c['bacia']} · {c['grupo']} · {fmt(c['petroleo'])} bbl/d em "
                                f"{mes_extenso(ag['ultimo'])}."})
     br = ag["brasil"]
     if br["varmes_terra"] is not None:

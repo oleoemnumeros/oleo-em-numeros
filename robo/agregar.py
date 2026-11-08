@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
+from . import grupos
 from .util import mes_anterior, nome_bonito, slug, variacao
 
 UFS = {
@@ -59,7 +60,14 @@ def _serie(tab: pd.DataFrame, meses: list[str], coluna: str, escala: float = 1.0
     return [round(float(x), 4) if completo(p) else None for p, x in zip(meses, s)]
 
 
-def agregar(base: pd.DataFrame) -> dict:
+def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
+    # Empresas do mesmo grupo econômico (3R Potiguar, Enauta... -> Brava Energia) somam juntas.
+    regras = grupos.carregar() if regras_grupo is None else regras_grupo
+    base = base.assign(grupo=base["operador"].map(lambda o: grupos.grupo_de(o, regras)))
+    nomes_grupos = {g for _, g in regras}
+
+    def ng(nome):  # nome do grupo como escrito na tabela (ex.: 'PRIO'); senão, a grafia da ANP
+        return nome if nome in nomes_grupos else nome_bonito(nome)
     ultimo = base["periodo"].max()
     # Meses em que a ANP publicou dados de cada ambiente. Há trimestres de terra com
     # um mês faltando no arquivo; esses meses aparecem como lacuna, nunca como zero.
@@ -122,7 +130,8 @@ def agregar(base: pd.DataFrame) -> dict:
     # ---------- Campos ----------
     cam = _soma_mensal(base, ["campo"])
     meta_u = (base.sort_values("periodo").groupby("campo")
-              .agg(bacia=("bacia", "last"), estado=("estado", "last"), operador=("operador", "last")))
+              .agg(bacia=("bacia", "last"), estado=("estado", "last"), operador=("operador", "last"),
+                   grupo=("grupo", "last")))
     amb_campo = base.groupby("campo")["ambiente"].agg(lambda s: s.value_counts().idxmax())
     cam_u = cam[cam["periodo"] == ultimo].set_index("campo")
     cam_ant = cam[cam["periodo"] == ant].set_index("campo")
@@ -159,7 +168,8 @@ def agregar(base: pd.DataFrame) -> dict:
             "nome": nome_bonito(campo), "chave": campo, "slug": slug(campo),
             "bacia": nome_bonito(meta["bacia"]), "bacia_slug": slug(meta["bacia"]),
             "estado": info, "ambiente": amb_campo[campo],
-            "operador": nome_bonito(meta["operador"]), "operador_slug": slug(meta["operador"]),
+            "operador": nome_bonito(meta["operador"]),            # empresa registrada na ANP
+            "grupo": ng(meta["grupo"]), "operador_slug": slug(meta["grupo"]),
             "petroleo": pet, "gas": gas, "agua": agua, "pocos": int(np_ or 0),
             "bsw": _bsw(agua, pet), "por_poco": pet / np_ if np_ else None,
             "var12": variacao(pet, pet_aa), "var12_gas": variacao(gas, v(cam_aa, campo, "gas")),
@@ -186,11 +196,15 @@ def agregar(base: pd.DataFrame) -> dict:
                           "por_poco": x["por_poco"], "eu": x is c} for x in bacia[ini:ini + 5]]
 
     # ---------- Operadores ----------
-    op = _soma_mensal(base, ["operador"])
+    # agrupadas por grupo econômico; a coluna se chama "operador" para os modelos do site
+    base_g = base.drop(columns=["operador"]).rename(columns={"grupo": "operador"})
+    op = _soma_mensal(base_g, ["operador"])
     op_u = op[op["periodo"] == ultimo].sort_values("petroleo", ascending=False)
     operadores = []
-    terra_op = _soma_mensal(base[base["ambiente"] == "terra"], ["operador"])
+    terra_op = _soma_mensal(base_g[base_g["ambiente"] == "terra"], ["operador"])
     terra_op = terra_op[terra_op["periodo"] == ultimo].set_index("operador")["petroleo"]
+    ent_u = (base[base["periodo"] == ultimo].groupby(["grupo", "operador"])["petroleo_bbl_d"].sum()
+             .sort_values(ascending=False))
     total_terra = brasil["petroleo_terra"] * 1000 or 1.0
     for rank, (_, r) in enumerate(op_u.iterrows(), start=1):
         nome = r["operador"]
@@ -199,14 +213,16 @@ def agregar(base: pd.DataFrame) -> dict:
         def h(per, col):
             return float(hist.at[per, col]) if per in hist.index else None
 
-        meus = [c for c in campos if c["operador"] == nome_bonito(nome)]
+        meus = [c for c in campos if c["grupo"] == ng(nome)]
+        entidades = [{"nome": nome_bonito(e), "petroleo": float(v_) / 1000}
+                     for (g, e), v_ in ent_u.items() if g == nome]
         por_bacia = {}
         for c in meus:
             por_bacia[c["bacia"]] = por_bacia.get(c["bacia"], 0.0) + c["petroleo"]
         pet = r["petroleo"]
         pet_terra = float(terra_op.get(nome, 0.0))
         operadores.append({
-            "nome": nome_bonito(nome), "slug": slug(nome), "rank": rank,
+            "nome": ng(nome), "slug": slug(nome), "rank": rank,
             "petroleo": pet / 1000, "gas": r["gas"] / 1000, "pocos": int(r["pocos"]),
             "bsw": _bsw(r["agua"], pet), "share": pet / total_pet * 100,
             "terra_pct": pet_terra / pet * 100 if pet else 0.0,
@@ -221,7 +237,7 @@ def agregar(base: pd.DataFrame) -> dict:
                 op[op["operador"] == nome], m60, "petroleo", 1000,
                 completo_para({a for a, peso in (("terra", pet_terra), ("mar", pet - pet_terra))
                                if pet and peso / pet > 0.02}))},
-            "campos": meus, "n_campos": len(meus),
+            "campos": meus, "n_campos": len(meus), "entidades": entidades,
             "bacias": sorted(({"nome": k, "pct": v_ / pet * 100 if pet else 0} for k, v_ in por_bacia.items()),
                              key=lambda x: -x["pct"]),
         })
