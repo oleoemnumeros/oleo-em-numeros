@@ -88,5 +88,7 @@ def relatorio(ag, criticos, avisos) -> str:
         linhas += ["", "### Problemas críticos"] + [f"- {c}" for c in criticos]
     if avisos:
         linhas += ["", "### Avisos"] + [f"- {a}" for a in avisos]
+    linhas += ["", "### Operadoras (mil bbl/d)",
+               "; ".join(f"{o['nome']} {fmt(o['petroleo'], 1)}" for o in ag["operadores"])]
     linhas += ["", "Antes de divulgar, confira 3 números contra o Painel Dinâmico da ANP."]
     return "\n".join(linhas) + "\n"

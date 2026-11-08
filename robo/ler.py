@@ -277,8 +277,14 @@ def consolidar(pasta: Path = config.BRUTOS, manual: Path = config.MANUAIS / "ope
 
     mapa = _operador_por_campo(base)
     if manual.exists():
-        m = pd.read_csv(manual, dtype=str)
-        mapa.update(dict(zip(m["campo"].str.strip(), m["operador"].str.strip())))
+        m = pd.read_csv(manual, dtype=str).dropna()
+        conhecidos = sorted(set(base["operador"].dropna()) - {""})
+        chave = lambda s: sem_acento(str(s)).casefold().strip()  # noqa: E731
+        por_campo = {chave(c): c for c in base["campo"].dropna().unique()}
+        for campo, op in zip(m["campo"].str.strip(), m["operador"].str.strip()):
+            # 'Equinor' na planilha manual vira 'Equinor Brasil Energia' se for o único nome da ANP que começa assim
+            iguais = [k for k in conhecidos if chave(k).startswith(chave(op))]
+            mapa[por_campo.get(chave(campo), campo)] = iguais[0] if len(iguais) == 1 else op
     faltando = base["operador"].isna() | (base["operador"] == "")
     base.loc[faltando, "operador"] = base.loc[faltando, "campo"].map(mapa)
     base["operador"] = base["operador"].fillna("Não identificado")
