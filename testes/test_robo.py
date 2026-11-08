@@ -195,3 +195,17 @@ def test_grupo_economico_soma_empresas(base):
     assert {e["nome"] for e in g["entidades"]} == {"Operadora K", "Operadora L"}
     c = next(x for x in ag["campos"] if x["slug"] == "campo-exemplo-9")
     assert c["grupo"] == "Grupo KL" and c["operador"] == "Operadora L" and c["operador_slug"] == "grupo-kl"
+
+
+def test_operador_do_campo_e_o_que_mais_produz_no_ultimo_mes():
+    import pandas as pd
+    from robo.ler import _operador_por_campo
+    b = pd.DataFrame({
+        "periodo": ["2022-12", "2023-12", "2023-12", "2023-12"],
+        "campo": ["ALBACORA"] * 4,
+        "operador": ["Petrobras", "Petrobras", "Petro Rio Jaguar", None],
+        "petroleo_bbl_d": [20000.0, 15000.0, 300.0, 50.0],
+        "gas_mil_m3_d": [100.0, 80.0, 1.0, 0.0],
+    })
+    # a linha da empresa vizinha vem por último, mas produz pouco
+    assert _operador_por_campo(b) == {"ALBACORA": "Petrobras"}

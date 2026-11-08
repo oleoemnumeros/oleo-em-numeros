@@ -256,12 +256,19 @@ def ler_arquivo(caminho: Path) -> tuple[pd.DataFrame, list[dict]]:
 
 
 def _operador_por_campo(base: pd.DataFrame) -> dict:
-    """Último operador conhecido de cada campo, a partir das linhas que trazem operador."""
+    """Operador de cada campo no último mês em que a ANP informou operador.
+
+    Alguns campos aparecem com mais de uma empresa no mesmo mês (poços ligados à
+    plataforma de um campo vizinho, por exemplo). Fica a que mais produziu.
+    """
     com_op = base[base["operador"].notna() & (base["operador"] != "")]
     if com_op.empty:
         return {}
-    ultimo = com_op.sort_values("periodo").groupby("campo")["operador"].last()
-    return ultimo.to_dict()
+    ultimo_mes = com_op.groupby("campo")["periodo"].transform("max")
+    u = com_op[com_op["periodo"] == ultimo_mes]
+    peso = u["petroleo_bbl_d"].fillna(0) + u["gas_mil_m3_d"].fillna(0) * config.M3_PARA_BBL
+    tot = peso.groupby([u["campo"], u["operador"]]).sum().reset_index(name="peso")
+    return tot.sort_values("peso").groupby("campo")["operador"].last().to_dict()
 
 
 def consolidar(pasta: Path = config.BRUTOS, manual: Path = config.MANUAIS / "operador_por_campo.csv",
