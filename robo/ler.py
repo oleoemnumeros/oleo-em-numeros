@@ -13,7 +13,10 @@ A ANP publica a produção por poço em dois formatos:
 Saída: uma linha por poço e mês, sempre em taxas diárias:
 petróleo, óleo e condensado em bbl/d; gás em mil m³/d; água em bbl/d.
 """
+import csv
 import io
+import itertools
+import re
 import zipfile
 from pathlib import Path
 
@@ -145,11 +148,39 @@ def _ler_formato_mensal(df: pd.DataFrame, nome: str) -> pd.DataFrame:
     })
 
 
+def _ler_tabela(texto: str) -> pd.DataFrame:
+    """Lê o CSV. Trata o cabeçalho em duas linhas que a ANP usa no formato por poço:
+    'Nome Poço' sobre 'ANP | Operador' e 'Gás Natural (Mm³/dia)' sobre 'Assoc | N Assoc | Total'
+    (células mescladas na planilha original)."""
+    sep = _separador(texto)
+    linhas = list(itertools.islice(csv.reader(io.StringIO(texto), delimiter=sep), 2))
+    if len(linhas) == 2:
+        l1, l2 = linhas
+        tem_vazio = any(not v.strip() for v in l1)
+        sub = [v for v in l2 if v.strip()]
+        if tem_vazio and sub and not any(re.search(r"\d", v) for v in l2):
+            nomes, atual, vistos = [], "", {}
+            for i in range(max(len(l1), len(l2))):
+                topo = l1[i].strip() if i < len(l1) else ""
+                atual = topo or atual
+                baixo = l2[i].strip() if i < len(l2) else ""
+                nome = f"{atual} {baixo}".strip() or f"coluna {i}"
+                if nome in vistos:
+                    vistos[nome] += 1
+                    nome = f"{nome} {vistos[nome]}"
+                else:
+                    vistos[nome] = 0
+                nomes.append(nome)
+            return pd.read_csv(io.StringIO(texto), sep=sep, dtype=str, keep_default_na=False, header=None,
+                               skiprows=2, names=nomes, index_col=False)
+    return pd.read_csv(io.StringIO(texto), sep=sep, dtype=str, keep_default_na=False)
+
+
 def ler_csv(conteudo: bytes, nome: str) -> pd.DataFrame:
     if "presal" in nome.lower().replace("-", "").replace("_", "").replace("é", "e"):
         return pd.DataFrame(columns=COLUNAS)  # subconjunto do Mar: evita dupla contagem
     texto = _texto(conteudo)
-    df = pd.read_csv(io.StringIO(texto), sep=_separador(texto), dtype=str, keep_default_na=False)
+    df = _ler_tabela(texto)
     df.columns = [normalizar_cabecalho(x) for x in df.columns]
     colunas = list(df.columns)
     if _achar(colunas, "bbl/dia", opcional=True):
@@ -165,17 +196,40 @@ def ler_csv(conteudo: bytes, nome: str) -> pd.DataFrame:
     return out[prod > 0][COLUNAS]
 
 
-def ler_arquivo(caminho: Path) -> pd.DataFrame:
-    partes = []
+def _membros(caminho: Path):
     if caminho.suffix.lower() == ".zip":
         with zipfile.ZipFile(caminho) as z:
             for membro in z.namelist():
                 if membro.lower().endswith(".csv"):
-                    partes.append(ler_csv(z.read(membro), Path(membro).name))
+                    yield Path(membro).name, z.read(membro)
     elif caminho.suffix.lower() == ".csv":
-        partes.append(ler_csv(caminho.read_bytes(), caminho.name))
-    partes = [p for p in partes if not p.empty]
-    return pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=COLUNAS)
+        yield caminho.name, caminho.read_bytes()
+
+
+def ler_arquivo(caminho: Path) -> tuple[pd.DataFrame, list[dict]]:
+    """Lê um arquivo bruto. Um membro com problema não derruba os outros:
+    o erro fica registrado (com o começo do arquivo) para a conferência."""
+    partes, registros = [], []
+    try:
+        membros = list(_membros(caminho))
+    except zipfile.BadZipFile as e:
+        return pd.DataFrame(columns=COLUNAS), [{"arquivo": caminho.name, "membro": "", "erro": f"ZIP inválido: {e}"}]
+    for nome, conteudo in membros:
+        reg = {"arquivo": caminho.name, "membro": nome}
+        try:
+            df = ler_csv(conteudo, nome)
+            if df.empty:
+                reg["formato"] = "ignorado (pré-sal)" if "sal" in nome.lower() else "sem produção"
+            else:
+                reg.update(formato=df["formato"].iloc[0], linhas=len(df),
+                           periodos=f"{df['periodo'].min()} a {df['periodo'].max()}")
+                partes.append(df)
+        except Exception as e:  # noqa: BLE001 - registra qualquer falha de leitura
+            reg["erro"] = f"{type(e).__name__}: {e}"[:600]
+            reg["inicio"] = _texto(conteudo[:3000]).splitlines()[:3]
+        registros.append(reg)
+    df = pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=COLUNAS)
+    return df, registros
 
 
 def _operador_por_campo(base: pd.DataFrame) -> dict:
@@ -188,12 +242,20 @@ def _operador_por_campo(base: pd.DataFrame) -> dict:
 
 
 def consolidar(pasta: Path = config.BRUTOS, manual: Path = config.MANUAIS / "operador_por_campo.csv",
-               ano_inicial: int = config.ANO_INICIAL) -> pd.DataFrame:
+               ano_inicial: int = config.ANO_INICIAL) -> tuple[pd.DataFrame, list[dict]]:
+    """Devolve a base poço a poço e o registro de leitura de cada arquivo."""
     arquivos = sorted(p for p in pasta.iterdir() if p.suffix.lower() in (".zip", ".csv"))
     if not arquivos:
         raise FileNotFoundError(f"Nenhum arquivo bruto em {pasta}")
-    base = pd.concat([ler_arquivo(a) for a in arquivos], ignore_index=True)
+    partes, leitura = [], []
+    for a in arquivos:
+        df, regs = ler_arquivo(a)
+        partes.append(df)
+        leitura.extend(regs)
+    base = pd.concat([p for p in partes if not p.empty] or [pd.DataFrame(columns=COLUNAS)], ignore_index=True)
     base = base[base["periodo"] >= f"{ano_inicial}-01"]
+    if base.empty:
+        return base, leitura
 
     # Onde os dois formatos cobrem o mesmo mês e ambiente, fica o formato por poço,
     # que é o publicado pela ANP em taxa diária e traz o operador.
@@ -225,4 +287,4 @@ def consolidar(pasta: Path = config.BRUTOS, manual: Path = config.MANUAIS / "ope
     num = ["oleo_bbl_d", "condensado_bbl_d", "petroleo_bbl_d", "gas_mil_m3_d", "agua_bbl_d", "horas"]
     chaves = ["periodo", "estado", "bacia", "campo", "poco", "operador", "ambiente"]
     base = base.groupby(chaves, as_index=False, dropna=False)[num].sum(min_count=1)
-    return base.sort_values(["periodo", "campo", "poco"]).reset_index(drop=True)
+    return base.sort_values(["periodo", "campo", "poco"]).reset_index(drop=True), leitura

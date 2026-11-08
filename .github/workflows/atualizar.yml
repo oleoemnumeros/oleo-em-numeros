@@ -40,7 +40,7 @@ jobs:
         run: python -m pytest -q
 
       - name: Recupera os arquivos já baixados da ANP
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: dados/brutos
           key: brutos-${{ github.run_id }}
@@ -50,6 +50,14 @@ jobs:
         env:
           ANO_INICIAL: ${{ inputs.ano_inicial || '2018' }}
         run: python -m robo.executar
+
+      # guarda os downloads mesmo se a conferência falhar: a próxima execução não baixa tudo de novo
+      - name: Guarda os arquivos baixados
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: dados/brutos
+          key: brutos-${{ github.run_id }}
 
       - name: Relatório da conferência
         if: always()

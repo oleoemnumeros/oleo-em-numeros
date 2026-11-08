@@ -19,7 +19,9 @@ def pasta(tmp_path_factory):
 
 @pytest.fixture(scope="module")
 def base(pasta):
-    return consolidar(pasta, manual=pasta / "nao_existe.csv")
+    base, leitura = consolidar(pasta, manual=pasta / "nao_existe.csv")
+    assert not [r for r in leitura if r.get("erro")]
+    return base
 
 
 def test_numeros_no_padrao_brasileiro():
@@ -112,3 +114,18 @@ def test_gera_site(base, tmp_path):
     html = (tmp_path / "site" / "campos" / "campo-exemplo-3" / "index.html").read_text("utf-8")
     assert "Campo Exemplo 3" in html and "<svg" in html
     assert (tmp_path / "site" / "sitemap.xml").exists()
+
+
+def test_cabecalho_em_duas_linhas():
+    """Formato real da ANP: 'Nome Poço' e 'Gás Natural' são células mescladas sobre subcolunas."""
+    linhas = [
+        "Estado;Bacia;Nome Poço;;Campo;Operador;Número do Contrato;Período;Óleo (bbl/dia);Condensado (bbl/dia);"
+        "Petróleo (bbl/dia);Gás Natural (Mm³/dia);;;Volume Gás Royalties (Mm³/dia);Água (bbl/dia);Instalação Destino",
+        ";;ANP;Operador;;;;;;;;Assoc;N Assoc;Total;;;",
+        "Bahia;Recôncavo;7-XX-1-BA;XX1;CAMPO X;Operadora Y;480000;2023/01;10,5;0;10,5;1,2;0;1,2;0;40,1;ESTACAO",
+    ]
+    df = ler_csv("\r\n".join(linhas).encode("latin-1"), "2023_01_producao_Terra.csv")
+    assert len(df) == 1
+    r = df.iloc[0]
+    assert r["poco"] == "7-XX-1-BA" and r["periodo"] == "2023-01"
+    assert r["petroleo_bbl_d"] == 10.5 and r["gas_mil_m3_d"] == 1.2 and r["agua_bbl_d"] == 40.1

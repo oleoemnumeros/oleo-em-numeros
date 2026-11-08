@@ -35,13 +35,32 @@ def main(argv=None) -> int:
     if not a.sem_baixar and a.brutos == config.BRUTOS:
         from .baixar import baixar_tudo
         r = baixar_tudo(a.brutos)
-        print(f"Baixados: {len(r['novos'])} novos, {len(r['sem_mudanca'])} sem mudança.")
-
-    base = consolidar(a.brutos)
-    ag = agregar(base)
-    ok, criticos, avisos = conferir(base, ag)
+        print(f"Baixados: {len(r['novos'])} novos, {len(r['sem_mudanca'])} sem mudança, "
+              f"{len(r['fora_do_periodo'])} fora do período.")
+        for nome in r["novos"]:
+            print(f"  novo: {nome}")
 
     a.saida.mkdir(parents=True, exist_ok=True)
+    base, leitura = consolidar(a.brutos)
+    (a.saida / "leitura.json").write_text(json.dumps(leitura, ensure_ascii=False, indent=1), "utf-8")
+    print("\nLeitura dos arquivos:")
+    for r in leitura:
+        estado = f"ERRO {r['erro']}" if r.get("erro") else f"{r.get('formato')} {r.get('linhas', '')} {r.get('periodos', '')}"
+        print(f"  {r['arquivo']} / {r['membro']}: {estado}")
+        for linha in r.get("inicio", []):
+            print(f"      | {linha[:300]}")
+    erros = [r for r in leitura if r.get("erro")]
+    if base.empty:
+        print("\nNenhum dado lido. Veja os erros acima.")
+        return 1
+
+    ag = agregar(base)
+    ok, criticos, avisos = conferir(base, ag)
+    if erros:
+        ok = False
+        criticos.insert(0, f"{len(erros)} arquivo(s) da ANP não puderam ser lidos: "
+                           + ", ".join(sorted({r['arquivo'] for r in erros}))[:500])
+
     base.to_csv(a.saida / "base_pocos.csv.gz", index=False, compression="gzip")
     (a.saida / "agregados.json").write_text(json.dumps(_leve(ag), ensure_ascii=False, default=str), "utf-8")
     texto = relatorio(ag, criticos, avisos)
