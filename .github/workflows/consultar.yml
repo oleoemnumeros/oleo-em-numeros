@@ -38,5 +38,5 @@ jobs:
 
       - name: Consulta
         env:
-          ANO_INICIAL: "2024"
+          ANO_INICIAL: "2018"   # a empresa de cada campo vem dos arquivos por poço (até 2023)
         run: python -m robo.consultar "${{ inputs.grupo }}" --meses "${{ inputs.meses }}" | tee -a "$GITHUB_STEP_SUMMARY"
