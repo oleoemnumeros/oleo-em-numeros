@@ -129,3 +129,16 @@ def test_cabecalho_em_duas_linhas():
     r = df.iloc[0]
     assert r["poco"] == "7-XX-1-BA" and r["periodo"] == "2023-01"
     assert r["petroleo_bbl_d"] == 10.5 and r["gas_mil_m3_d"] == 1.2 and r["agua_bbl_d"] == 40.1
+
+
+def test_mes_sem_dado_vira_lacuna(base):
+    """Se a ANP não publicar um mês de terra, o gráfico mostra lacuna, não zero."""
+    sem_abril = base[~((base["periodo"] == "2026-04") & (base["ambiente"] == "terra"))]
+    ag = agregar(sem_abril)
+    c = next(x for x in ag["campos"] if x["slug"] == "campo-exemplo-3")
+    i = c["serie"]["periodo"].index("2026-04")
+    assert c["serie"]["petroleo"][i] is None and c["serie"]["petroleo"][i - 1] > 0
+    j = ag["brasil"]["serie"]["periodo"].index("2026-04")
+    assert ag["brasil"]["serie"]["petroleo"][j] is None
+    _, _, avisos = conferir(sem_abril, ag)
+    assert any("abril de 2026" in a for a in avisos)

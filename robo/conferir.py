@@ -4,7 +4,15 @@ Se algo crítico aparecer, a execução termina com erro: o site não é
 atualizado e o último dado bom continua no ar até alguém olhar.
 """
 from . import config
-from .util import fmt, fmt_var, mes_extenso
+from .util import fmt, fmt_var, mes_anterior, mes_extenso
+
+
+def _meses_entre(ini: str, fim: str) -> list[str]:
+    meses, p = [], fim
+    while p >= ini:
+        meses.append(p)
+        p = mes_anterior(p)
+    return sorted(meses)
 
 
 def conferir(base, ag) -> tuple[bool, list[str], list[str]]:
@@ -35,9 +43,23 @@ def conferir(base, ag) -> tuple[bool, list[str], list[str]]:
     sem_op = base[(base["periodo"] == ultimo) & (base["operador"] == "Não identificado")]
     if len(sem_op):
         pct = sem_op["petroleo_bbl_d"].sum() / max(base[base["periodo"] == ultimo]["petroleo_bbl_d"].sum(), 1)
-        msg = (f"{sem_op['campo'].nunique()} campos sem operador identificado "
-               f"({fmt(pct * 100, 1)}% do petróleo). Preencha dados/manuais/operador_por_campo.csv.")
+        por_campo = (sem_op.groupby(["campo", "bacia", "estado"])["petroleo_bbl_d"].sum()
+                     .sort_values(ascending=False))
+        lista = "; ".join(f"{c} ({b}, {uf}): {fmt(v)} bbl/d" for (c, b, uf), v in por_campo.items())
+        msg = (f"{len(por_campo)} campos sem operador identificado ({fmt(pct * 100, 1)}% do petróleo). "
+               f"Preencha dados/manuais/operador_por_campo.csv: {lista}")
         (criticos if pct > 0.05 else avisos).append(msg)
+
+    # meses que a ANP deixou de fora nos últimos 24 meses (por ambiente)
+    meses = sorted(base["periodo"].unique())
+    recentes = [p for p in meses if p > mes_anterior(ultimo, 24)]
+    presentes = set(zip(base["periodo"], base["ambiente"]))
+    esperados = [p for p in _meses_entre(recentes[0], ultimo)] if recentes else []
+    for amb in ("terra", "mar"):
+        faltam = [p for p in esperados if (p, amb) not in presentes]
+        if faltam:
+            avisos.append(f"A ANP não publicou dados de {amb} em: {', '.join(mes_extenso(p) for p in faltam)}. "
+                          "Esses meses aparecem como lacuna nos gráficos.")
 
     campos_u = set(base[base["periodo"] == ultimo]["campo"])
     campos_a = set(base[base["periodo"] == ant]["campo"])

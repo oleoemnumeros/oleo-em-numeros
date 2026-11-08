@@ -52,13 +52,21 @@ def _bsw(agua, petroleo):
     return agua / total * 100 if total > 0 else None
 
 
-def _serie(tab: pd.DataFrame, meses: list[str], coluna: str, escala: float = 1.0) -> list:
+def _serie(tab: pd.DataFrame, meses: list[str], coluna: str, escala: float = 1.0,
+           completo=lambda per: True) -> list:
+    """Série mensal. Mês sem dado do ambiente na ANP vira None (lacuna no gráfico), não zero."""
     s = tab.set_index("periodo")[coluna].reindex(meses).fillna(0.0) / escala
-    return [round(float(x), 4) for x in s]
+    return [round(float(x), 4) if completo(p) else None for p, x in zip(meses, s)]
 
 
 def agregar(base: pd.DataFrame) -> dict:
     ultimo = base["periodo"].max()
+    # Meses em que a ANP publicou dados de cada ambiente. Há trimestres de terra com
+    # um mês faltando no arquivo; esses meses aparecem como lacuna, nunca como zero.
+    presentes = set(zip(base["periodo"], base["ambiente"]))
+
+    def completo_para(ambientes):
+        return lambda per: all((per, a) in presentes for a in ambientes)
     ant, ano_ant = mes_anterior(ultimo, 1), mes_anterior(ultimo, 12)
     todos_meses = sorted(base["periodo"].unique())
     m24 = [p for p in todos_meses if p > mes_anterior(ultimo, 24)]
@@ -77,9 +85,9 @@ def agregar(base: pd.DataFrame) -> dict:
     brasil = {
         "serie": {
             "periodo": m24,
-            "petroleo": _serie(br, m24, "petroleo", 1000),   # mil bbl/d
-            "gas": _serie(br, m24, "gas", 1000),             # milhões m³/d
-            "agua": _serie(br, m24, "agua", 1000),
+            "petroleo": _serie(br, m24, "petroleo", 1000, completo_para({"terra", "mar"})),   # mil bbl/d
+            "gas": _serie(br, m24, "gas", 1000, completo_para({"terra", "mar"})),             # milhões m³/d
+            "agua": _serie(br, m24, "agua", 1000, completo_para({"terra", "mar"})),
         },
         "petroleo": br_val("petroleo", ultimo) / 1000,
         "gas": br_val("gas", ultimo) / 1000,
@@ -131,8 +139,10 @@ def agregar(base: pd.DataFrame) -> dict:
         pet_aa, agua_aa, np_aa = (v(cam_aa, campo, k) for k in ("petroleo", "agua", "pocos"))
         meta = meta_u.loc[campo]
         serie = cam[cam["campo"] == campo].set_index("periodo").reindex(m36).fillna(0.0)
-        bsw_serie = [round(_bsw(a, p), 3) if (a + p) > 0 else None
-                     for a, p in zip(serie["agua"], serie["petroleo"])]
+        tem_dado = [(p, amb_campo[campo]) in presentes for p in m36]
+        bsw_serie = [round(_bsw(a, p), 3) if ok and (a + p) > 0 else None
+                     for a, p, ok in zip(serie["agua"], serie["petroleo"], tem_dado)]
+        pet_serie = [round(float(x), 2) if ok else None for x, ok in zip(serie["petroleo"], tem_dado)]
         top = pocos_u[pocos_u["campo"] == campo].sort_values("petroleo_bbl_d", ascending=False).head(8)
         top_pocos = []
         for _, r in top.iterrows():
@@ -160,8 +170,7 @@ def agregar(base: pd.DataFrame) -> dict:
             "varmes": variacao(pet, v(cam_ant, campo, "petroleo")),
             "delta_mes": pet - (v(cam_ant, campo, "petroleo") or 0.0),
             "anterior_mes": v(cam_ant, campo, "petroleo"),
-            "serie": {"periodo": m36, "petroleo": [round(float(x), 2) for x in serie["petroleo"]],
-                      "bsw": bsw_serie},
+            "serie": {"periodo": m36, "petroleo": pet_serie, "bsw": bsw_serie},
             "top_pocos": top_pocos,
         })
     campos.sort(key=lambda c: c["petroleo"], reverse=True)
@@ -207,7 +216,11 @@ def agregar(base: pd.DataFrame) -> dict:
             "bsw_pp": (_bsw(r["agua"], pet) - _bsw(h(ano_ant, "agua"), h(ano_ant, "petroleo")))
             if h(ano_ant, "petroleo") and _bsw(r["agua"], pet) is not None else None,
             "varmes": variacao(pet, h(ant, "petroleo")),
-            "serie": {"periodo": m60, "petroleo": _serie(op[op["operador"] == nome], m60, "petroleo", 1000)},
+            # lacuna só quando falta um ambiente que pesa mais de 2% na produção da operadora
+            "serie": {"periodo": m60, "petroleo": _serie(
+                op[op["operador"] == nome], m60, "petroleo", 1000,
+                completo_para({a for a, peso in (("terra", pet_terra), ("mar", pet - pet_terra))
+                               if pet and peso / pet > 0.02}))},
             "campos": meus, "n_campos": len(meus),
             "bacias": sorted(({"nome": k, "pct": v_ / pet * 100 if pet else 0} for k, v_ in por_bacia.items()),
                              key=lambda x: -x["pct"]),
