@@ -71,7 +71,7 @@ jobs:
         env:
           SITE_URL: ${{ vars.SITE_URL }}
           SITE_CONTATO: ${{ vars.SITE_CONTATO }}
-          SITE_PREVIA: ${{ vars.SITE_PREVIA || '1' }}   # faixa "em validação" até os números serem conferidos
+          SITE_PREVIA: ${{ vars.SITE_PREVIA || '0' }}   # '1' volta a faixa "em validação" e o noindex
         run: python -m gerador.gerar --links-limpos
 
       - uses: actions/upload-pages-artifact@v3
