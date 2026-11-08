@@ -1,0 +1,56 @@
+"""Consulta para conferir números contra relatórios das empresas.
+
+Lista, campo a campo, a produção dos últimos meses de um grupo econômico,
+como a ANP publica (100% do campo, gás produzido total).
+
+Uso:
+    python -m robo.consultar PRIO
+    python -m robo.consultar "Brava Energia" --meses 6
+"""
+import argparse
+
+from . import config, grupos
+from .ler import consolidar
+from .util import sem_acento
+
+
+def _k(t):
+    return sem_acento(str(t)).casefold()
+
+
+def consultar(grupo: str, meses: int = 3) -> str:
+    base, _ = consolidar(config.BRUTOS, config.MANUAIS / "operador_por_campo.csv", config.ANO_INICIAL)
+    regras = grupos.carregar()
+    base = base.assign(grupo=base["operador"].map(lambda o: grupos.grupo_de(o, regras)))
+    sel = base[base["grupo"].map(_k).str.contains(_k(grupo), regex=False)]
+    if sel.empty:
+        return f"Nenhuma empresa com '{grupo}' no nome."
+    ultimos = sorted(sel["periodo"].unique())[-meses:]
+    sel = sel[sel["periodo"].isin(ultimos)]
+    t = (sel.groupby(["campo", "operador", "periodo"])
+         .agg(petroleo=("petroleo_bbl_d", "sum"), gas=("gas_mil_m3_d", "sum"), pocos=("poco", "nunique"))
+         .reset_index())
+    t["boe"] = t["petroleo"] + t["gas"] * config.M3_PARA_BBL
+    linhas = [f"## {grupo}: produção por campo (100% do campo, como a ANP publica)", "",
+              "| Campo | Empresa na ANP | Mês | Petróleo (bbl/d) | Gás (mil m³/d) | Gás (boe/d) | Total (boe/d) | Poços |",
+              "|---|---|---|---:|---:|---:|---:|---:|"]
+    for _, r in t.sort_values(["campo", "periodo"]).iterrows():
+        linhas.append(f"| {r['campo']} | {r['operador']} | {r['periodo']} | {r['petroleo']:,.0f} | {r['gas']:,.1f} | "
+                      f"{r['gas'] * config.M3_PARA_BBL:,.0f} | {r['boe']:,.0f} | {r['pocos']} |")
+    tot = t.groupby("periodo")[["petroleo", "gas", "boe"]].sum()
+    linhas += ["", "| Mês | Petróleo (bbl/d) | Gás (mil m³/d) | Total (boe/d) |", "|---|---:|---:|---:|"]
+    for per, r in tot.iterrows():
+        linhas.append(f"| {per} | {r['petroleo']:,.0f} | {r['gas']:,.1f} | {r['boe']:,.0f} |")
+    return "\n".join(linhas) + "\n"
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser()
+    p.add_argument("grupo")
+    p.add_argument("--meses", type=int, default=3)
+    a = p.parse_args(argv)
+    print(consultar(a.grupo, a.meses))
+
+
+if __name__ == "__main__":
+    main()
