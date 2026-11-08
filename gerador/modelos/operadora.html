@@ -16,6 +16,10 @@
 <p class="olho">Em resumo</p>
 <p>{{ o.resumo }}</p>
 </div>
+<div class="explica">
+<p class="explica-titulo">Este número pode não bater com o que a {{ o.nome }} divulga</p>
+<p>Aqui está a <strong>produção operada</strong>: 100% dos campos em que a {{ o.nome }} é operadora, como a ANP publica, incluindo a parte dos sócios e todo o gás produzido, também o reinjetado e o consumido nas plataformas. Nos relatórios a investidores, as empresas mostram a <strong>produção própria</strong>: só a fatia que detêm em cada campo e, em geral, só o gás vendido. Por isso o número da empresa costuma ser menor. Os dois estão certos; medem coisas diferentes. <a href="{{ u('sobre/') }}#operada">Veja um exemplo conferido</a></p>
+</div>
 </section>
 
 <section class="miolo secao">
@@ -23,7 +27,7 @@
 <h2>{{ titulo_tendencia('Produção', o.var12) }}</h2>
 <p class="legenda">Petróleo e gás operados, em mil boe por dia · últimos {{ o.serie.periodo|length }} meses</p>
 {{ linha(o.serie.boe, o.serie.periodo, 'Produção operada pela ' ~ o.nome ~ ', em mil boe por dia') }}
-<p class="nota">Produção operada: 100% dos campos em que a empresa é operadora, segundo a ANP. Não é a parcela de cada sócio.</p>
+<p class="nota">Produção operada: 100% dos campos em que a empresa é operadora, segundo a ANP, incluindo a parte dos sócios.</p>
 </div>
 </section>
 

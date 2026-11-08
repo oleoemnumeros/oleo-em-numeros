@@ -62,16 +62,16 @@ def resumo_campo(c, ag):
 
 
 def resumo_operadora(o, ag):
-    partes = [f"Em {mes_extenso(ag['ultimo'])}, a {o['nome']} produziu {fmt_inteligente(o['boe'])} mil barris "
-              f"de óleo equivalente por dia (boe/d)"]
+    partes = [f"Em {mes_extenso(ag['ultimo'])}, os campos operados pela {o['nome']} produziram "
+              f"{fmt_inteligente(o['boe'])} mil barris de óleo equivalente por dia (boe/d, com a parte dos sócios)"]
     mm = _mais_menos(o["var12"])
     partes[0] += f", {mm} que um ano antes." if mm else "."
     partes.append(f"Foram {fmt_inteligente(o['petroleo'])} mil barris de petróleo e {fmt_inteligente(o['gas'])} "
                   f"milhões de m³ de gás natural por dia.")
     ordem = "a maior" if o["rank"] == 1 else f"a {o['rank']}ª maior"
-    partes.append(f"É {ordem} operadora do país e responde por {fmt(o['share'], 1)}% da produção nacional.")
+    partes.append(f"É {ordem} operadora do país: opera {fmt(o['share'], 1)}% da produção nacional.")
     if o["terra_pct"] >= 50 and o["share_terra"] >= 1:
-        partes.append(f"Responde por {fmt(o['share_terra'], 0)}% de tudo o que é produzido em terra no Brasil.")
+        partes.append(f"Opera {fmt(o['share_terra'], 0)}% de tudo o que é produzido em terra no Brasil.")
     if o["campos"] and o["boe"]:
         top = o["campos"][0]
         pct = top["boe"] / (o["boe"] * 1000) * 100
@@ -178,7 +178,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         escrever(f"operadoras/{o['slug']}/", "operadora.html", secao="operadoras", o=o,
                  titulo=f"{o['nome']}: produção de petróleo e gás",
                  descricao=f"Produção mensal de petróleo e gás da {o['nome']}, campo a campo. "
-                           f"{fmt_inteligente(o['boe'])} mil boe/d em {mes}. Dados da ANP.")
+                           f"{fmt_inteligente(o['boe'])} mil boe/d operados em {mes}. Dados da ANP.")
 
     escrever("campos/", "listas.html", secao="campos", tipo="campos", itens=ag["campos"],
              titulo="Campos de petróleo e gás do Brasil", h1="Campos produtores",

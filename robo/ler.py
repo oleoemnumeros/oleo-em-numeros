@@ -278,7 +278,10 @@ def _chave_poco(nome) -> str:
 def _operador_por_poco(base: pd.DataFrame) -> dict:
     """Operador de cada poço que produzia no último mês com operador informado do seu campo.
 
-    Resolve campos divididos entre empresas (Gomo: parte 3R Bahia, parte PetroRecôncavo).
+    Usado só nos campos marcados como 'por poço' na planilha manual, que são divididos
+    de fato entre empresas (Gomo: parte 3R Bahia, parte PetroRecôncavo). Nos demais,
+    a ANP às vezes registra um poço com a empresa do campo vizinho, e o campo inteiro
+    fica com a operadora principal.
     Poço que só aparece antes disso fica com o operador do campo: um poço antigo
     reativado depois de uma venda pertence a quem comprou o campo, não a quem o fechou.
     """
@@ -326,22 +329,27 @@ def consolidar(pasta: Path = config.BRUTOS, manual: Path = config.MANUAIS / "ope
     mapa = _operador_por_campo(base)
     mapa_poco = _operador_por_poco(base)
     fixos = {}   # planilha manual: vale para o campo inteiro e tem prioridade
+    divididos = set()   # campos marcados 'por poço' na planilha manual
     if manual.exists():
-        m = pd.read_csv(manual, dtype=str).dropna()
+        m = pd.read_csv(manual, dtype=str, comment="#").dropna()
         conhecidos = sorted(set(base["operador"].dropna()) - {""})
         chave = lambda s: sem_acento(str(s)).casefold().strip()  # noqa: E731
         por_campo = {chave(c): c for c in base["campo"].dropna().unique()}
         for campo, op in zip(m["campo"].str.strip(), m["operador"].str.strip()):
             # 'Equinor' na planilha manual vira 'Equinor Brasil Energia' se for o único nome da ANP que começa assim
             iguais = [k for k in conhecidos if chave(k).startswith(chave(op))]
-            fixos[por_campo.get(chave(campo), campo)] = iguais[0] if len(iguais) == 1 else op
+            nome_campo = por_campo.get(chave(campo), campo)
+            if chave(op) == "por poco":
+                divididos.add(nome_campo)
+            else:
+                fixos[nome_campo] = iguais[0] if len(iguais) == 1 else op
     faltando = base["operador"].isna() | (base["operador"] == "")
     f = base.loc[faltando]
     origem, ops = [], []
     for campo, poco in zip(f["campo"], f["poco"]):
         if campo in fixos:
             origem.append("planilha manual"); ops.append(fixos[campo])
-        elif (campo, _chave_poco(poco)) in mapa_poco:
+        elif campo in divididos and (campo, _chave_poco(poco)) in mapa_poco:
             origem.append("poço"); ops.append(mapa_poco[(campo, _chave_poco(poco))])
         elif campo in mapa:
             origem.append("campo"); ops.append(mapa[campo])

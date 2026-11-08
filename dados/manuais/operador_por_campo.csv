@@ -1,3 +1,5 @@
+# operador = empresa do campo inteiro, ou 'por poço' para campo dividido entre empresas
+# (cada poço fica com a empresa que a ANP registrava para ele em 2023).
 campo,operador
 BACALHAU,Equinor
 BACALHAU NORTE,Equinor
@@ -7,3 +9,4 @@ AnC_Jubarte_Sudoeste,Petrobras
 AnC_Jubarte_Nordeste,Petrobras
 ALBACORA,Petrobras
 TAQUIPE,Petrobras
+GOMO,por poço

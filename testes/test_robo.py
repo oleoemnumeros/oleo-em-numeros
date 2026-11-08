@@ -228,3 +228,15 @@ def test_campo_dividido_entre_empresas_fica_dividido_por_poco():
     # poço que só aparece antes do último mês segue o operador do campo
     assert ("GOMO", "7go0001ba") not in por_poco
     assert _operador_por_campo(b) == {"GOMO": "3R Bahia"}
+
+
+def test_planilha_manual_aceita_comentario_e_campo_por_poco(pasta, tmp_path):
+    manual = tmp_path / "manual.csv"
+    manual.write_text("# comentário\ncampo,operador\nCAMPO EXEMPLO 3,por poço\nCAMPO EXEMPLO 4,Operadora Nova\n",
+                      encoding="utf-8")
+    b, _ = consolidar(pasta, manual=manual)
+    recentes = b[b["periodo"] >= "2024-01"]
+    assert set(recentes[recentes["campo"] == "CAMPO EXEMPLO 3"]["operador"]) == {"Operadora K"}
+    if (recentes["campo"] == "CAMPO EXEMPLO 4").any():
+        assert set(recentes[recentes["campo"] == "CAMPO EXEMPLO 4"]["operador"]) == {"Operadora Nova"}
+    assert not (b["operador"] == "por poço").any()

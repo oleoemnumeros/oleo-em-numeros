@@ -135,3 +135,9 @@ h2.bloco { margin: 48px 0 0; font-size: 26px; }
   .grafico.larga { display: none; }
   .grafico.cel { display: block; }
 }
+
+/* caixa de explicação (ex.: produção operada × produção própria) */
+.explica { margin-top: 12px; padding: 14px 18px; background: var(--ambar-claro); border-left: 4px solid var(--ambar); border-radius: 8px; color: var(--ambar-texto); }
+.explica p { margin: 0; font-size: 14px; line-height: 1.55; max-width: 900px; }
+.explica .explica-titulo { margin-bottom: 4px; font-weight: 600; font-size: 15px; }
+.explica a { color: var(--ambar-escuro); }
