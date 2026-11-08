@@ -95,6 +95,22 @@ def test_agregados_e_conferencia(base):
     assert ok, criticos
 
 
+def test_boe_soma_petroleo_e_gas_pela_regra_da_anp(base):
+    ag = agregar(base)
+    br = ag["brasil"]
+    # mil boe/d = mil bbl/d de petróleo + (milhões m³/d de gás × 6,289811)
+    assert br["boe"] == pytest.approx(br["petroleo"] + br["gas"] * 6.289811, rel=1e-9)
+    assert sum(o["boe"] for o in ag["operadores"]) == pytest.approx(br["boe"], rel=1e-9)
+    assert sum(c["boe"] for c in ag["campos"]) / 1000 == pytest.approx(br["boe"], rel=1e-9)
+    assert sum(o["share"] for o in ag["operadores"]) == pytest.approx(100)
+    # listas e rankings ordenados pela produção total, não só pelo petróleo
+    assert [c["boe"] for c in ag["campos"]] == sorted((c["boe"] for c in ag["campos"]), reverse=True)
+    assert [o["boe"] for o in ag["operadores"]] == sorted((o["boe"] for o in ag["operadores"]), reverse=True)
+    for c in ag["rankings"]["todos"]["altas"]:
+        assert c["delta_mes"] == pytest.approx(c["boe"] - c["anterior_mes"])
+    assert br["serie"]["boe"][-1] == pytest.approx(br["boe"], rel=1e-3)
+
+
 def test_conferencia_trava_queda_brusca(base):
     alterada = base.copy()
     ultimo = alterada["periodo"].max()

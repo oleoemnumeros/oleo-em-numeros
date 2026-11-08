@@ -43,9 +43,15 @@ def titulo_tendencia(nome, v):
 
 
 def resumo_campo(c, ag):
-    partes = [f"Em {mes_extenso(ag['ultimo'])}, o {c['nome']} produziu {fmt(c['petroleo'])} barris de petróleo por dia"]
+    partes = [f"Em {mes_extenso(ag['ultimo'])}, o {c['nome']} produziu {fmt(c['boe'])} barris de óleo equivalente "
+              f"por dia (boe/d)"]
     mm = _mais_menos(c["var12"])
     partes[0] += f", {mm} que um ano antes." if mm else "."
+    if c["petroleo"] and c["gas"]:
+        partes.append(f"Foram {fmt(c['petroleo'])} barris de petróleo e {fmt_inteligente(c['gas'])} mil m³ de gás "
+                      f"natural por dia; o gás responde por {fmt(c['gas_pct'], 0)}% do total.")
+    elif c["gas"]:
+        partes.append(f"É um campo de gás: {fmt_inteligente(c['gas'])} mil m³ por dia, sem petróleo no mês.")
     if c["agua"] and c["petroleo"]:
         partes.append(f"Para cada barril de petróleo saíram {fmt(c['agua'] / c['petroleo'], 1)} barris de água "
                       f"(BSW de {fmt(c['bsw'], 1)}%).")
@@ -56,17 +62,19 @@ def resumo_campo(c, ag):
 
 
 def resumo_operadora(o, ag):
-    partes = [f"Em {mes_extenso(ag['ultimo'])}, a {o['nome']} produziu {fmt_inteligente(o['petroleo'])} mil barris "
-              f"de petróleo por dia"]
+    partes = [f"Em {mes_extenso(ag['ultimo'])}, a {o['nome']} produziu {fmt_inteligente(o['boe'])} mil barris "
+              f"de óleo equivalente por dia (boe/d)"]
     mm = _mais_menos(o["var12"])
     partes[0] += f", {mm} que um ano antes." if mm else "."
+    partes.append(f"Foram {fmt_inteligente(o['petroleo'])} mil barris de petróleo e {fmt_inteligente(o['gas'])} "
+                  f"milhões de m³ de gás natural por dia.")
     ordem = "a maior" if o["rank"] == 1 else f"a {o['rank']}ª maior"
     partes.append(f"É {ordem} operadora do país e responde por {fmt(o['share'], 1)}% da produção nacional.")
     if o["terra_pct"] >= 50 and o["share_terra"] >= 1:
-        partes.append(f"Produz {fmt(o['share_terra'], 0)}% do petróleo extraído em terra no Brasil.")
-    if o["campos"] and o["petroleo"]:
+        partes.append(f"Responde por {fmt(o['share_terra'], 0)}% de tudo o que é produzido em terra no Brasil.")
+    if o["campos"] and o["boe"]:
         top = o["campos"][0]
-        pct = top["petroleo"] / (o["petroleo"] * 1000) * 100
+        pct = top["boe"] / (o["boe"] * 1000) * 100
         if len(o["campos"]) > 1:
             partes.append(f"O maior campo é o {top['nome']}, com {fmt(pct, 0)}% do total da empresa.")
     return " ".join(partes)
@@ -80,25 +88,25 @@ def destaques(ag, u):
         c = altas[0]
         lista.append({"tag": "Maior alta do mês", "link": u(f"campos/{c['slug']}/"),
                       "titulo": f"{c['nome']} cresce {fmt((c['varmes'] or 0) * 100, 0)}% sobre {nome_ant}",
-                      "texto": f"Bacia {c['bacia']} · {c['grupo']} · {fmt(c['petroleo'])} bbl/d em "
+                      "texto": f"Bacia {c['bacia']} · {c['grupo']} · {fmt(c['boe'])} boe/d em "
                                f"{mes_extenso(ag['ultimo'])}."})
     br = ag["brasil"]
     if br["varmes_terra"] is not None:
         alta_terra = ag["rankings"]["terra"]["altas"]
         verbo = "sobe" if br["varmes_terra"] > 0 else "cai"
-        texto = f"{fmt(br['petroleo_terra'], 1)} mil bbl/d em {mes_extenso(ag['ultimo'])}."
+        texto = f"{fmt(br['boe_terra'], 1)} mil boe/d em {mes_extenso(ag['ultimo'])}."
         if alta_terra:
             texto += f" Maior alta em terra: {alta_terra[0]['nome']}."
         lista.append({"tag": "Produção em terra", "link": u("rankings/terra/"),
-                      "titulo": f"Petróleo em terra {verbo} {fmt(abs(br['varmes_terra']) * 100, 1)}% no mês",
+                      "titulo": f"Produção em terra {verbo} {fmt(abs(br['varmes_terra']) * 100, 1)}% no mês",
                       "texto": texto})
-    candidatas = [o for o in ag["operadores"] if o["var12"] is not None and o["petroleo"] >= 1]
+    candidatas = [o for o in ag["operadores"] if o["var12"] is not None and o["boe"] >= 1]
     if candidatas:
         o = max(candidatas, key=lambda x: x["var12"])
         verbo = "cresce" if o["var12"] > 0 else "recua"
         lista.append({"tag": "Operadora em destaque", "link": u(f"operadoras/{o['slug']}/"),
                       "titulo": f"{o['nome']} {verbo} {fmt(abs(o['var12']) * 100, 1)}% em 12 meses",
-                      "texto": f"{fmt_inteligente(o['petroleo'])} mil bbl/d em {mes_extenso(ag['ultimo'])}, "
+                      "texto": f"{fmt_inteligente(o['boe'])} mil boe/d em {mes_extenso(ag['ultimo'])}, "
                                f"{o['rank']}ª maior do país."})
     return lista
 
@@ -170,7 +178,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         escrever(f"operadoras/{o['slug']}/", "operadora.html", secao="operadoras", o=o,
                  titulo=f"{o['nome']}: produção de petróleo e gás",
                  descricao=f"Produção mensal de petróleo e gás da {o['nome']}, campo a campo. "
-                           f"{fmt_inteligente(o['petroleo'])} mil bbl/d em {mes}. Dados da ANP.")
+                           f"{fmt_inteligente(o['boe'])} mil boe/d em {mes}. Dados da ANP.")
 
     escrever("campos/", "listas.html", secao="campos", tipo="campos", itens=ag["campos"],
              titulo="Campos de petróleo e gás do Brasil", h1="Campos produtores",

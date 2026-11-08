@@ -7,19 +7,34 @@
 <h1>Produção de petróleo e gás no Brasil</h1>
 <p class="sub">Dados oficiais da ANP, organizados e atualizados todo mês. O dado mais recente é de {{ mes_extenso(ag.ultimo) }}; a ANP publica a produção com cerca de dois meses de defasagem.</p>
 <div class="kpis">
-{{ kpi('Petróleo', fmt(br.petroleo), 'mil bbl/d', fmt_var(br.var12_petroleo) ~ ' em 12 meses', var_classe(br.var12_petroleo)) }}
+{{ kpi('Produção total', fmt(br.boe / 1000, 2), 'milhões boe/d', fmt_var(br.var12_boe) ~ ' em 12 meses', var_classe(br.var12_boe), principal=True) }}
+{{ kpi('Petróleo', fmt(br.petroleo / 1000, 2), 'milhões bbl/d', fmt_var(br.var12_petroleo) ~ ' em 12 meses', var_classe(br.var12_petroleo)) }}
 {{ kpi('Gás natural', fmt(br.gas, 1), 'milhões m³/d', fmt_var(br.var12_gas) ~ ' em 12 meses', var_classe(br.var12_gas)) }}
 {{ kpi('Poços produtores', fmt(br.pocos), 'poços', fmt_var(br.var12_pocos) ~ ' em 12 meses', var_classe(br.var12_pocos)) }}
-{{ kpi('Produção em terra', fmt(br.terra_pct, 1) ~ '%', 'do petróleo', fmt_pp(br.var12_terra_pp) ~ ' em 12 meses', var_classe(br.var12_terra_pp)) }}
+{{ kpi('Produção em terra', fmt(br.terra_pct, 1) ~ '%', 'do total', fmt_pp(br.var12_terra_pp) ~ ' em 12 meses', var_classe(br.var12_terra_pp)) }}
 </div>
+<p class="nota">boe = barril de óleo equivalente: petróleo mais gás natural convertido pela regra da ANP (1.000 m³ de gás = 6,29 boe). <a href="{{ u('sobre/') }}#calculo">Como calculamos</a></p>
 </section>
 
 <section class="miolo secao">
 <div class="cartao">
+<h2>{{ titulo_tendencia('Produção total', br.var12_boe) }}</h2>
+<p class="legenda">Petróleo e gás natural, em mil boe por dia · últimos {{ br.serie.periodo|length }} meses</p>
+{{ linha(br.serie.boe, br.serie.periodo, 'Produção total de petróleo e gás do Brasil, em mil boe por dia') }}
+<p class="nota">Fonte: ANP, produção por poço. boe = petróleo (óleo + condensado) + gás natural convertido.</p>
+</div>
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
 <h2>{{ titulo_tendencia('Petróleo', br.var12_petroleo) }}</h2>
-<p class="legenda">Produção mensal, em mil barris por dia · últimos {{ br.serie.periodo|length }} meses</p>
-{{ linha(br.serie.petroleo, br.serie.periodo, 'Produção de petróleo do Brasil, em mil barris por dia') }}
-<p class="nota">Fonte: ANP, produção por poço. Petróleo = óleo + condensado.</p>
+<p class="legenda">mil barris por dia · últimos {{ br.serie.periodo|length }} meses</p>
+{{ linha(br.serie.petroleo, br.serie.periodo, 'Produção de petróleo do Brasil, em mil barris por dia', largura=600) }}
+</div>
+<div class="cartao">
+<h2>{{ titulo_tendencia('Gás natural', br.var12_gas) }}</h2>
+<p class="legenda">milhões de m³ por dia · últimos {{ br.serie.periodo|length }} meses</p>
+{{ linha(br.serie.gas, br.serie.periodo, 'Produção de gás natural do Brasil, em milhões de m³ por dia', cor='#2F5D8A', largura=600) }}
 </div>
 </section>
 
@@ -28,18 +43,18 @@
 <div class="linha-titulo"><h2>Maiores operadoras</h2><a href="{{ u('rankings/') }}">Ver ranking completo</a></div>
 <div class="tabela">
 <table>
-<thead><tr><th>#</th><th>Operadora</th><th class="n">Petróleo (mil bbl/d)</th><th class="n">Participação</th><th class="n">12 meses</th></tr></thead>
+<thead><tr><th>#</th><th>Operadora</th><th class="n">Total (mil boe/d)</th><th class="n">Petróleo (mil bbl/d)</th><th class="n">Participação</th><th class="n">12 meses</th></tr></thead>
 <tbody>
 {% for o in ag.operadores[:8] %}
-<tr><td>{{ o.rank }}</td><td><a href="{{ u('operadoras/' ~ o.slug ~ '/') }}">{{ o.nome }}</a></td><td class="n">{{ fmt_inteligente(o.petroleo) }}</td><td class="n">{{ fmt(o.share, 1) }}%</td><td class="n {{ var_classe(o.var12) }}">{{ fmt_var(o.var12) }}</td></tr>
+<tr><td>{{ o.rank }}</td><td><a href="{{ u('operadoras/' ~ o.slug ~ '/') }}">{{ o.nome }}</a></td><td class="n"><strong>{{ fmt_inteligente(o.boe) }}</strong></td><td class="n">{{ fmt_inteligente(o.petroleo) }}</td><td class="n">{{ fmt(o.share, 1) }}%</td><td class="n {{ var_classe(o.var12) }}">{{ fmt_var(o.var12) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>
 </div>
 </div>
 <div class="cartao">
-<div class="linha-titulo"><h2>Petróleo por bacia</h2><span class="legenda">mil bbl/d · {{ mes_extenso(ag.ultimo) }}</span></div>
-{{ barras(ag.bacias[:8], ag.bacias[0].petroleo, 'petroleo', 1) }}
+<div class="linha-titulo"><h2>Produção por bacia</h2><span class="legenda">mil boe/d · {{ mes_extenso(ag.ultimo) }}</span></div>
+{{ barras(ag.bacias[:8], ag.bacias[0].boe, 'boe', 1) }}
 <p class="nota">Bacias só em terra: {{ ag.bacias|selectattr('terra')|map(attribute='nome')|join(', ') or 'nenhuma' }}. <a href="{{ u('rankings/terra/') }}">Ranking dos campos em terra</a></p>
 </div>
 </section>

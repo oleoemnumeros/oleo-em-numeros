@@ -40,13 +40,15 @@ def conferir(base, ag) -> tuple[bool, list[str], list[str]]:
     if negativos:
         criticos.append(f"{negativos} linhas com volume negativo.")
 
-    sem_op = base[(base["periodo"] == ultimo) & (base["operador"] == "Não identificado")]
+    u = base[base["periodo"] == ultimo]
+    u = u.assign(boe=u["petroleo_bbl_d"] + u["gas_mil_m3_d"] * config.M3_PARA_BBL)
+    sem_op = u[u["operador"] == "Não identificado"]
     if len(sem_op):
-        pct = sem_op["petroleo_bbl_d"].sum() / max(base[base["periodo"] == ultimo]["petroleo_bbl_d"].sum(), 1)
-        por_campo = (sem_op.groupby(["campo", "bacia", "estado"])["petroleo_bbl_d"].sum()
+        pct = sem_op["boe"].sum() / max(u["boe"].sum(), 1)
+        por_campo = (sem_op.groupby(["campo", "bacia", "estado"])["boe"].sum()
                      .sort_values(ascending=False))
-        lista = "; ".join(f"{c} ({b}, {uf}): {fmt(v)} bbl/d" for (c, b, uf), v in por_campo.items())
-        msg = (f"{len(por_campo)} campos sem operador identificado ({fmt(pct * 100, 1)}% do petróleo). "
+        lista = "; ".join(f"{c} ({b}, {uf}): {fmt(v)} boe/d" for (c, b, uf), v in por_campo.items())
+        msg = (f"{len(por_campo)} campos sem operador identificado ({fmt(pct * 100, 1)}% da produção em boe). "
                f"Preencha dados/manuais/operador_por_campo.csv: {lista}")
         (criticos if pct > 0.05 else avisos).append(msg)
 
@@ -76,6 +78,8 @@ def relatorio(ag, criticos, avisos) -> str:
     linhas = [
         f"# Conferência: {mes_extenso(ag['ultimo'])}",
         "",
+        f"- Produção total Brasil: {fmt(br['boe'])} mil boe/d ({fmt_var(br['varmes_boe'])} no mês, "
+        f"{fmt_var(br['var12_boe'])} em 12 meses)",
         f"- Petróleo Brasil: {fmt(br['petroleo'])} mil bbl/d ({fmt_var(br['varmes_petroleo'])} no mês, "
         f"{fmt_var(br['var12_petroleo'])} em 12 meses)",
         f"- Gás natural: {fmt(br['gas'], 1)} milhões m³/d",
@@ -88,7 +92,7 @@ def relatorio(ag, criticos, avisos) -> str:
         linhas += ["", "### Problemas críticos"] + [f"- {c}" for c in criticos]
     if avisos:
         linhas += ["", "### Avisos"] + [f"- {a}" for a in avisos]
-    linhas += ["", "### Operadoras (mil bbl/d)",
-               "; ".join(f"{o['nome']} {fmt(o['petroleo'], 1)}" for o in ag["operadores"])]
+    linhas += ["", "### Operadoras (mil boe/d · petróleo mil bbl/d)",
+               "; ".join(f"{o['nome']} {fmt(o['boe'], 1)} · {fmt(o['petroleo'], 1)}" for o in ag["operadores"])]
     linhas += ["", "Antes de divulgar, confira 3 números contra o Painel Dinâmico da ANP."]
     return "\n".join(linhas) + "\n"

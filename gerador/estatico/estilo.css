@@ -60,6 +60,8 @@ h1 { margin: 0; font-size: clamp(32px, 4vw, 44px); line-height: 1.1; letter-spac
 .kpi .uni { font-size: 14px; color: var(--cinza); }
 .kpi .var { font-size: 13px; font-weight: 600; color: var(--cinza); }
 .kpis-6 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.kpi.principal { border-color: var(--ambar); box-shadow: inset 4px 0 0 var(--ambar); }
+.kpi.principal .num { color: var(--ambar-texto); }
 .sobe, .kpi .var.sobe { color: var(--sobe); }
 .cai, .kpi .var.cai { color: var(--cai); }
 .resumo { margin-top: 16px; }
@@ -122,6 +124,8 @@ h2.bloco { margin: 48px 0 0; font-size: 26px; }
   .miolo { padding: 0 16px; }
   .cartao { padding: 18px; }
   .kpis, .kpis-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
+  /* com número ímpar de caixas, a principal ocupa a linha inteira */
+  .kpi.principal:first-child:nth-last-child(odd) { grid-column: 1 / -1; }
   .kpi { padding: 14px; }
   .kpi .num { font-size: 24px; }
   .kpi .uni, .kpi .var { font-size: 12px; }

@@ -1,5 +1,5 @@
-{% macro kpi(rotulo, numero, unidade, variacao=None, classe='') -%}
-<div class="kpi">
+{% macro kpi(rotulo, numero, unidade, variacao=None, classe='', principal=False) -%}
+<div class="kpi{{ ' principal' if principal }}">
 <div class="rot">{{ rotulo }}</div>
 <div class="val"><span class="num">{{ numero }}</span><span class="uni">{{ unidade }}</span></div>
 {% if variacao and not variacao.startswith('—') %}<div class="var {{ classe }}">{{ variacao }}</div>{% endif %}
@@ -7,7 +7,7 @@
 {%- endmacro %}
 
 {% macro var_classe(v, inverter=False) -%}
-{%- if v is none -%}{%- elif (v > 0) != inverter and v != 0 -%}sobe{%- elif v != 0 -%}cai{%- endif -%}
+{%- if v is none or (v|abs) < 0.0005 -%}{%- elif (v > 0) != inverter and v != 0 -%}sobe{%- elif v != 0 -%}cai{%- endif -%}
 {%- endmacro %}
 
 {% macro barras(itens, maximo, campo_valor, casas=0) -%}

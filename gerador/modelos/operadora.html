@@ -6,7 +6,8 @@
 <h1>{{ o.nome }}</h1>
 <p class="sub">Opera {{ o.n_campos }} {{ 'campo' if o.n_campos == 1 else 'campos' }} em {{ o.bacias|length }} {{ 'bacia' if o.bacias|length == 1 else 'bacias' }} · dado mais recente: {{ mes_extenso(ag.ultimo) }}</p>
 <div class="kpis">
-{{ kpi('Petróleo operado', fmt_inteligente(o.petroleo), 'mil bbl/d', fmt_var(o.var12) ~ ' em 12 meses', var_classe(o.var12)) }}
+{{ kpi('Produção operada', fmt_inteligente(o.boe), 'mil boe/d', fmt_var(o.var12) ~ ' em 12 meses', var_classe(o.var12), principal=True) }}
+{{ kpi('Petróleo', fmt_inteligente(o.petroleo), 'mil bbl/d', fmt_var(o.var12_petroleo) ~ ' em 12 meses', var_classe(o.var12_petroleo)) }}
 {{ kpi('Gás natural', fmt_inteligente(o.gas), 'milhões m³/d', fmt_var(o.var12_gas) ~ ' em 12 meses', var_classe(o.var12_gas)) }}
 {{ kpi('Poços ativos', fmt(o.pocos), 'poços', fmt_var(o.var12_pocos) ~ ' em 12 meses', var_classe(o.var12_pocos)) }}
 {{ kpi('Água no líquido', fmt(o.bsw, 0) ~ '%', 'BSW médio', fmt_pp(o.bsw_pp) ~ ' em 12 meses') }}
@@ -20,8 +21,8 @@
 <section class="miolo secao">
 <div class="cartao">
 <h2>{{ titulo_tendencia('Produção', o.var12) }}</h2>
-<p class="legenda">Petróleo operado, em mil barris por dia · últimos {{ o.serie.periodo|length }} meses</p>
-{{ linha(o.serie.petroleo, o.serie.periodo, 'Petróleo operado pela ' ~ o.nome ~ ', em mil barris por dia') }}
+<p class="legenda">Petróleo e gás operados, em mil boe por dia · últimos {{ o.serie.periodo|length }} meses</p>
+{{ linha(o.serie.boe, o.serie.periodo, 'Produção operada pela ' ~ o.nome ~ ', em mil boe por dia') }}
 <p class="nota">Produção operada: 100% dos campos em que a empresa é operadora, segundo a ANP. Não é a parcela de cada sócio.</p>
 </div>
 </section>
@@ -31,10 +32,10 @@
 <h2>Campos operados</h2>
 <div class="tabela">
 <table>
-<thead><tr><th>Campo</th><th>Bacia</th><th>Ambiente</th><th class="n">Petróleo (bbl/d)</th><th class="n">12 meses</th><th class="n">Poços ativos</th></tr></thead>
+<thead><tr><th>Campo</th><th>Bacia</th><th>Ambiente</th><th class="n">Total (boe/d)</th><th class="n">Petróleo (bbl/d)</th><th class="n">12 meses</th><th class="n">Poços ativos</th></tr></thead>
 <tbody>
 {% for c in o.campos %}
-<tr><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.bacia }}</td><td>{{ 'Terra' if c.ambiente == 'terra' else 'Mar' }}</td><td class="n">{{ fmt(c.petroleo) }}</td><td class="n {{ var_classe(c.var12) }}">{{ fmt_var(c.var12) }}</td><td class="n">{{ fmt(c.pocos) }}</td></tr>
+<tr><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.bacia }}</td><td>{{ 'Terra' if c.ambiente == 'terra' else 'Mar' }}</td><td class="n"><strong>{{ fmt(c.boe) }}</strong></td><td class="n">{{ fmt(c.petroleo) }}</td><td class="n {{ var_classe(c.var12) }}">{{ fmt_var(c.var12) }}</td><td class="n">{{ fmt(c.pocos) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>
@@ -42,7 +43,7 @@
 </div>
 <div class="cartao aside">
 <h2>Por bacia</h2>
-<p class="legenda">Participação no petróleo da operadora, em %</p>
+<p class="legenda">Participação na produção da operadora (boe), em %</p>
 {{ barras(o.bacias, 100, 'pct', 0) }}
 <div class="tabela">
 <table>
@@ -56,12 +57,12 @@
 </div>
 {% if o.entidades|length > 1 or (o.entidades and o.entidades[0].nome != o.nome) %}
 <h2 style="margin-top: 24px; font-size: 18px">Empresas do grupo na ANP</h2>
-<p class="legenda">Petróleo operado, mil bbl/d</p>
+<p class="legenda">Produção operada, mil boe/d</p>
 <div class="tabela">
 <table>
 <tbody>
 {% for e in o.entidades %}
-<tr><td>{{ e.nome }}</td><td class="n">{{ fmt_inteligente(e.petroleo) }}</td></tr>
+<tr><td>{{ e.nome }}</td><td class="n">{{ fmt_inteligente(e.boe) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>

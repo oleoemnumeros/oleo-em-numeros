@@ -12,12 +12,12 @@
 </div>
 {% if c.operador != c.grupo %}<p class="nota">Operadora registrada na ANP: {{ c.operador }}, do grupo {{ c.grupo }}.</p>{% endif %}
 <div class="kpis kpis-6">
-{{ kpi('Petróleo', fmt(c.petroleo), 'bbl/d', fmt_var(c.var12) ~ ' em 12 meses', var_classe(c.var12)) }}
+{{ kpi('Produção total', fmt(c.boe), 'boe/d', fmt_var(c.var12) ~ ' em 12 meses', var_classe(c.var12), principal=True) }}
+{{ kpi('Petróleo', fmt(c.petroleo), 'bbl/d', fmt_var(c.var12_petroleo) ~ ' em 12 meses', var_classe(c.var12_petroleo)) }}
 {{ kpi('Gás natural', fmt_inteligente(c.gas), 'mil m³/d', fmt_var(c.var12_gas) ~ ' em 12 meses', var_classe(c.var12_gas)) }}
-{{ kpi('Água produzida', fmt(c.agua), 'bbl/d', fmt_var(c.var12_agua) ~ ' em 12 meses') }}
 {{ kpi('BSW', fmt(c.bsw, 1) ~ '%', 'água no líquido', fmt_pp(c.bsw_pp) ~ ' em 12 meses') }}
 {{ kpi('Poços ativos', fmt(c.pocos), 'poços', fmt_var(c.var12_pocos) ~ ' em 12 meses', var_classe(c.var12_pocos)) }}
-{{ kpi('Média por poço', fmt_inteligente(c.por_poco), 'bbl/d', fmt_var(c.var12_porpoco) ~ ' em 12 meses', var_classe(c.var12_porpoco)) }}
+{{ kpi('Média por poço', fmt_inteligente(c.por_poco), 'boe/d', fmt_var(c.var12_porpoco) ~ ' em 12 meses', var_classe(c.var12_porpoco)) }}
 </div>
 <div class="cartao resumo">
 <p class="olho">Em resumo</p>
@@ -27,9 +27,9 @@
 
 <section class="miolo secao grade-2">
 <div class="cartao">
-<h2>{{ titulo_tendencia('Petróleo', c.var12) }}</h2>
-<p class="legenda">bbl/d · últimos {{ c.serie.periodo|length }} meses</p>
-{{ linha(c.serie.petroleo, c.serie.periodo, 'Petróleo do ' ~ c.nome ~ ', em barris por dia', largura=600) }}
+<h2>{{ titulo_tendencia('Produção total', c.var12) }}</h2>
+<p class="legenda">Petróleo e gás, em boe/d · últimos {{ c.serie.periodo|length }} meses</p>
+{{ linha(c.serie.boe, c.serie.periodo, 'Produção total do ' ~ c.nome ~ ', em boe por dia', largura=600) }}
 </div>
 <div class="cartao">
 <h2>Água no líquido (BSW)</h2>
@@ -43,10 +43,10 @@
 <div class="linha-titulo"><h2>Poços com maior produção</h2><span class="legenda">{{ mes_extenso(ag.ultimo) }} · {{ c.top_pocos|length }} de {{ c.pocos }} poços ativos</span></div>
 <div class="tabela">
 <table>
-<thead><tr><th>Poço</th><th class="n">Petróleo (bbl/d)</th><th class="n">Água (bbl/d)</th><th class="n">BSW</th>{% if c.top_pocos and c.top_pocos[0].horas is not none %}<th class="n">Horas no mês</th>{% endif %}<th class="n">vs. mês anterior</th></tr></thead>
+<thead><tr><th>Poço</th><th class="n">Total (boe/d)</th><th class="n">Petróleo (bbl/d)</th><th class="n">Gás (mil m³/d)</th><th class="n">BSW</th>{% if c.top_pocos and c.top_pocos[0].horas is not none %}<th class="n">Horas no mês</th>{% endif %}<th class="n">vs. mês anterior</th></tr></thead>
 <tbody>
 {% for p in c.top_pocos %}
-<tr><td>{{ p.poco }}</td><td class="n">{{ fmt_inteligente(p.petroleo) }}</td><td class="n">{{ fmt(p.agua) }}</td><td class="n">{{ fmt(p.bsw, 1) }}%</td>{% if c.top_pocos[0].horas is not none %}<td class="n">{{ fmt(p.horas) }}</td>{% endif %}<td class="n {{ var_classe(p.varmes) }}">{{ 'novo' if p.novo else fmt_var(p.varmes) }}</td></tr>
+<tr><td>{{ p.poco }}</td><td class="n"><strong>{{ fmt_inteligente(p.boe) }}</strong></td><td class="n">{{ fmt_inteligente(p.petroleo) }}</td><td class="n">{{ fmt_inteligente(p.gas) }}</td><td class="n">{{ fmt(p.bsw, 1) }}%</td>{% if c.top_pocos[0].horas is not none %}<td class="n">{{ fmt(p.horas) }}</td>{% endif %}<td class="n {{ var_classe(p.varmes) }}">{{ 'novo' if p.novo else fmt_var(p.varmes) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>
@@ -57,15 +57,15 @@
 <p class="legenda">Bacia {{ c.bacia }} · {{ mes_extenso(ag.ultimo) }}</p>
 <div class="tabela">
 <table>
-<thead><tr><th>Campo</th><th class="n">bbl/d</th><th class="n">BSW</th><th class="n">Por poço</th></tr></thead>
+<thead><tr><th>Campo</th><th class="n">boe/d</th><th class="n">BSW</th><th class="n">Por poço</th></tr></thead>
 <tbody>
 {% for v in c.vizinhos %}
-<tr{% if v.eu %} class="eu"{% endif %}><td>{% if v.eu %}{{ v.nome }}{% else %}<a href="{{ u('campos/' ~ v.slug ~ '/') }}">{{ v.nome }}</a>{% endif %}</td><td class="n">{{ fmt(v.petroleo) }}</td><td class="n">{{ fmt(v.bsw, 1) }}%</td><td class="n">{{ fmt_inteligente(v.por_poco) }}</td></tr>
+<tr{% if v.eu %} class="eu"{% endif %}><td>{% if v.eu %}{{ v.nome }}{% else %}<a href="{{ u('campos/' ~ v.slug ~ '/') }}">{{ v.nome }}</a>{% endif %}</td><td class="n">{{ fmt(v.boe) }}</td><td class="n">{{ fmt(v.bsw, 1) }}%</td><td class="n">{{ fmt_inteligente(v.por_poco) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>
 </div>
-<p class="nota">Por poço = petróleo do campo ÷ poços ativos no mês.</p>
+<p class="nota">Por poço = produção total do campo (boe/d) ÷ poços ativos no mês.</p>
 </div>
 </section>
 {% endblock %}

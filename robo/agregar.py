@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from . import grupos
+from . import config, grupos
 from .util import mes_anterior, nome_bonito, slug, variacao
 
 UFS = {
@@ -33,6 +33,14 @@ def estado_info(valor: str) -> dict:
     return {"uf": v, "nome": nome_bonito(v), "de": f"de {nome_bonito(v)}"}
 
 
+# boe (barril de óleo equivalente), na convenção da ANP: 1.000 m³ de gás = 1 m³ de óleo = 6,2898 barris.
+BOE_POR_MIL_M3 = config.M3_PARA_BBL
+
+
+def _boe(petroleo_bbl_d, gas_mil_m3_d):
+    return petroleo_bbl_d + gas_mil_m3_d * BOE_POR_MIL_M3
+
+
 def _ativos(df: pd.DataFrame) -> pd.DataFrame:
     return df[(df["petroleo_bbl_d"] > 0) | (df["gas_mil_m3_d"] > 0)]
 
@@ -44,6 +52,7 @@ def _soma_mensal(df: pd.DataFrame, por: list[str] | None = None) -> pd.DataFrame
         gas=("gas_mil_m3_d", "sum"),
         agua=("agua_bbl_d", "sum"),
     )
+    g["boe"] = _boe(g["petroleo"], g["gas"])
     pocos = _ativos(df).groupby(chaves)["poco"].nunique().rename("pocos")
     return g.join(pocos).fillna({"pocos": 0}).reset_index()
 
@@ -83,8 +92,8 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
 
     # ---------- Brasil ----------
     br = _soma_mensal(base)
-    terra = _soma_mensal(base[base["ambiente"] == "terra"]).set_index("periodo")["petroleo"]
-    br["terra_pct"] = br["periodo"].map(terra).fillna(0) / br["petroleo"] * 100
+    terra = _soma_mensal(base[base["ambiente"] == "terra"]).set_index("periodo")["boe"]
+    br["terra_pct"] = br["periodo"].map(terra).fillna(0) / br["boe"] * 100   # participação em boe
     b = br.set_index("periodo")
 
     def br_val(col, per):
@@ -93,38 +102,42 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
     brasil = {
         "serie": {
             "periodo": m24,
+            "boe": _serie(br, m24, "boe", 1000, completo_para({"terra", "mar"})),             # mil boe/d
             "petroleo": _serie(br, m24, "petroleo", 1000, completo_para({"terra", "mar"})),   # mil bbl/d
             "gas": _serie(br, m24, "gas", 1000, completo_para({"terra", "mar"})),             # milhões m³/d
             "agua": _serie(br, m24, "agua", 1000, completo_para({"terra", "mar"})),
         },
-        "petroleo": br_val("petroleo", ultimo) / 1000,
-        "gas": br_val("gas", ultimo) / 1000,
+        "boe": br_val("boe", ultimo) / 1000,               # mil boe/d
+        "petroleo": br_val("petroleo", ultimo) / 1000,     # mil bbl/d
+        "gas": br_val("gas", ultimo) / 1000,               # milhões m³/d
         "pocos": int(br_val("pocos", ultimo)),
         "terra_pct": br_val("terra_pct", ultimo),
+        "var12_boe": variacao(br_val("boe", ultimo), br_val("boe", ano_ant)),
         "var12_petroleo": variacao(br_val("petroleo", ultimo), br_val("petroleo", ano_ant)),
         "var12_gas": variacao(br_val("gas", ultimo), br_val("gas", ano_ant)),
         "var12_pocos": variacao(br_val("pocos", ultimo), br_val("pocos", ano_ant)),
         "var12_terra_pp": (br_val("terra_pct", ultimo) - br_val("terra_pct", ano_ant))
         if br_val("terra_pct", ano_ant) is not None else None,
+        "varmes_boe": variacao(br_val("boe", ultimo), br_val("boe", ant)),
         "varmes_petroleo": variacao(br_val("petroleo", ultimo), br_val("petroleo", ant)),
-        "petroleo_terra": float(terra.get(ultimo, 0.0)) / 1000,
+        "boe_terra": float(terra.get(ultimo, 0.0)) / 1000,
         "varmes_terra": variacao(terra.get(ultimo), terra.get(ant)),
     }
-    total_pet = br_val("petroleo", ultimo) or 1.0
+    total_boe = br_val("boe", ultimo) or 1.0
 
     # ---------- Bacias ----------
     bac = _soma_mensal(base, ["bacia"])
-    bac_u = bac[bac["periodo"] == ultimo].sort_values("petroleo", ascending=False)
+    bac_u = bac[bac["periodo"] == ultimo].sort_values("boe", ascending=False)
     amb_bacia = base[base["periodo"] == ultimo].groupby("bacia")["ambiente"].agg(lambda s: set(s))
     bacias = []
     for _, r in bac_u.iterrows():
-        anterior = bac[(bac["bacia"] == r["bacia"]) & (bac["periodo"] == ano_ant)]["petroleo"]
+        anterior = bac[(bac["bacia"] == r["bacia"]) & (bac["periodo"] == ano_ant)]["boe"]
         bacias.append({
             "nome": nome_bonito(r["bacia"]),
             "slug": slug(r["bacia"]),
-            "petroleo": r["petroleo"] / 1000,
+            "boe": r["boe"] / 1000, "petroleo": r["petroleo"] / 1000,
             "terra": amb_bacia.get(r["bacia"], set()) == {"terra"},
-            "var12": variacao(r["petroleo"], anterior.iloc[0] if len(anterior) else None),
+            "var12": variacao(r["boe"], anterior.iloc[0] if len(anterior) else None),
         })
 
     # ---------- Campos ----------
@@ -141,26 +154,32 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
         return float(tab.at[campo, col]) if campo in tab.index else None
 
     campos = []
-    pocos_u = base[base["periodo"] == ultimo]
-    pocos_ant = base[base["periodo"] == ant].set_index(["campo", "poco"])["petroleo_bbl_d"]
+    pocos_u = base[base["periodo"] == ultimo].assign(
+        boe=lambda d: _boe(d["petroleo_bbl_d"], d["gas_mil_m3_d"]))
+    b_ant = base[base["periodo"] == ant]
+    pocos_ant = (b_ant.assign(boe=_boe(b_ant["petroleo_bbl_d"], b_ant["gas_mil_m3_d"]))
+                 .groupby(["campo", "poco"])["boe"].sum())
     for campo in cam_u.index:
-        pet, agua, gas, np_ = (v(cam_u, campo, k) for k in ("petroleo", "agua", "gas", "pocos"))
-        pet_aa, agua_aa, np_aa = (v(cam_aa, campo, k) for k in ("petroleo", "agua", "pocos"))
+        boe, pet, agua, gas, np_ = (v(cam_u, campo, k) for k in ("boe", "petroleo", "agua", "gas", "pocos"))
+        boe_aa, pet_aa, agua_aa, np_aa = (v(cam_aa, campo, k) for k in ("boe", "petroleo", "agua", "pocos"))
+        boe_ant = v(cam_ant, campo, "boe")
         meta = meta_u.loc[campo]
         serie = cam[cam["campo"] == campo].set_index("periodo").reindex(m36).fillna(0.0)
         tem_dado = [(p, amb_campo[campo]) in presentes for p in m36]
         bsw_serie = [round(_bsw(a, p), 3) if ok and (a + p) > 0 else None
                      for a, p, ok in zip(serie["agua"], serie["petroleo"], tem_dado)]
         pet_serie = [round(float(x), 2) if ok else None for x, ok in zip(serie["petroleo"], tem_dado)]
-        top = pocos_u[pocos_u["campo"] == campo].sort_values("petroleo_bbl_d", ascending=False).head(8)
+        boe_serie = [round(float(x), 2) if ok else None for x, ok in zip(serie["boe"], tem_dado)]
+        top = pocos_u[pocos_u["campo"] == campo].sort_values("boe", ascending=False).head(8)
         top_pocos = []
         for _, r in top.iterrows():
             anterior = pocos_ant.get((campo, r["poco"]))
             top_pocos.append({
-                "poco": r["poco"], "petroleo": r["petroleo_bbl_d"], "agua": r["agua_bbl_d"],
+                "poco": r["poco"], "boe": r["boe"], "petroleo": r["petroleo_bbl_d"],
+                "gas": r["gas_mil_m3_d"], "agua": r["agua_bbl_d"],
                 "bsw": _bsw(r["agua_bbl_d"], r["petroleo_bbl_d"]),
                 "horas": None if pd.isna(r["horas"]) else r["horas"],
-                "varmes": variacao(r["petroleo_bbl_d"], anterior) if anterior else None,
+                "varmes": variacao(r["boe"], anterior) if anterior else None,
                 "novo": bool(anterior is None or anterior == 0),
             })
         info = estado_info(meta["estado"])
@@ -170,20 +189,23 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
             "estado": info, "ambiente": amb_campo[campo],
             "operador": nome_bonito(meta["operador"]),            # empresa registrada na ANP
             "grupo": ng(meta["grupo"]), "operador_slug": slug(meta["grupo"]),
-            "petroleo": pet, "gas": gas, "agua": agua, "pocos": int(np_ or 0),
-            "bsw": _bsw(agua, pet), "por_poco": pet / np_ if np_ else None,
-            "var12": variacao(pet, pet_aa), "var12_gas": variacao(gas, v(cam_aa, campo, "gas")),
+            # boe/d é o número principal; petróleo (bbl/d) e gás (mil m³/d) vêm junto
+            "boe": boe, "petroleo": pet, "gas": gas, "agua": agua, "pocos": int(np_ or 0),
+            "gas_pct": (boe - pet) / boe * 100 if boe else None,
+            "bsw": _bsw(agua, pet), "por_poco": boe / np_ if np_ else None,
+            "var12": variacao(boe, boe_aa), "var12_petroleo": variacao(pet, pet_aa),
+            "var12_gas": variacao(gas, v(cam_aa, campo, "gas")),
             "var12_agua": variacao(agua, agua_aa), "var12_pocos": variacao(np_, np_aa),
-            "var12_porpoco": variacao(pet / np_ if np_ else None, pet_aa / np_aa if np_aa else None),
+            "var12_porpoco": variacao(boe / np_ if np_ else None, boe_aa / np_aa if np_aa else None),
             "bsw_pp": (_bsw(agua, pet) - _bsw(agua_aa, pet_aa))
             if pet_aa is not None and _bsw(agua_aa, pet_aa) is not None and _bsw(agua, pet) is not None else None,
-            "varmes": variacao(pet, v(cam_ant, campo, "petroleo")),
-            "delta_mes": pet - (v(cam_ant, campo, "petroleo") or 0.0),
-            "anterior_mes": v(cam_ant, campo, "petroleo"),
-            "serie": {"periodo": m36, "petroleo": pet_serie, "bsw": bsw_serie},
+            "varmes": variacao(boe, boe_ant),
+            "delta_mes": boe - (boe_ant or 0.0),
+            "anterior_mes": boe_ant,
+            "serie": {"periodo": m36, "boe": boe_serie, "petroleo": pet_serie, "bsw": bsw_serie},
             "top_pocos": top_pocos,
         })
-    campos.sort(key=lambda c: c["petroleo"], reverse=True)
+    campos.sort(key=lambda c: c["boe"], reverse=True)
 
     # posição no estado e ambiente; vizinhos na mesma bacia
     for c in campos:
@@ -192,20 +214,19 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
         bacia = [x for x in campos if x["bacia_slug"] == c["bacia_slug"]]
         i = next(k for k, x in enumerate(bacia) if x is c)
         ini = max(0, min(i - 2, len(bacia) - 5))
-        c["vizinhos"] = [{"nome": x["nome"], "slug": x["slug"], "petroleo": x["petroleo"], "bsw": x["bsw"],
+        c["vizinhos"] = [{"nome": x["nome"], "slug": x["slug"], "boe": x["boe"], "bsw": x["bsw"],
                           "por_poco": x["por_poco"], "eu": x is c} for x in bacia[ini:ini + 5]]
 
     # ---------- Operadores ----------
     # agrupadas por grupo econômico; a coluna se chama "operador" para os modelos do site
     base_g = base.drop(columns=["operador"]).rename(columns={"grupo": "operador"})
     op = _soma_mensal(base_g, ["operador"])
-    op_u = op[op["periodo"] == ultimo].sort_values("petroleo", ascending=False)
+    op_u = op[op["periodo"] == ultimo].sort_values("boe", ascending=False)
     operadores = []
     terra_op = _soma_mensal(base_g[base_g["ambiente"] == "terra"], ["operador"])
-    terra_op = terra_op[terra_op["periodo"] == ultimo].set_index("operador")["petroleo"]
-    ent_u = (base[base["periodo"] == ultimo].groupby(["grupo", "operador"])["petroleo_bbl_d"].sum()
-             .sort_values(ascending=False))
-    total_terra = brasil["petroleo_terra"] * 1000 or 1.0
+    terra_op = terra_op[terra_op["periodo"] == ultimo].set_index("operador")["boe"]
+    ent_u = (pocos_u.groupby(["grupo", "operador"])["boe"].sum().sort_values(ascending=False))
+    total_terra = brasil["boe_terra"] * 1000 or 1.0
     for rank, (_, r) in enumerate(op_u.iterrows(), start=1):
         nome = r["operador"]
         hist = op[op["operador"] == nome].set_index("periodo")
@@ -214,31 +235,32 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
             return float(hist.at[per, col]) if per in hist.index else None
 
         meus = [c for c in campos if c["grupo"] == ng(nome)]
-        entidades = [{"nome": nome_bonito(e), "petroleo": float(v_) / 1000}
+        entidades = [{"nome": nome_bonito(e), "boe": float(v_) / 1000}
                      for (g, e), v_ in ent_u.items() if g == nome]
         por_bacia = {}
         for c in meus:
-            por_bacia[c["bacia"]] = por_bacia.get(c["bacia"], 0.0) + c["petroleo"]
-        pet = r["petroleo"]
-        pet_terra = float(terra_op.get(nome, 0.0))
+            por_bacia[c["bacia"]] = por_bacia.get(c["bacia"], 0.0) + c["boe"]
+        tot, pet = r["boe"], r["petroleo"]
+        tot_terra = float(terra_op.get(nome, 0.0))
         operadores.append({
             "nome": ng(nome), "slug": slug(nome), "rank": rank,
-            "petroleo": pet / 1000, "gas": r["gas"] / 1000, "pocos": int(r["pocos"]),
-            "bsw": _bsw(r["agua"], pet), "share": pet / total_pet * 100,
-            "terra_pct": pet_terra / pet * 100 if pet else 0.0,
-            "share_terra": pet_terra / total_terra * 100,
-            "var12": variacao(pet, h(ano_ant, "petroleo")), "var12_gas": variacao(r["gas"], h(ano_ant, "gas")),
+            "boe": tot / 1000, "petroleo": pet / 1000, "gas": r["gas"] / 1000, "pocos": int(r["pocos"]),
+            "bsw": _bsw(r["agua"], pet), "share": tot / total_boe * 100,
+            "terra_pct": tot_terra / tot * 100 if tot else 0.0,
+            "share_terra": tot_terra / total_terra * 100,
+            "var12": variacao(tot, h(ano_ant, "boe")), "var12_petroleo": variacao(pet, h(ano_ant, "petroleo")),
+            "var12_gas": variacao(r["gas"], h(ano_ant, "gas")),
             "var12_pocos": variacao(r["pocos"], h(ano_ant, "pocos")),
             "bsw_pp": (_bsw(r["agua"], pet) - _bsw(h(ano_ant, "agua"), h(ano_ant, "petroleo")))
             if h(ano_ant, "petroleo") and _bsw(r["agua"], pet) is not None else None,
-            "varmes": variacao(pet, h(ant, "petroleo")),
+            "varmes": variacao(tot, h(ant, "boe")),
             # lacuna só quando falta um ambiente que pesa mais de 2% na produção da operadora
-            "serie": {"periodo": m60, "petroleo": _serie(
-                op[op["operador"] == nome], m60, "petroleo", 1000,
-                completo_para({a for a, peso in (("terra", pet_terra), ("mar", pet - pet_terra))
-                               if pet and peso / pet > 0.02}))},
+            "serie": {"periodo": m60, "boe": _serie(
+                op[op["operador"] == nome], m60, "boe", 1000,
+                completo_para({a for a, peso in (("terra", tot_terra), ("mar", tot - tot_terra))
+                               if tot and peso / tot > 0.02}))},
             "campos": meus, "n_campos": len(meus), "entidades": entidades,
-            "bacias": sorted(({"nome": k, "pct": v_ / pet * 100 if pet else 0} for k, v_ in por_bacia.items()),
+            "bacias": sorted(({"nome": k, "pct": v_ / tot * 100 if tot else 0} for k, v_ in por_bacia.items()),
                              key=lambda x: -x["pct"]),
         })
 
