@@ -44,12 +44,28 @@ def consultar(grupo: str, meses: int = 3) -> str:
     return "\n".join(linhas) + "\n"
 
 
+def compartilhados() -> str:
+    """Campos que a ANP registra com mais de uma empresa no último mês com operadora informada."""
+    base, _ = consolidar(config.BRUTOS, config.MANUAIS / "nao_usar.csv", config.ANO_INICIAL)
+    # só os arquivos por poço (até 2023) trazem a empresa de cada poço
+    com_op = base[(base["periodo"] <= "2023-12") & base["operador"].ne("Não identificado")]
+    com_op = com_op[com_op["periodo"] == com_op.groupby("campo")["periodo"].transform("max")]
+    com_op = com_op.assign(boe=com_op["petroleo_bbl_d"] + com_op["gas_mil_m3_d"] * config.M3_PARA_BBL)
+    t = com_op.groupby(["campo", "periodo", "operador"]).agg(boe=("boe", "sum"), pocos=("poco", "nunique")).reset_index()
+    varios = t[t.groupby("campo")["operador"].transform("nunique") > 1]
+    linhas = ["## Campos com mais de uma empresa no mesmo mês", "",
+              "| Campo | Mês | Empresa na ANP | boe/d | Poços |", "|---|---|---|---:|---:|"]
+    for _, r in varios.sort_values(["campo", "boe"], ascending=[True, False]).iterrows():
+        linhas.append(f"| {r['campo']} | {r['periodo']} | {r['operador']} | {r['boe']:,.0f} | {r['pocos']} |")
+    return "\n".join(linhas) + "\n"
+
+
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("grupo")
     p.add_argument("--meses", type=int, default=3)
     a = p.parse_args(argv)
-    print(consultar(a.grupo, a.meses))
+    print(compartilhados() if a.grupo == "compartilhados" else consultar(a.grupo, a.meses))
 
 
 if __name__ == "__main__":
