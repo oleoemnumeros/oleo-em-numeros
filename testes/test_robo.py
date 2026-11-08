@@ -142,3 +142,26 @@ def test_mes_sem_dado_vira_lacuna(base):
     assert ag["brasil"]["serie"]["petroleo"][j] is None
     _, _, avisos = conferir(sem_abril, ag)
     assert any("abril de 2026" in a for a in avisos)
+
+
+def test_arquivos_antigos_com_titulo_e_linhas_entre_aspas():
+    """Vícios reais dos arquivos de 2018 a 2021 da ANP."""
+    mensal = (
+        "Ano,Mês/Ano,Estado,Bacia,Campo,Poço,Ambiente,Instalação,Produção de Óleo (m³),Produção de Condensado (m³),"
+        "Produção de Gás Associado (Mm³),Produção de Gás Não Associado (Mm³),Produção de Água (m³),Injeção de Gás (Mm³)\r\n"
+        '"2018,01/2018,Alagoas,Alagoas,ANAMBÉ,1-BRSA-313D-AL,Terra,Estação Coletora de Furado,""122,119"",0,""137,4942"",0,""2080,497"","\r\n'
+        "2018,01/2018,Alagoas,Alagoas,ANAMBÉ,1-BRSA-513D-AL,Terra,Não Informado,0,0,0,0,0,\r\n"
+    )
+    df = ler_csv(mensal.encode("utf-8"), "2018_producao-terra-2018-1trim.csv")
+    assert len(df) == 1
+    assert df.iloc[0]["petroleo_bbl_d"] == pytest.approx(122.119 * 6.289811 / 31)
+
+    por_poco = (
+        "ANP - Agência Nacional do Petroleo, Gás Natural e Biocombustíveis;;;;;;;;;;;;;;;;\r\n"
+        "Estado;Bacia;Nome Poço;;Campo;Operador;Número do Contrato;Período;Óleo (bbl/dia);Condensado (bbl/dia);"
+        "Petróleo (bbl/dia);Gás Natural (Mm³/dia);;;Volume Gás Royalties (Mm³/dia);Água (bbl/dia);Instalação Destino\r\n"
+        ";;ANP;Operador;;;;;;;;Assoc;N Assoc;Total;;;\r\n"
+        "Bahia;Recôncavo;7-XX-1-BA;XX1;CAMPO X;Operadora Y;480000;2018/01;10,5;0;10,5;1,2;0;1,2;0;40,1;ESTACAO\r\n"
+    )
+    df = ler_csv(por_poco.encode("latin-1"), "2018_producao_terra.csv")
+    assert len(df) == 1 and df.iloc[0]["periodo"] == "2018-01" and df.iloc[0]["operador"] == "Operadora Y"

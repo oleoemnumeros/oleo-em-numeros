@@ -113,7 +113,7 @@ def _ler_formato_mensal(df: pd.DataFrame, nome: str) -> pd.DataFrame:
     per = df[per_col].map(periodo)
     if per.isna().all() and _achar(c, "ano", opcional=True):
         raise FormatoDesconhecido(f"Não consegui ler o período em {nome}: exemplo {df[per_col].iloc[0]!r}")
-    dias = per.map(lambda p: dias_no_mes(p) if p else float("nan"))
+    dias = per.map(lambda p: dias_no_mes(p) if isinstance(p, str) else float("nan"))
     m3 = config.M3_PARA_BBL
 
     def vol(*palavras):
@@ -148,10 +148,33 @@ def _ler_formato_mensal(df: pd.DataFrame, nome: str) -> pd.DataFrame:
     })
 
 
+def _limpar(texto: str) -> str:
+    """Corrige dois vícios dos arquivos antigos da ANP (2018 a 2021):
+    1. linhas de título antes do cabeçalho ('ANP - Agência Nacional do Petróleo...');
+    2. linhas inteiras embrulhadas em aspas, com as aspas internas dobradas:
+       "2018,01/2018,...,""122,119"",0,..."  ->  2018,01/2018,...,"122,119",0,..."""
+    linhas = texto.splitlines()
+    for i, linha in enumerate(linhas[:30]):
+        n = normalizar_cabecalho(linha)
+        if "campo" in n and ("periodo" in n or "mes/ano" in n or "estado" in n):
+            linhas = linhas[i:]
+            break
+    saida = []
+    for linha in linhas:
+        s = linha.rstrip()
+        if len(s) > 2 and s[0] == '"' and s[-1] == '"' and '""' in s and s.count('"') % 2 == 0:
+            interno = s[1:-1]
+            if '"' not in interno.replace('""', ""):
+                s = interno.replace('""', '"')
+        saida.append(s)
+    return "\n".join(saida)
+
+
 def _ler_tabela(texto: str) -> pd.DataFrame:
     """Lê o CSV. Trata o cabeçalho em duas linhas que a ANP usa no formato por poço:
     'Nome Poço' sobre 'ANP | Operador' e 'Gás Natural (Mm³/dia)' sobre 'Assoc | N Assoc | Total'
     (células mescladas na planilha original)."""
+    texto = _limpar(texto)
     sep = _separador(texto)
     linhas = list(itertools.islice(csv.reader(io.StringIO(texto), delimiter=sep), 2))
     if len(linhas) == 2:
