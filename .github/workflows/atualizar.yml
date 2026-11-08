@@ -59,6 +59,10 @@ jobs:
           path: dados/brutos
           key: brutos-${{ github.run_id }}
 
+      - name: Diagnóstico dos arquivos da ANP
+        if: always()
+        run: python -m robo.diagnostico || true
+
       - name: Relatório da conferência
         if: always()
         run: cat dados/processados/conferencia.md >> "$GITHUB_STEP_SUMMARY" || true
@@ -67,6 +71,7 @@ jobs:
         env:
           SITE_URL: ${{ vars.SITE_URL }}
           SITE_CONTATO: ${{ vars.SITE_CONTATO }}
+          SITE_PREVIA: ${{ vars.SITE_PREVIA || '1' }}   # faixa "em validação" até os números serem conferidos
         run: python -m gerador.gerar --links-limpos
 
       - uses: actions/upload-pages-artifact@v3

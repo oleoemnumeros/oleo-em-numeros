@@ -67,7 +67,7 @@ def listar_arquivos(sessao=None) -> list[str]:
 
 
 def _ano_do_arquivo(nome: str) -> int | None:
-    anos = [int(a) for a in re.findall(r"(20\d{2})", nome)]
+    anos = [int(a) for a in re.findall(r"(19\d{2}|20\d{2})", nome)]
     return max(anos) if anos else None
 
 

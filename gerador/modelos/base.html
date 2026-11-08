@@ -12,7 +12,7 @@
 <meta property="og:description" content="{{ descricao }}">
 <meta property="og:url" content="{{ site.url }}/{{ caminho }}">
 <meta property="og:locale" content="pt_BR">
-{% if site.teste %}<meta name="robots" content="noindex">{% endif %}
+{% if site.teste or site.previa %}<meta name="robots" content="noindex">{% endif %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
 <link rel="icon" href="{{ raiz }}icone.svg" type="image/svg+xml">
 </head>
 <body>
-{% if site.teste %}<div class="faixa-teste">Versão de teste com dados FICTÍCIOS. Nenhum número desta página é real.</div>{% endif %}
+{% if site.teste %}<div class="faixa-teste">Versão de teste com dados FICTÍCIOS. Nenhum número desta página é real.</div>{% elif site.previa %}<div class="faixa-teste">Versão em validação: os números ainda estão sendo conferidos com a ANP e podem mudar.</div>{% endif %}
 <header class="topo">
 <div class="miolo">
 <a class="marca" href="{{ u('') }}">

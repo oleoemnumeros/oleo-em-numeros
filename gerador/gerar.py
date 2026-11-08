@@ -124,6 +124,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         "nome": "Óleo em Números",
         "url": (url or os.environ.get("SITE_URL") or "https://oleoemnumeros.com.br").rstrip("/"),
         "teste": teste,
+        "previa": os.environ.get("SITE_PREVIA", "0") == "1",
         "contato": os.environ.get("SITE_CONTATO", ""),
     }
     env = Environment(loader=FileSystemLoader(AQUI / "modelos"), autoescape=select_autoescape(["html"]),
@@ -204,7 +205,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     (saida / "sitemap.xml").write_text(
         f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>',
         "utf-8")
-    robots = "User-agent: *\nDisallow: /\n" if teste else f"User-agent: *\nAllow: /\nSitemap: {site['url']}/sitemap.xml\n"
+    robots = "User-agent: *\nDisallow: /\n" if (teste or site["previa"]) else f"User-agent: *\nAllow: /\nSitemap: {site['url']}/sitemap.xml\n"
     (saida / "robots.txt").write_text(robots, "utf-8")
     return paginas
 
