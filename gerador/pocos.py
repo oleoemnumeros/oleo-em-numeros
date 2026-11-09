@@ -66,7 +66,8 @@ def gerar_pocos(base_csv: Path, saida: Path, ag: dict) -> dict:
                 for j, v in zip(js, tp[k].fillna(0).tolist()):
                     serie[k][j] = _r(v, casas)
             grupo = ng(u["operador"])
-            ativo = tp["periodo"].iloc[-1] == ultimo
+            # produzindo = petróleo ou gás no último mês (mesma regra dos poços ativos do resto do site)
+            ativo = tp["periodo"].iloc[-1] == ultimo and (u["p"] > 0 or u["g"] > 0)
             boe = (u["p"] + u["g"] * 6.289811) if ativo else 0.0
             nome = str(u["poco"]).strip()
             lista.append({"n": nome, "i": i0, "o": grupo, **serie})
@@ -83,6 +84,9 @@ def gerar_pocos(base_csv: Path, saida: Path, ag: dict) -> dict:
     (pasta / "indice.json").write_text(
         json.dumps({"meses": [meses[0], ultimo], "campos": campos, "pocos": indice}, ensure_ascii=False,
                    separators=(",", ":")), "utf-8")
-    tamanho = sum(f.stat().st_size for f in pasta.iterdir())
+    arquivos = list(pasta.iterdir())
+    maior = max(arquivos, key=lambda f: f.stat().st_size)
     return {"pocos": len(indice), "ativos": sum(x[2] for x in indice), "campos": len(campos),
-            "mb": round(tamanho / 1e6, 1)}
+            "mb": round(sum(f.stat().st_size for f in arquivos) / 1e6, 1),
+            "maior": f"{maior.name} {maior.stat().st_size / 1e6:.1f} MB",
+            "indice_mb": round((pasta / "indice.json").stat().st_size / 1e6, 2)}

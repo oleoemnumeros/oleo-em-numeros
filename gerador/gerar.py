@@ -238,7 +238,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     base_csv = dados / "base_pocos.csv.gz"
     if base_csv.exists():
         r = gerar_pocos(base_csv, saida, ag)
-        print(f"Busca de poços: {r['pocos']} poços ({r['ativos']} ativos) em {r['campos']} campos, {r['mb']} MB")
+        print(f"Busca de poços: {r['pocos']} poços ({r['ativos']} ativos) em {r['campos']} campos, {r['mb']} MB; "
+              f"índice {r['indice_mb']} MB; maior campo {r['maior']}")
     escrever("noticias/", "noticias.html", secao="noticias", titulo="Notícias do setor de petróleo e gás",
              descricao="Manchetes diárias de petróleo e gás, com links para os números de cada empresa e campo.",
              noticias=noticias[:200], noindex=True)

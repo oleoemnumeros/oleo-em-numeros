@@ -285,6 +285,9 @@ def main(argv=None) -> int:
     r = coletar()
     print("Notícias: " + "; ".join(f"{k}: {v}" for k, v in r["status"].items()))
     print(f"Histórico: {r['total']} manchetes · no site: {r['no_site']}")
+    for n in json.loads(SAIDA.read_text("utf-8"))[:15]:
+        marcas = ", ".join(n["empresas"] + n["campos"])
+        print(f"  {n['data'][:10]} [{n['fonte']}] {n['titulo'][:90]}" + (f"  -> {marcas}" if marcas else ""))
     return 0
 
 
