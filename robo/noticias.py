@@ -29,17 +29,18 @@ DIAS_GUARDADOS = 180
 DIAS_NO_SITE = 90
 
 # Fontes candidatas. As que não responderem ficam de fora sem travar a coleta.
+# tipo "govbr": a página de notícias do gov.br (sem RSS), lida como lista de manchetes.
 FONTES = [
-    {"nome": "ANP", "url": "https://www.gov.br/anp/pt-br/canais_atendimento/imprensa/noticias-comunicados/RSS"},
-    {"nome": "MME", "url": "https://www.gov.br/mme/pt-br/assuntos/noticias/RSS"},
+    {"nome": "ANP", "url": "https://www.gov.br/anp/pt-br/canais_atendimento/imprensa/noticias-comunicados", "tipo": "govbr"},
+    {"nome": "MME", "url": "https://www.gov.br/mme/pt-br/assuntos/noticias", "tipo": "govbr"},
     {"nome": "eixos", "url": "https://eixos.com.br/feed/"},
-    {"nome": "epbr", "url": "https://epbr.com.br/feed/"},
     {"nome": "Petronotícias", "url": "https://petronoticias.com.br/feed/"},
-    {"nome": "TN Petróleo", "url": "https://tnpetroleo.com.br/feed/"},
-    {"nome": "Brasil Energia", "url": "https://editorabrasilenergia.com.br/feed/"},
-    {"nome": "O Petróleo", "url": "https://www.opetroleo.com.br/feed/"},
     {"nome": "Agência Brasil", "url": "https://agenciabrasil.ebc.com.br/rss/economia/feed.xml"},
-    {"nome": "Agência Petrobras", "url": "https://agencia.petrobras.com.br/rss"},
+    {"nome": "InfoMoney", "url": "https://www.infomoney.com.br/feed/"},
+    {"nome": "Money Times", "url": "https://www.moneytimes.com.br/feed/"},
+    {"nome": "TN Petróleo", "url": "https://www.tnpetroleo.com.br/feed/"},
+    {"nome": "Brasil Energia", "url": "https://editorabrasilenergia.com.br/feed/", "navegador": True},
+    {"nome": "O Petróleo", "url": "https://www.opetroleo.com.br/feed/", "navegador": True},
 ]
 
 # Empresas e como aparecem nas manchetes. Nomes que também são palavras comuns
@@ -128,12 +129,38 @@ def ler_feed(conteudo: bytes, fonte: str) -> list[dict]:
     return itens
 
 
+def ler_govbr(pagina: str, base: str, fonte: str) -> list[dict]:
+    """Lista de notícias de um portal gov.br: cada bloco 'tileItem' tem link, título e data."""
+    itens = []
+    for bloco in re.split(r'class="tileItem', pagina)[1:]:
+        m = re.search(r'<a[^>]+href="(' + re.escape(base) + r'/[^"#?]+)"[^>]*>(.*?)</a>', bloco, re.S)
+        if not m:
+            continue
+        titulo = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", m.group(2)))).strip()
+        d = re.search(r"(\d{2})/(\d{2})/(\d{4})(?:\D+(\d{1,2})h(\d{2}))?", bloco)
+        data = None
+        if d:
+            dia, mes, ano, hh, mm = d.groups()
+            data = datetime(int(ano), int(mes), int(dia), int(hh or 12), int(mm or 0),
+                            tzinfo=timezone(timedelta(hours=-3))).astimezone(timezone.utc).isoformat()
+        if titulo:
+            itens.append({"titulo": titulo, "link": m.group(1), "fonte": fonte, "data": data, "_resumo": ""})
+    return itens
+
+
+NAVEGADOR = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+             "Chrome/124.0 Safari/537.36")
+
+
 def baixar_fonte(f: dict) -> tuple[list[dict], str]:
+    ua = NAVEGADOR if f.get("navegador") or f.get("tipo") == "govbr" else USER_AGENT
     try:
-        r = requests.get(f["url"], headers={"User-Agent": USER_AGENT, "Accept": "application/rss+xml, application/xml, */*"},
+        r = requests.get(f["url"], headers={"User-Agent": ua, "Accept": "application/rss+xml, application/xml, text/html, */*"},
                          timeout=25)
         if r.status_code != 200:
             return [], f"HTTP {r.status_code}"
+        if f.get("tipo") == "govbr":
+            return ler_govbr(r.text, f["url"], f["nome"]), "ok"
         return ler_feed(r.content, f["nome"]), "ok"
     except (requests.RequestException, ET.ParseError) as e:
         return [], f"{type(e).__name__}: {str(e)[:120]}"
