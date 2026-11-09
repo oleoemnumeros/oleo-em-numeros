@@ -244,6 +244,21 @@ def coletar(fontes=FONTES, historico: Path = HISTORICO, saida: Path = SAIDA, ago
     return {"status": status, "total": len(todos), "no_site": len(site)}
 
 
+def depurar_govbr() -> str:
+    """Mostra o HTML em volta do primeiro link de notícia (para ajustar o leitor)."""
+    saida = []
+    for f in FONTES:
+        if f.get("tipo") != "govbr":
+            continue
+        r = requests.get(f["url"], headers={"User-Agent": NAVEGADOR}, timeout=25)
+        t = r.text
+        i = t.find(f["url"] + "/")
+        saida.append(f"### {f['nome']} HTTP {r.status_code} tamanho {len(t)} primeiro link em {i}")
+        trecho = t[max(0, i - 1500): i + 1500] if i >= 0 else t[:3000]
+        saida.append(re.sub(r"\s+", " ", trecho))
+    return "\n".join(saida)
+
+
 def testar() -> str:
     linhas = ["## Fontes de notícias", "", "| Fonte | Resultado | Exemplos |", "|---|---|---|"]
     for f in FONTES:

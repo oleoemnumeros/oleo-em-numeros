@@ -68,6 +68,9 @@ def main(argv=None):
     if a.grupo == "fontes":
         from .noticias import testar
         print(testar())
+    elif a.grupo == "govbr":
+        from .noticias import depurar_govbr
+        print(depurar_govbr())
     else:
         print(compartilhados() if a.grupo == "compartilhados" else consultar(a.grupo, a.meses))
 
