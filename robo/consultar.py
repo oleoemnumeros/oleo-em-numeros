@@ -65,7 +65,11 @@ def main(argv=None):
     p.add_argument("grupo")
     p.add_argument("--meses", type=int, default=3)
     a = p.parse_args(argv)
-    print(compartilhados() if a.grupo == "compartilhados" else consultar(a.grupo, a.meses))
+    if a.grupo == "fontes":
+        from .noticias import testar
+        print(testar())
+    else:
+        print(compartilhados() if a.grupo == "compartilhados" else consultar(a.grupo, a.meses))
 
 
 if __name__ == "__main__":
