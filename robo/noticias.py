@@ -43,7 +43,7 @@ FONTES = [
 # Empresas e como aparecem nas manchetes. Nomes que também são palavras comuns
 # ('Brava', 'Origem', 'Total') só valem na forma completa ou com maiúscula.
 EMPRESAS = {
-    "Petrobras": ["Petrobras"],
+    "Petrobras": ["Petrobras", "Petrobrás"],
     "PRIO": ["PRIO", "Prio", "PetroRio", "Petro Rio"],
     "Brava Energia": ["Brava Energia", "Brava", "3R Petroleum", "3R", "Enauta"],
     "PetroRecôncavo": ["PetroRecôncavo", "PetroReconcavo", "Petro Recôncavo"],
