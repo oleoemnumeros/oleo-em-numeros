@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import kpi, var_classe, barras %}
+{% from "_macros.html" import kpi, var_classe, barras, lista_noticias  %}
 {% block conteudo %}
 <section class="miolo cabeca">
 <nav class="trilha" aria-label="Você está em"><a href="{{ u('operadoras/') }}">Operadoras</a> / {{ o.nome }}</nav>
@@ -74,4 +74,14 @@
 {% endif %}
 </div>
 </section>
+{% if noticias %}
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Notícias sobre a {{ o.nome }}</h2>
+{{ lista_noticias(noticias, u) }}
+<p class="nota">Manchetes coletadas automaticamente. Os links abrem a matéria no site de origem.</p>
+</div>
+</section>
+{% endif %}
 {% endblock %}

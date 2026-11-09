@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<p class="trilha"><a href="{{ u('campos/') }}">Campos</a> / Poços</p>
+<h1 id="titulo-pocos">Produção por poço</h1>
+<p class="sub" id="sub-pocos">Busque qualquer poço que produziu desde 2018 pelo nome da ANP (ex.: 7-MG-0123-BA) ou pelo nome do campo, e veja a produção mês a mês.</p>
+<div class="filtro busca">
+<label for="q">Buscar poço ou campo</label>
+<input id="q" type="search" placeholder="Ex.: 7-MG-0123-BA ou Miranga" autocomplete="off">
+</div>
+<p class="nota" id="estado-busca">Carregando a lista de poços…</p>
+</section>
+
+<section class="miolo secao" id="resultados" hidden>
+<div class="cartao"><div class="tabela">
+<table id="tabela-resultados">
+<thead><tr><th>Poço</th><th>Campo</th><th>Empresa</th><th class="n">Total (boe/d)</th><th>Situação</th></tr></thead>
+<tbody></tbody>
+</table>
+</div></div>
+</section>
+
+<section id="poco" hidden></section>
+
+<noscript><section class="miolo secao"><p>Esta página precisa de JavaScript para buscar os poços.</p></section></noscript>
+
+<script>
+(function () {
+  "use strict";
+  var CFG = {
+    indice: "{{ raiz }}dados/pocos/indice.json",
+    pasta: "{{ raiz }}dados/pocos/",
+    campos: "{{ u('campos/') }}".replace(/index\.html$/, ""),
+    limpos: {{ 'true' if u('campos/').endswith('/') else 'false' }}
+  };
+  var MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  var MESES_LONGOS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro",
+                      "outubro", "novembro", "dezembro"];
+  var BOE = 6.289811;
+  var TINTA = "#14161A", CINZA = "#5B616B", GRADE = "#EEF0F2", EIXO = "#CDD1D6";
+  var $ = function (id) { return document.getElementById(id); };
+  var IDX = null, CACHE = {};
+
+  function norm(s) {
+    return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; });
+  }
+  function fmt(v, casas) {
+    if (v === null || v === undefined || isNaN(v)) return "—";
+    return Number(v).toLocaleString("pt-BR", {minimumFractionDigits: casas || 0, maximumFractionDigits: casas || 0});
+  }
+  function fmtI(v) {
+    if (v === null || v === undefined || isNaN(v)) return "—";
+    var a = Math.abs(v);
+    return fmt(v, a >= 100 ? 0 : a >= 10 ? 1 : a > 0 ? 2 : 0);
+  }
+  function addMes(per, n) {
+    var a = +per.slice(0, 4), m = +per.slice(5, 7) - 1 + n;
+    a += Math.floor(m / 12); m = ((m % 12) + 12) % 12;
+    return a + "-" + String(m + 1).padStart(2, "0");
+  }
+  function mesCurto(per) { return MESES[+per.slice(5, 7) - 1] + "/" + per.slice(2, 4); }
+  function mesExtenso(per) { return MESES_LONGOS[+per.slice(5, 7) - 1] + " de " + per.slice(0, 4); }
+  function urlCampo(slug) { return CFG.campos + slug + "/" + (CFG.limpos ? "" : "index.html"); }
+  function linkPoco(nome) { return "?p=" + encodeURIComponent(nome); }
+
+  // ---------- gráfico (mesmo desenho dos gráficos do resto do site) ----------
+  function ticks(lo, hi, n) {
+    if (hi <= lo) hi = lo + 1;
+    var bruto = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(bruto))), passo = 10 * mag;
+    [1, 2, 2.5, 5, 10].some(function (m) { if (m * mag >= bruto) { passo = m * mag; return true; } return false; });
+    var ini = Math.floor(lo / passo) * passo, fim = Math.ceil(hi / passo) * passo, t = [], x = ini;
+    while (x <= fim + passo / 1000) { t.push(Math.round(x * 1e10) / 1e10); x += passo; }
+    return t;
+  }
+  function svg(pares, periodos, rotulo, cor, L, A, suf, fonte, classe, nT, passoX) {
+    var vals = pares.map(function (p) { return p[1]; });
+    var lo = 0, hi = Math.max.apply(null, vals);
+    var tk = ticks(0, hi + ((hi - lo) * 0.08 || 1), nT), y0 = tk[0], y1 = tk[tk.length - 1];
+    var passo = tk.length > 1 ? tk[1] - tk[0] : 1, casas = passo >= 1 ? 0 : passo >= 0.1 ? 1 : 2;
+    var larguraRot = Math.max.apply(null, tk.map(function (t) { return (fmt(t, casas) + suf).length; }));
+    var esq = 14 + fonte * 0.62 * larguraRot, dir = L - 12, topo = fonte + 12, base = A - fonte - 22, n = periodos.length;
+    var x = function (i) { return esq + i * (dir - esq) / Math.max(n - 1, 1); };
+    var y = function (v) { return base - (v - y0) / (y1 - y0) * (base - topo); };
+    var pts = pares.map(function (p) { return x(p[0]).toFixed(1) + "," + y(p[1]).toFixed(1); }).join(" ");
+    var s = ['<svg viewBox="0 0 ' + L + " " + A + '" class="grafico ' + classe + '" role="img" aria-label="' + esc(rotulo) + '">'];
+    tk.forEach(function (t) {
+      s.push('<line x1="' + esq.toFixed(0) + '" y1="' + y(t).toFixed(1) + '" x2="' + dir + '" y2="' + y(t).toFixed(1) +
+             '" stroke="' + (t === y0 ? EIXO : GRADE) + '" stroke-width="1"/>');
+      s.push('<text x="' + (esq - 8).toFixed(0) + '" y="' + (y(t) + fonte * 0.35).toFixed(1) + '" text-anchor="end" font-size="' +
+             fonte + '" fill="' + CINZA + '">' + fmt(t, casas) + suf + "</text>");
+    });
+    s.push('<polygon points="' + x(pares[0][0]).toFixed(1) + "," + base + " " + pts + " " + x(pares[pares.length - 1][0]).toFixed(1) +
+           "," + base + '" fill="' + cor + '" fill-opacity="0.08"/>');
+    s.push('<polyline points="' + pts + '" fill="none" stroke="' + cor + '" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>');
+    var u = pares[pares.length - 1];
+    s.push('<circle cx="' + x(u[0]).toFixed(1) + '" cy="' + y(u[1]).toFixed(1) + '" r="4.5" fill="' + cor + '"/>');
+    s.push('<text x="' + (x(u[0]) - 8).toFixed(1) + '" y="' + (y(u[1]) - 11).toFixed(1) + '" text-anchor="end" font-size="' + (fonte + 2) +
+           '" font-weight="700" fill="' + TINTA + '">' + fmt(u[1], Math.abs(u[1]) < 100 ? 1 : 0) + suf + "</text>");
+    var marcas = [];
+    for (var i = 0; i < n; i += passoX) marcas.push(i);
+    if (marcas.length && (n - 1) - marcas[marcas.length - 1] < passoX * 0.6) marcas.pop();
+    marcas.push(n - 1);
+    marcas.forEach(function (i) {
+      var anc = i === 0 ? "start" : i === n - 1 ? "end" : "middle";
+      s.push('<text x="' + x(i).toFixed(1) + '" y="' + (A - 8) + '" text-anchor="' + anc + '" font-size="' + fonte + '" fill="' + CINZA + '">' +
+             mesCurto(periodos[i]) + "</text>");
+    });
+    s.push("</svg>");
+    return s.join("");
+  }
+  function linha(valores, periodos, rotulo, cor, L, suf) {
+    cor = cor || "#B45309";
+    var pares = [];
+    valores.forEach(function (v, i) { if (v !== null && v !== undefined) pares.push([i, v]); });
+    if (pares.length < 2) return '<p class="nota">Poucos meses com dado para desenhar o gráfico.</p>';
+    var n = periodos.length, passo = n <= 24 ? 6 : n <= 60 ? 12 : 24;
+    return svg(pares, periodos, rotulo, cor, L || 800, L && L < 700 ? 300 : 270, suf || "", (L || 800) >= 700 ? 12 : 13, "larga", 4, passo) +
+           svg(pares, periodos, rotulo, cor, 380, 240, suf || "", 13, "cel", 3, n <= 24 ? 12 : n <= 60 ? 24 : 36);
+  }
+
+  // ---------- busca ----------
+  function carregarIndice() {
+    if (IDX) return Promise.resolve(IDX);
+    return fetch(CFG.indice).then(function (r) { return r.json(); }).then(function (d) {
+      d.pocos.forEach(function (p) { p.k = norm(p[0]); p.kc = norm(d.campos[p[1]].n); });
+      IDX = d;
+      return d;
+    });
+  }
+  function situacao(p) { return p[2] ? "Produzindo" : "Sem produção no último mês"; }
+  function linhaResultado(p) {
+    var c = IDX.campos[p[1]];
+    return "<tr><td><a href=\"" + linkPoco(p[0]) + "\">" + esc(p[0]) + "</a></td><td>" + esc(c.n) + " (" + esc(c.uf) + ")</td><td>" +
+           esc(c.g || "") + "</td><td class=\"n\">" + (p[2] ? fmt(p[3]) : "—") + "</td><td>" + situacao(p) + "</td></tr>";
+  }
+  function buscar(q) {
+    var k = norm(q), corpo = document.querySelector("#tabela-resultados tbody");
+    if (k.length < 2) { $("resultados").hidden = true; $("estado-busca").textContent = "Digite pelo menos 2 letras ou números."; return; }
+    var achados = IDX.pocos.filter(function (p) { return p.k.indexOf(k) >= 0 || p.kc.indexOf(k) >= 0; });
+    achados.sort(function (a, b) {
+      var pa = a.k.indexOf(k) === 0 ? 0 : 1, pb = b.k.indexOf(k) === 0 ? 0 : 1;
+      return pa - pb || b[2] - a[2] || b[3] - a[3] || (a[0] < b[0] ? -1 : 1);
+    });
+    var mostra = achados.slice(0, 60);
+    corpo.innerHTML = mostra.map(linhaResultado).join("");
+    $("resultados").hidden = !mostra.length;
+    $("estado-busca").textContent = achados.length ? (achados.length > 60 ? "Mostrando 60 de " + fmt(achados.length) + " poços. Refine a busca." :
+      fmt(achados.length) + (achados.length === 1 ? " poço encontrado." : " poços encontrados.")) : "Nenhum poço encontrado.";
+  }
+
+  // ---------- página de um poço ----------
+  function dadosCampo(slug) {
+    if (CACHE[slug]) return Promise.resolve(CACHE[slug]);
+    return fetch(CFG.pasta + slug + ".json").then(function (r) { return r.json(); }).then(function (d) { CACHE[slug] = d; return d; });
+  }
+  function bsw(p, a) { return (p === null || a === null || p + a <= 0) ? null : a / (p + a) * 100; }
+  function kpi(rot, num, uni, principal) {
+    return '<div class="kpi' + (principal ? " principal" : "") + '"><div class="rot">' + rot + '</div><div class="val"><span class="num">' + num + '</span><span class="uni">' +
+           uni + "</span></div></div>";
+  }
+  function mostrarPoco(nome) {
+    var alvo = norm(nome);
+    var p = IDX.pocos.filter(function (x) { return x.k === alvo; })[0];
+    if (!p) { $("estado-busca").textContent = "Poço “" + nome + "” não encontrado. Tente buscar pelo nome."; return; }
+    var c = IDX.campos[p[1]];
+    dadosCampo(p[1]).then(function (d) {
+      var w = d.pocos.filter(function (x) { return norm(x.n) === alvo; })[0];
+      if (!w) return;
+      var inicio = addMes(d.inicio, w.i), n = w.p.length, per = [];
+      for (var i = 0; i < n; i++) per.push(addMes(inicio, i));
+      var boe = w.p.map(function (v, i) { return v === null ? null : v + w.g[i] * BOE; });
+      var b = w.p.map(function (v, i) { return bsw(v, w.a[i]); });
+      var j = n - 1;
+      while (j > 0 && w.p[j] === null) j--;
+      var ultimoComProd = n - 1;
+      while (ultimoComProd > 0 && !((w.p[ultimoComProd] || 0) + (w.g[ultimoComProd] || 0) + (w.a[ultimoComProd] || 0))) ultimoComProd--;
+      var campoHtml = c.pg ? '<a href="' + urlCampo(p[1]) + '">' + esc(c.n) + "</a>" : esc(c.n);
+      document.title = nome + " | Produção do poço | Óleo em Números";
+      $("titulo-pocos").textContent = nome;
+      $("sub-pocos").innerHTML = "Poço do campo " + campoHtml + " (" + esc(c.uf) + ")" + (w.o ? ", operado pela " + esc(w.o) : "") + ". " +
+        (p[2] ? "Produzindo em " + mesExtenso(IDX.meses[1]) + "." : "Última produção registrada: " + mesExtenso(per[ultimoComProd]) + ".");
+      $("resultados").hidden = true;
+      $("estado-busca").innerHTML = '<a href="?campo=' + encodeURIComponent(p[1]) + '">Ver todos os poços do campo ' + esc(c.n) + "</a>";
+      var html = '<div class="miolo"><div class="kpis">' +
+        kpi("Produção total", fmt(boe[j], boe[j] < 100 ? 1 : 0), "boe/d", true) +
+        kpi("Petróleo", fmtI(w.p[j]), "bbl/d") + kpi("Gás natural", fmtI(w.g[j]), "mil m³/d") +
+        kpi("Água", fmtI(w.a[j]), "bbl/d") + kpi("BSW", b[j] === null ? "—" : fmt(b[j], 1) + "%", "água no líquido") +
+        '</div><p class="nota">Números de ' + mesExtenso(per[j]) + ". Fonte: ANP, produção por poço.</p></div>" +
+        '<section class="miolo secao"><div class="cartao"><h2>Produção total</h2><p class="legenda">Petróleo e gás, em boe/d · ' +
+        mesCurto(per[0]) + " a " + mesCurto(per[n - 1]) + "</p>" + linha(boe, per, "Produção total do poço " + nome + ", em boe por dia") +
+        '<p class="nota">Meses sem dado da ANP aparecem como lacuna; mês com o poço parado aparece como zero.</p></div></section>' +
+        '<section class="miolo secao grade-2">' +
+        '<div class="cartao"><h2>Petróleo</h2><p class="legenda">bbl/d</p>' + linha(w.p, per, "Petróleo, bbl/d", "#B45309", 600) + "</div>" +
+        '<div class="cartao"><h2>Gás natural</h2><p class="legenda">mil m³/d</p>' + linha(w.g, per, "Gás, mil m³/d", "#2F5D8A", 600) + "</div>" +
+        '<div class="cartao"><h2>Água</h2><p class="legenda">bbl/d</p>' + linha(w.a, per, "Água, bbl/d", "#4A7C59", 600) + "</div>" +
+        '<div class="cartao"><h2>BSW</h2><p class="legenda">% de água no líquido produzido</p>' + linha(b, per, "BSW, %", "#5B616B", 600, "%") + "</div>" +
+        "</section>" +
+        '<section class="miolo secao"><div class="cartao"><div class="linha-titulo"><h2>Mês a mês</h2>' +
+        '<button type="button" class="botao" id="baixar-csv">Baixar CSV</button></div><div class="tabela"><table>' +
+        '<thead><tr><th>Mês</th><th class="n">Total (boe/d)</th><th class="n">Petróleo (bbl/d)</th><th class="n">Gás (mil m³/d)</th>' +
+        '<th class="n">Água (bbl/d)</th><th class="n">BSW</th></tr></thead><tbody>';
+      for (var k = n - 1; k >= Math.max(0, n - 24); k--) {
+        html += "<tr><td>" + mesCurto(per[k]) + "</td><td class=\"n\">" + fmtI(boe[k]) + "</td><td class=\"n\">" + fmtI(w.p[k]) +
+                "</td><td class=\"n\">" + fmtI(w.g[k]) + "</td><td class=\"n\">" + fmtI(w.a[k]) + "</td><td class=\"n\">" +
+                (b[k] === null ? "—" : fmt(b[k], 1) + "%") + "</td></tr>";
+      }
+      html += '</tbody></table></div><p class="nota">Últimos 24 meses. O CSV traz a série completa.</p></div></section>';
+      $("poco").innerHTML = html;
+      $("poco").hidden = false;
+      $("baixar-csv").addEventListener("click", function () {
+        var linhas = ["mes;boe_d;petroleo_bbl_d;gas_mil_m3_d;agua_bbl_d;bsw_pct"];
+        per.forEach(function (m, i) {
+          var f = function (v, c) { return v === null ? "" : String(Math.round(v * Math.pow(10, c)) / Math.pow(10, c)).replace(".", ","); };
+          linhas.push([m, f(boe[i], 1), f(w.p[i], 1), f(w.g[i], 3), f(w.a[i], 1), f(b[i], 1)].join(";"));
+        });
+        var blob = new Blob(["﻿" + linhas.join("\n") + "\n"], {type: "text/csv;charset=utf-8"});
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "poco-" + nome.replace(/[^A-Za-z0-9-]+/g, "_") + ".csv";
+        document.body.appendChild(a); a.click(); a.remove();
+      });
+    });
+  }
+  function mostrarCampo(slug) {
+    var c = IDX.campos[slug];
+    if (!c) { $("estado-busca").textContent = "Campo não encontrado."; return; }
+    var lista = IDX.pocos.filter(function (p) { return p[1] === slug; });
+    $("titulo-pocos").textContent = "Poços do campo " + c.n;
+    $("sub-pocos").innerHTML = fmt(lista.length) + " poços com produção desde " + mesExtenso(IDX.meses[0]) + ", " +
+      fmt(lista.filter(function (p) { return p[2]; }).length) + " produzindo em " + mesExtenso(IDX.meses[1]) + "." +
+      (c.pg ? ' <a href="' + urlCampo(slug) + '">Ver a página do campo</a>' : "");
+    $("q").value = c.n;
+    document.querySelector("#tabela-resultados tbody").innerHTML = lista.map(linhaResultado).join("");
+    $("resultados").hidden = false;
+    $("estado-busca").textContent = "";
+    document.title = "Poços do campo " + c.n + " | Óleo em Números";
+  }
+
+  var params = new URLSearchParams(location.search);
+  carregarIndice().then(function () {
+    $("estado-busca").textContent = fmt(IDX.pocos.length) + " poços na base, de " + mesExtenso(IDX.meses[0]) + " a " + mesExtenso(IDX.meses[1]) + ".";
+    if (params.get("p")) mostrarPoco(params.get("p"));
+    else if (params.get("campo")) mostrarCampo(params.get("campo"));
+    var t = null;
+    $("q").addEventListener("input", function (e) {
+      clearTimeout(t);
+      var v = e.target.value;
+      t = setTimeout(function () { $("poco").hidden = true; buscar(v); }, 150);
+    });
+  }).catch(function () { $("estado-busca").textContent = "Não foi possível carregar a lista de poços. Tente recarregar a página."; });
+})();
+</script>
+{% endblock %}

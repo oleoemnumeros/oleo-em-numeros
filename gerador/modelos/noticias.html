@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_macros.html" import lista_noticias %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<h1>Notícias do setor</h1>
+<p class="sub">Manchetes de petróleo e gás coletadas todo dia, automaticamente, de {{ fontes_noticias }}. Quando uma notícia cita uma empresa ou um campo, o link leva aos números dele aqui no site.</p>
+</section>
+<section class="miolo secao">
+<div class="cartao">
+{% if noticias %}
+{{ lista_noticias(noticias, u) }}
+{% else %}
+<p>Nenhuma manchete coletada ainda.</p>
+{% endif %}
+<p class="nota">Os títulos e links pertencem aos veículos de origem. O Óleo em Números não reproduz o texto das matérias.</p>
+</div>
+</section>
+{% endblock %}

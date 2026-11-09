@@ -12,7 +12,7 @@
 <meta property="og:description" content="{{ descricao }}">
 <meta property="og:url" content="{{ site.url }}/{{ caminho }}">
 <meta property="og:locale" content="pt_BR">
-{% if site.teste or site.previa %}<meta name="robots" content="noindex">{% endif %}
+{% if site.teste or site.previa %}<meta name="robots" content="noindex">{% elif noindex %}<meta name="robots" content="noindex, follow">{% endif %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -31,7 +31,9 @@
 <a href="{{ u('') }}"{% if secao == 'inicio' %} aria-current="page"{% endif %}>Produção</a>
 <a href="{{ u('operadoras/') }}"{% if secao == 'operadoras' %} aria-current="page"{% endif %}>Operadoras</a>
 <a href="{{ u('campos/') }}"{% if secao == 'campos' %} aria-current="page"{% endif %}>Campos</a>
+<a href="{{ u('pocos/') }}"{% if secao == 'pocos' %} aria-current="page"{% endif %}>Poços</a>
 <a href="{{ u('rankings/') }}"{% if secao == 'rankings' %} aria-current="page"{% endif %}>Rankings</a>
+<a href="{{ u('noticias/') }}"{% if secao == 'noticias' %} aria-current="page"{% endif %}>Notícias</a>
 <a href="{{ u('sobre/') }}"{% if secao == 'sobre' %} aria-current="page"{% endif %}>Metodologia</a>
 </nav>
 </div>

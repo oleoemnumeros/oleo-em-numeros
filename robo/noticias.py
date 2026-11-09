@@ -28,7 +28,7 @@ SAIDA = config.PROCESSADOS / "noticias.json"                  # o que o site usa
 DIAS_GUARDADOS = 180
 DIAS_NO_SITE = 90
 
-# Fontes candidatas. As que não responderem ficam de fora sem travar a coleta.
+# Fontes testadas a partir do GitHub em nov/2026. Se uma cair, as outras seguem.
 # tipo "govbr": a página de notícias do gov.br (sem RSS), lida como lista de manchetes.
 FONTES = [
     {"nome": "ANP", "url": "https://www.gov.br/anp/pt-br/canais_atendimento/imprensa/noticias-comunicados", "tipo": "govbr"},
@@ -38,9 +38,6 @@ FONTES = [
     {"nome": "Agência Brasil", "url": "https://agenciabrasil.ebc.com.br/rss/economia/feed.xml"},
     {"nome": "InfoMoney", "url": "https://www.infomoney.com.br/feed/"},
     {"nome": "Money Times", "url": "https://www.moneytimes.com.br/feed/"},
-    {"nome": "TN Petróleo", "url": "https://www.tnpetroleo.com.br/feed/"},
-    {"nome": "Brasil Energia", "url": "https://editorabrasilenergia.com.br/feed/", "navegador": True},
-    {"nome": "O Petróleo", "url": "https://www.opetroleo.com.br/feed/", "navegador": True},
 ]
 
 # Empresas e como aparecem nas manchetes. Nomes que também são palavras comuns
@@ -130,9 +127,9 @@ def ler_feed(conteudo: bytes, fonte: str) -> list[dict]:
 
 
 def ler_govbr(pagina: str, base: str, fonte: str) -> list[dict]:
-    """Lista de notícias de um portal gov.br: cada bloco 'tileItem' tem link, título e data."""
+    """Lista de notícias de um portal gov.br: cada bloco 'conteudo' tem link, título e data."""
     itens = []
-    for bloco in re.split(r'class="tileItem', pagina)[1:]:
+    for bloco in re.split(r'class="(?:conteudo|tileItem)', pagina)[1:]:
         m = re.search(r'<a[^>]+href="(' + re.escape(base) + r'/[^"#?]+)"[^>]*>(.*?)</a>', bloco, re.S)
         if not m:
             continue
@@ -170,15 +167,22 @@ def _norm(t: str) -> str:
     return " " + re.sub(r"[^0-9a-z&]+", " ", sem_acento(t).casefold()) + " "
 
 
-def _regex_nome(nome: str) -> re.Pattern:
-    return re.compile(r"(?<![\w-])" + re.escape(nome) + r"(?![\w-])")
+def _regex_nome(nome: str, flags=0) -> re.Pattern:
+    return re.compile(r"(?<![\w-])" + re.escape(nome) + r"(?![\w-])", flags)
+
+
+def _caixa_alta(t: str) -> bool:
+    letras = [c for c in t if c.isalpha()]
+    return len(letras) > 10 and sum(c.isupper() for c in letras) / len(letras) > 0.7
 
 
 def marcar(item: dict, campos: list[dict]) -> dict:
     """Empresas e campos citados no título ou no resumo do feed."""
     texto = f"{item['titulo']} {item.get('_resumo', '')}"
     n = _norm(texto)
-    empresas = [e for e, nomes in EMPRESAS.items() if any(_regex_nome(x).search(texto) for x in nomes)]
+    # manchete toda em maiúsculas (Petronotícias): compara sem diferenciar caixa
+    fl = re.I if _caixa_alta(item["titulo"]) else 0
+    empresas = [e for e, nomes in EMPRESAS.items() if any(_regex_nome(x, fl).search(texto) for x in nomes)]
     do_setor = bool(empresas or any(f" {p} " in n for p in PALAVRAS_DO_SETOR) or _regex_nome("ANP").search(texto))
     achados = []
     for c in campos:
@@ -187,7 +191,7 @@ def marcar(item: dict, campos: list[dict]) -> dict:
             continue
         # "campo de X" vale sempre; o nome solto (Búzios, Mero) só em matéria do setor
         if re.search(r" campos? (?:de |do |da )?" + re.escape(nome_n) + " ", n) or (
-                do_setor and c["nome"] in CAMPOS_FAMOSOS_NORMAIS and _regex_nome(c["nome"]).search(texto)):
+                do_setor and c["nome"] in CAMPOS_FAMOSOS_NORMAIS and _regex_nome(c["nome"], fl).search(texto)):
             achados.append(c["slug"])
     relevante = bool(do_setor or achados)
     return {**item, "empresas": empresas, "campos": sorted(set(achados)), "relevante": relevante}

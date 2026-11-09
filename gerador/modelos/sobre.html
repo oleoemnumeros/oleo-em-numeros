@@ -36,6 +36,12 @@
 <p><strong>Exemplo conferido, setembro de 2026.</strong> A PRIO divulgou 192,6 mil boe/d. Ela detém 80% de Peregrino e 90% de Albacora Leste e conta só o gás exportado. Convertidos para 100%, os campos do relatório batem um a um com os dados da ANP: Frade + Wahoo, 69,2 mil bbl/d; Albacora Leste, 25,6; Polvo + Tubarão Martelo, 12,9; Peregrino (com Pitangola), 103,0. A produção operada que aparece aqui, de 223,0 mil boe/d, inclui ainda cerca de 23 mil boe/d dos sócios e cerca de 7 mil boe/d de gás que não é vendido.</p>
 <p>Quer comparar com a produção própria de uma empresa? Use o relatório de relações com investidores dela. Para comparar campos, bacias e operadoras entre si, a produção operada é a medida certa, porque é a que a ANP publica para todos da mesma forma.</p>
 
+<h2 id="pocos">Produção por poço</h2>
+<p>A <a href="{{ u('pocos/') }}">busca de poços</a> mostra a série mensal de cada poço que produziu desde 2018, como a ANP publica: petróleo, gás natural e água em volume por dia, e o BSW calculado a partir deles. Mês em que a ANP não publicou dados para aquele ambiente (terra ou mar) aparece como lacuna; mês com o poço parado aparece como zero.</p>
+
+<h2 id="noticias">Notícias</h2>
+<p>As <a href="{{ u('noticias/') }}">manchetes do setor</a> são coletadas automaticamente todo dia{% if fontes_noticias %} de {{ fontes_noticias }}{% endif %}. Guardamos só o título, a data e o link: o texto das matérias fica no site de origem. Quando a manchete cita uma empresa ou um campo, ela aparece também na página dele aqui.</p>
+
 <h2 id="erro">Encontrou um erro?</h2>
 <p>Envie a página e o número com problema{% if site.contato %} para <a href="mailto:{{ site.contato }}">{{ site.contato }}</a>{% endif %}. Corrigimos e registramos a correção na própria página.</p>
 

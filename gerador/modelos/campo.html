@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import kpi, var_classe %}
+{% from "_macros.html" import kpi, var_classe, lista_noticias  %}
 {% block conteudo %}
 <section class="miolo cabeca">
 <nav class="trilha" aria-label="Você está em"><a href="{{ u('campos/') }}">Campos</a> / {{ c.bacia }} / {{ c.nome }}</nav>
@@ -46,11 +46,12 @@
 <thead><tr><th>Poço</th><th class="n">Total (boe/d)</th><th class="n">Petróleo (bbl/d)</th><th class="n">Gás (mil m³/d)</th><th class="n">BSW</th>{% if c.top_pocos and c.top_pocos[0].horas is not none %}<th class="n">Horas no mês</th>{% endif %}<th class="n">vs. mês anterior</th></tr></thead>
 <tbody>
 {% for p in c.top_pocos %}
-<tr><td>{{ p.poco }}</td><td class="n"><strong>{{ fmt_inteligente(p.boe) }}</strong></td><td class="n">{{ fmt_inteligente(p.petroleo) }}</td><td class="n">{{ fmt_inteligente(p.gas) }}</td><td class="n">{{ fmt(p.bsw, 1) }}%</td>{% if c.top_pocos[0].horas is not none %}<td class="n">{{ fmt(p.horas) }}</td>{% endif %}<td class="n {{ var_classe(p.varmes) }}">{{ 'novo' if p.novo else fmt_var(p.varmes) }}</td></tr>
+<tr><td><a href="{{ u('pocos/') }}?p={{ p.poco|urlencode }}">{{ p.poco }}</a></td><td class="n"><strong>{{ fmt_inteligente(p.boe) }}</strong></td><td class="n">{{ fmt_inteligente(p.petroleo) }}</td><td class="n">{{ fmt_inteligente(p.gas) }}</td><td class="n">{{ fmt(p.bsw, 1) }}%</td>{% if c.top_pocos[0].horas is not none %}<td class="n">{{ fmt(p.horas) }}</td>{% endif %}<td class="n {{ var_classe(p.varmes) }}">{{ 'novo' if p.novo else fmt_var(p.varmes) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>
 </div>
+<p class="nota"><a href="{{ u('pocos/') }}?campo={{ c.slug }}">Ver todos os poços do campo, com o gráfico de cada um</a></p>
 </div>
 <div class="cartao aside">
 <h2>Campos vizinhos</h2>
@@ -68,4 +69,13 @@
 <p class="nota">Por poço = produção total do campo (boe/d) ÷ poços ativos no mês.</p>
 </div>
 </section>
+{% if noticias %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>Notícias sobre o {{ c.nome }}</h2>
+{{ lista_noticias(noticias, u) }}
+<p class="nota">Manchetes coletadas automaticamente. Os links abrem a matéria no site de origem.</p>
+</div>
+</section>
+{% endif %}
 {% endblock %}

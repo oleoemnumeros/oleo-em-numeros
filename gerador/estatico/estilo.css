@@ -141,3 +141,19 @@ h2.bloco { margin: 48px 0 0; font-size: 26px; }
 .explica p { margin: 0; font-size: 14px; line-height: 1.55; max-width: 900px; }
 .explica .explica-titulo { margin-bottom: 4px; font-weight: 600; font-size: 15px; }
 .explica a { color: var(--ambar-escuro); }
+
+/* busca de poços */
+.filtro.busca { max-width: 520px; }
+.filtro.busca input { font-size: 16px; }
+.botao { min-height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid #CDD1D6; background: var(--cartao); color: var(--tinta); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.botao:hover { border-color: var(--ambar); color: var(--ambar-escuro); }
+#poco .kpis { margin-top: 24px; }
+
+/* notícias */
+.noticias { list-style: none; margin: 8px 0 0; padding: 0; }
+.noticias li { padding: 12px 0; border-bottom: 1px solid var(--grade); }
+.noticias li:last-child { border-bottom: 0; }
+.noticia-titulo { color: var(--tinta); text-decoration: none; font-weight: 600; line-height: 1.4; }
+.noticia-titulo:hover { color: var(--ambar-escuro); text-decoration: underline; }
+.noticia-meta { margin-top: 4px; font-size: 13px; color: var(--cinza); }
+.noticia-meta a { color: var(--ambar-escuro); }

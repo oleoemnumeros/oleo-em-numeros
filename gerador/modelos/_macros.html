@@ -21,3 +21,14 @@
 {% endfor %}
 </div>
 {%- endmacro %}
+
+{% macro lista_noticias(itens, u, tags=True) -%}
+<ul class="noticias">
+{% for n in itens %}
+<li>
+<a class="noticia-titulo" href="{{ n.link }}" target="_blank" rel="noopener">{{ n.titulo }}</a>
+<div class="noticia-meta">{{ n.dia }} · {{ n.fonte }}{% if tags %}{% for nome, alvo in n.tags %} · <a href="{{ u(alvo) }}">{{ nome }}</a>{% endfor %}{% endif %}</div>
+</li>
+{% endfor %}
+</ul>
+{%- endmacro %}

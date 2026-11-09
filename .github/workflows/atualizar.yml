@@ -1,12 +1,14 @@
-# Ciclo mensal do Óleo em Números: baixa da ANP, confere, gera e publica o site.
-# A ANP não tem data fixa de publicação, então o robô tenta três vezes por mês.
+# Atualização do Óleo em Números.
+# Dias 5, 15 e 25: baixa a ANP (que não tem data fixa), confere, gera e publica.
+# Todo dia: coleta as manchetes do setor e republica, sem baixar a ANP de novo.
 # Se a conferência encontrar algo crítico, o job falha, o GitHub manda e-mail
 # e o site continua com a última versão boa.
-name: Atualização mensal
+name: Atualização do site
 
 on:
   schedule:
-    - cron: "17 11 5,15,25 * *"   # dias 5, 15 e 25, às 8h17 de Brasília
+    - cron: "17 11 5,15,25 * *"   # dias 5, 15 e 25, às 8h17 de Brasília: dados da ANP
+    - cron: "23 10 * * *"         # todo dia, às 7h23 de Brasília: notícias
   workflow_dispatch:                # botão "Run workflow" para rodar na mão
     inputs:
       ano_inicial:
@@ -17,6 +19,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write   # para manter o agendamento ativo (o GitHub pausa após 60 dias sem commits)
 
 concurrency:
   group: atualizar
@@ -39,6 +42,15 @@ jobs:
       - name: Testes
         run: python -m pytest -q
 
+      - name: Modo da execução
+        id: modo
+        run: |
+          if [ "${{ github.event.schedule }}" = "23 10 * * *" ]; then
+            echo "baixar=nao" >> "$GITHUB_OUTPUT"; echo "Execução diária: só notícias."
+          else
+            echo "baixar=sim" >> "$GITHUB_OUTPUT"; echo "Execução completa: baixa a ANP."
+          fi
+
       - name: Recupera os arquivos já baixados da ANP
         uses: actions/cache/restore@v4
         with:
@@ -49,19 +61,43 @@ jobs:
       - name: Robô de dados (baixar, ler, agregar, conferir)
         env:
           ANO_INICIAL: ${{ inputs.ano_inicial || '2018' }}
-        run: python -m robo.executar
+        run: python -m robo.executar ${{ steps.modo.outputs.baixar == 'nao' && '--sem-baixar' || '' }}
 
       # guarda os downloads mesmo se a conferência falhar: a próxima execução não baixa tudo de novo
       - name: Guarda os arquivos baixados
-        if: always()
+        if: always() && steps.modo.outputs.baixar == 'sim'
         uses: actions/cache/save@v4
         with:
           path: dados/brutos
           key: brutos-${{ github.run_id }}
 
       - name: Diagnóstico dos arquivos da ANP
-        if: always()
+        if: always() && steps.modo.outputs.baixar == 'sim'
         run: python -m robo.diagnostico || true
+
+      - name: Recupera o histórico de notícias
+        uses: actions/cache/restore@v4
+        with:
+          path: dados/noticias
+          key: noticias-${{ github.run_id }}
+          restore-keys: noticias-
+
+      # notícia nunca trava o site: se as fontes falharem, publica com as manchetes que já tinha
+      - name: Notícias do setor
+        run: python -m robo.noticias || echo "::warning::Coleta de notícias falhou; o site sai com as manchetes anteriores."
+
+      - name: Guarda o histórico de notícias
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: dados/noticias
+          key: noticias-${{ github.run_id }}
+
+      - name: Mantém o agendamento ativo
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/atualizar.yml/enable" || true
 
       - name: Relatório da conferência
         if: always()

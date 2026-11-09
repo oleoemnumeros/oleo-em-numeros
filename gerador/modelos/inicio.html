@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import kpi, var_classe, barras %}
+{% from "_macros.html" import kpi, var_classe, barras, lista_noticias  %}
 {% block conteudo %}
 {% set br = ag.brasil %}
 <section class="miolo cabeca">
@@ -60,6 +60,16 @@
 </div>
 </section>
 
+{% if noticias %}
+<section class="miolo secao">
+<div class="cartao">
+<div class="linha-titulo"><h2>Notícias do setor</h2><a href="{{ u('noticias/') }}">Ver todas</a></div>
+{{ lista_noticias(noticias, u) }}
+<p class="nota">Manchetes coletadas automaticamente de {{ fontes_noticias }}. Os links abrem a matéria no site de origem.</p>
+</div>
+</section>
+{% endif %}
+
 <section class="miolo">
 <h2 class="bloco">Destaques do mês</h2>
 <p class="sub">Gerados automaticamente a partir dos dados novos da ANP.</p>
@@ -79,6 +89,7 @@
 <div class="cards">
 <a class="card" href="{{ u('campos/') }}"><h3>Todos os campos</h3><p>{{ ag.campos|length }} campos produtores, com histórico mês a mês.</p></a>
 <a class="card" href="{{ u('operadoras/') }}"><h3>Todas as operadoras</h3><p>{{ ag.operadores|length }} operadoras, com seus campos e bacias.</p></a>
+<a class="card" href="{{ u('pocos/') }}"><h3>Produção por poço</h3><p>Busque qualquer poço e veja o gráfico mês a mês desde 2018.</p></a>
 <a class="card" href="{{ u('rankings/') }}"><h3>Rankings do mês</h3><p>Quem mais cresceu e quem mais caiu.</p></a>
 <a class="card" href="{{ u('sobre/') }}"><h3>Metodologia</h3><p>De onde vêm os dados e como calculamos.</p></a>
 </div>

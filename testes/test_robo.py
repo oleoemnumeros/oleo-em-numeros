@@ -240,3 +240,75 @@ def test_planilha_manual_aceita_comentario_e_campo_por_poco(pasta, tmp_path):
     if (recentes["campo"] == "CAMPO EXEMPLO 4").any():
         assert set(recentes[recentes["campo"] == "CAMPO EXEMPLO 4"]["operador"]) == {"Operadora Nova"}
     assert not (b["operador"] == "por poço").any()
+
+
+# ---------------- notícias ----------------
+
+RSS_TESTE = """<?xml version="1.0"?><rss version="2.0"><channel>
+<item><title>PRIO conclui reparo no campo de Polvo</title><link>https://x.com/1</link>
+<pubDate>Mon, 09 Nov 2026 10:00:00 -0300</pubDate><description>&lt;p&gt;Resumo&lt;/p&gt;</description></item>
+<item><title>Prefeitura de Búzios inaugura praça</title><link>https://x.com/2</link></item>
+<item><title>Mero detalhe: inflação cai</title><link>https://x.com/3</link></item>
+<item><title>PRODUÇÃO DE PETRÓLEO DA BRAVA ENERGIA CRESCE</title><link>https://x.com/4</link></item>
+</channel></rss>""".encode()
+
+
+def test_feed_rss_rdf_e_govbr():
+    from robo.noticias import ler_feed, ler_govbr
+    itens = ler_feed(RSS_TESTE, "t")
+    assert len(itens) == 4 and itens[0]["data"] == "2026-11-09T13:00:00+00:00"
+    rdf = b"""<?xml version="1.0"?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns="http://purl.org/rss/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/"><item rdf:about="https://g/1">
+    <title>ANP divulga boletim</title><link>https://g/1</link><dc:date>2026-11-03T14:00:00-03:00</dc:date></item></rdf:RDF>"""
+    assert ler_feed(rdf, "anp")[0]["data"] == "2026-11-03T17:00:00+00:00"
+    base = "https://www.gov.br/anp/pt-br/noticias"
+    html = (f'<li><div class="conteudo"><h2 class="titulo"><a href="{base}/anp-aprova">ANP aprova &quot;X&quot;</a></h2>'
+            '<span class="descricao"><span class="data"> 06/11/2026 </span></span></div></li>')
+    g = ler_govbr(html, base, "ANP")
+    assert g[0]["titulo"] == 'ANP aprova "X"' and g[0]["data"].startswith("2026-11-06")
+
+
+def test_marcar_empresas_e_campos_sem_falso_positivo():
+    from robo import noticias as N
+    N.CAMPOS_FAMOSOS_NORMAIS.update({"Búzios", "Mero"})
+    campos = [{"nome": "POLVO", "slug": "polvo"}, {"nome": "Búzios", "slug": "buzios"}, {"nome": "Mero", "slug": "mero"}]
+    m = [N.marcar(i, campos) for i in N.ler_feed(RSS_TESTE, "t")]
+    assert m[0]["empresas"] == ["PRIO"] and m[0]["campos"] == ["polvo"] and m[0]["relevante"]
+    assert not m[1]["relevante"] and m[1]["campos"] == []      # cidade de Búzios, sem petróleo
+    assert not m[2]["relevante"] and m[2]["campos"] == []      # "mero" adjetivo
+    assert m[3]["relevante"] and m[3]["empresas"] == ["Brava Energia"]   # manchete toda em maiúsculas
+
+
+def test_coleta_guarda_historico_sem_duplicar(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+    from robo import noticias as N
+    monkeypatch.setattr(N, "baixar_fonte", lambda f: (N.ler_feed(RSS_TESTE, f["nome"]), "ok"))
+    monkeypatch.setattr(N, "_campos_do_site", lambda: [])
+    agora = datetime(2026, 11, 9, 15, tzinfo=timezone.utc)
+    for _ in range(2):
+        r = N.coletar(fontes=[{"nome": "T"}], historico=tmp_path / "h.json", saida=tmp_path / "n.json", agora=agora)
+    assert r["total"] == 4 and r["no_site"] == 2
+
+
+# ---------------- busca de poços ----------------
+
+def test_dados_da_busca_de_pocos(base, tmp_path):
+    import json
+    from gerador.pocos import gerar_pocos
+    ag = agregar(base)
+    csv = tmp_path / "base.csv.gz"
+    base.to_csv(csv, index=False, compression="gzip")
+    r = gerar_pocos(csv, tmp_path / "site", ag)
+    pasta = tmp_path / "site" / "dados" / "pocos"
+    idx = json.loads((pasta / "indice.json").read_text("utf-8"))
+    assert r["pocos"] == len(idx["pocos"]) > 0
+    ultimo = base["periodo"].max()
+    ativos = base[(base["periodo"] == ultimo) & ((base["petroleo_bbl_d"] > 0) | (base["gas_mil_m3_d"] > 0))]["poco"].nunique()
+    assert r["ativos"] == ativos
+    # a série de um poço bate com a base no último mês
+    nome, cslug = idx["pocos"][0][0], idx["pocos"][0][1]
+    campo = json.loads((pasta / f"{cslug}.json").read_text("utf-8"))
+    w = next(p for p in campo["pocos"] if p["n"] == nome)
+    esperado = base[(base["poco"] == nome) & (base["periodo"] == ultimo)]["petroleo_bbl_d"].sum()
+    assert w["p"][-1] == pytest.approx(esperado, abs=0.05)
+    assert idx["campos"][cslug]["pg"] == 1

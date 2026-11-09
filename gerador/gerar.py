@@ -9,7 +9,8 @@ import argparse
 import json
 import os
 import shutil
-from datetime import datetime
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -18,6 +19,7 @@ from robo import config
 from robo.util import MESES, fmt, fmt_inteligente, fmt_pp, fmt_var, mes_extenso
 
 from .graficos import linha
+from .pocos import gerar_pocos
 
 AQUI = Path(__file__).resolve().parent
 ICONE = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"><path d="M15 2c4.5 5.6 8 10.2 8 14.6a8 8 0 0 1-16 0'
@@ -124,6 +126,30 @@ def carregar(pasta: Path) -> dict:
     return ag
 
 
+def carregar_noticias(pasta: Path, ag: dict):
+    """Manchetes do robô de notícias, com o dia em horário de Brasília e links para as páginas citadas."""
+    arq = pasta / "noticias.json"
+    if not arq.exists():
+        return [], {}, {}, ""
+    itens = json.loads(arq.read_text("utf-8"))
+    op_slug = {o["nome"]: o["slug"] for o in ag["operadores"]}
+    campo_nome = {c["slug"]: c["nome"] for c in ag["campos"]}
+    brt = timezone(timedelta(hours=-3))
+    por_op, por_campo = defaultdict(list), defaultdict(list)
+    for n in itens:
+        d = datetime.fromisoformat(n["data"]).astimezone(brt)
+        n["dia"] = d.strftime("%d/%m/%Y")
+        n["tags"] = ([(e, f"operadoras/{op_slug[e]}/") for e in n.get("empresas", []) if e in op_slug]
+                     + [(campo_nome[c], f"campos/{c}/") for c in n.get("campos", []) if c in campo_nome])
+        for e in n.get("empresas", []):
+            por_op[e].append(n)
+        for c in n.get("campos", []):
+            por_campo[c].append(n)
+    fontes = sorted({n["fonte"] for n in itens})
+    texto = ", ".join(fontes[:-1]) + " e " + fontes[-1] if len(fontes) > 1 else "".join(fontes)
+    return itens, por_op, por_campo, texto
+
+
 # ---------------- geração ----------------
 
 def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, url: str | None = None) -> list[str]:
@@ -145,6 +171,9 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     saida.mkdir(parents=True)
     paginas = []
 
+    noticias, noticias_op, noticias_campo, fontes_noticias = carregar_noticias(dados, ag)
+    env.globals.update(fontes_noticias=fontes_noticias)
+
     def escrever(caminho: str, modelo: str, **ctx):
         raiz = "../" * caminho.count("/")
 
@@ -158,7 +187,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         arquivo = saida / (caminho + "index.html" if caminho == "" or caminho.endswith("/") else caminho)
         arquivo.parent.mkdir(parents=True, exist_ok=True)
         arquivo.write_text(html, "utf-8")
-        if not caminho.endswith(".html"):
+        if not caminho.endswith(".html") and not ctx.get("noindex"):
             paginas.append(caminho)
         return u
 
@@ -167,7 +196,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     escrever("", "inicio.html", secao="inicio", titulo="Óleo em Números",
              descricao=f"Produção de petróleo e gás do Brasil por operadora, campo e bacia, com dados oficiais da "
                        f"ANP. Dado mais recente: {mes}.",
-             destaques=destaques(ag, raiz_u))
+             destaques=destaques(ag, raiz_u), noticias=noticias[:8])
 
     escrever("operadoras/", "listas.html", secao="operadoras", tipo="operadoras", itens=ag["operadores"],
              titulo="Operadoras de petróleo e gás no Brasil", h1="Operadoras",
@@ -176,6 +205,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     for o in ag["operadores"]:
         o["resumo"] = resumo_operadora(o, ag)
         escrever(f"operadoras/{o['slug']}/", "operadora.html", secao="operadoras", o=o,
+                 noticias=noticias_op.get(o["nome"], [])[:6],
                  titulo=f"{o['nome']}: produção de petróleo e gás",
                  descricao=f"Produção mensal de petróleo e gás da {o['nome']}, campo a campo. "
                            f"{fmt_inteligente(o['boe'])} mil boe/d operados em {mes}. Dados da ANP.")
@@ -189,6 +219,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         c["resumo"] = resumo_campo(c, ag)
         lugar = "terra" if c["ambiente"] == "terra" else "mar"
         escrever(f"campos/{c['slug']}/", "campo.html", secao="campos", c=c,
+                 noticias=noticias_campo.get(c["slug"], [])[:5],
                  titulo=f"{c['nome']} ({c['bacia']}, {c['estado']['uf']}): produção de petróleo e gás",
                  descricao=f"Produção mensal de petróleo, gás e água do {c['nome']}, campo em {lugar} na bacia "
                            f"{c['bacia']} operado pela {c['operador']}. Dado mais recente: {mes}.")
@@ -201,6 +232,16 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                  titulo=f"{h1}: maiores altas e quedas de produção",
                  descricao=f"Campos de petróleo que mais cresceram e mais caíram em {mes}. Dados da ANP.")
 
+    escrever("pocos/", "pocos.html", secao="pocos", titulo="Produção por poço",
+             descricao="Busque qualquer poço de petróleo e gás do Brasil e veja a produção mês a mês desde 2018: "
+                       "petróleo, gás, água e BSW. Dados da ANP.")
+    base_csv = dados / "base_pocos.csv.gz"
+    if base_csv.exists():
+        r = gerar_pocos(base_csv, saida, ag)
+        print(f"Busca de poços: {r['pocos']} poços ({r['ativos']} ativos) em {r['campos']} campos, {r['mb']} MB")
+    escrever("noticias/", "noticias.html", secao="noticias", titulo="Notícias do setor de petróleo e gás",
+             descricao="Manchetes diárias de petróleo e gás, com links para os números de cada empresa e campo.",
+             noticias=noticias[:200], noindex=True)
     escrever("sobre/", "sobre.html", secao="sobre", titulo="Sobre e metodologia",
              descricao="De onde vêm os dados do Óleo em Números e como os números são calculados.")
     escrever("404.html", "nao_encontrada.html", secao="", titulo="Página não encontrada",
