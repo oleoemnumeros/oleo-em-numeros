@@ -252,10 +252,13 @@ def depurar_govbr() -> str:
             continue
         r = requests.get(f["url"], headers={"User-Agent": NAVEGADOR}, timeout=25)
         t = r.text
-        i = t.find(f["url"] + "/")
-        saida.append(f"### {f['nome']} HTTP {r.status_code} tamanho {len(t)} primeiro link em {i}")
-        trecho = t[max(0, i - 1500): i + 1500] if i >= 0 else t[:3000]
-        saida.append(re.sub(r"\s+", " ", trecho))
+        links = [m.start() for m in re.finditer(r'href="' + re.escape(f["url"]) + r'/[a-z0-9-]{15,}', t)]
+        contagem = {k: t.count(k) for k in ("tileItem", "tileHeadline", "summary url", "documentByLine", "icon-day",
+                                                 "data-noticia", "card", "titulo")}
+        saida.append(f"### {f['nome']} HTTP {r.status_code} tamanho {len(t)} links de notícia: {len(links)} {contagem}")
+        if links:
+            i = links[min(2, len(links) - 1)]
+            saida.append(re.sub(r"\s+", " ", t[max(0, i - 1200): i + 1200]))
     return "\n".join(saida)
 
 
