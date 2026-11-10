@@ -246,7 +246,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         "url": (url or os.environ.get("SITE_URL") or "https://oleoemnumeros.com.br").rstrip("/"),
         "teste": teste,
         "previa": os.environ.get("SITE_PREVIA", "0") == "1",
-        "contato": os.environ.get("SITE_CONTATO", ""),
+        "contato": os.environ.get("SITE_CONTATO") or "oleoemnumeros@gmail.com",  # variável do GitHub, se houver, prevalece
     }
     env = Environment(loader=FileSystemLoader(AQUI / "modelos"), autoescape=select_autoescape(["html"]),
                       trim_blocks=True, lstrip_blocks=True)
