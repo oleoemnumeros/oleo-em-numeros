@@ -1,0 +1,56 @@
+# Ferramenta de manutenção: refaz os dados processados a partir dos arquivos já baixados e
+# guarda uma cópia no ramo "exportacao", para gerar e revisar o site fora do GitHub. Não publica nada.
+name: Exportar dados processados
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  exportar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Recupera os arquivos já baixados da ANP
+        uses: actions/cache/restore@v4
+        with:
+          path: dados/brutos
+          key: brutos-exporta-${{ github.run_id }}
+          restore-keys: brutos-
+
+      - name: Recupera o histórico de notícias
+        uses: actions/cache/restore@v4
+        with:
+          path: dados/noticias
+          key: noticias-exporta-${{ github.run_id }}
+          restore-keys: noticias-
+
+      - name: Dados
+        env:
+          ANO_INICIAL: "2018"
+        run: |
+          python -m robo.executar --sem-baixar
+          python -m robo.cvm --sem-baixar || true
+          python -m robo.royalties --sem-baixar || true
+          python -m robo.noticias || true
+
+      - name: Guarda no ramo exportacao
+        run: |
+          tar czf /tmp/processados.tgz dados/processados
+          ls -la /tmp/processados.tgz
+          mkdir /tmp/exp && cd /tmp/exp && git init -q -b exportacao
+          cp /tmp/processados.tgz .
+          git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" add processados.tgz
+          git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" commit -qm "Dados processados para revisão"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" exportacao
