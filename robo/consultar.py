@@ -77,6 +77,32 @@ def main(argv=None):
             t = re.sub(r"<[^>]+>|\s+", " ", texto).strip()
             if re.search(r"\.(xlsx?|csv|zip|ods|json)(\?|$)|royalt|particip|benefici|distribu", href + " " + t, re.I):
                 print(f"LINK | {t[:90]} | {href}")
+    elif a.grupo.startswith("planilha:"):
+        # mostra abas e primeiras linhas de uma planilha (xlsx/xls/zip) para entender o formato
+        import io
+        import zipfile
+        import pandas as pd
+        import requests
+        from .noticias import NAVEGADOR
+        url = a.grupo[len("planilha:"):]
+        r = requests.get(url, headers={"User-Agent": NAVEGADOR}, timeout=180)
+        print(f"HTTP {r.status_code} {len(r.content) / 1e6:.1f} MB {url}")
+        arquivos = []
+        if url.endswith(".zip"):
+            with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+                print("ZIP:", z.namelist()[:30])
+                arquivos = [(n, z.read(n)) for n in z.namelist() if n.lower().endswith((".xlsx", ".xls", ".csv"))][:2]
+        else:
+            arquivos = [(url, r.content)]
+        for nome, conteudo in arquivos:
+            if nome.lower().endswith(".csv"):
+                print(conteudo[:1500].decode("latin-1"))
+                continue
+            abas = pd.read_excel(io.BytesIO(conteudo), sheet_name=None, header=None, nrows=14)
+            print(f"### {nome}: {len(abas)} abas: {list(abas)[:40]}")
+            for aba, d in list(abas.items())[:4]:
+                print(f"--- aba {aba} ({d.shape})")
+                print(d.head(14).to_string(max_colwidth=28)[:3000])
     elif a.grupo == "fontes":
         from .noticias import testar
         print(testar())
