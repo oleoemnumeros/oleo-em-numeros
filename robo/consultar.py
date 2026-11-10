@@ -130,6 +130,37 @@ def main(argv=None):
                 m = d[d.astype(str).apply(lambda c: c.str.upper().str.contains("MARIC")).any(axis=1)]
                 print(m.iloc[:3, :11].to_string(max_colwidth=26))
                 print(d.iloc[-6:, :11].to_string(max_colwidth=26))
+    elif a.grupo == "royalties-amostra2":
+        import io
+        import pandas as pd
+        import requests
+        from .noticias import NAVEGADOR
+        H = {"User-Agent": NAVEGADOR}
+        url = "https://www.gov.br/anp/pt-br/assuntos/royalties-e-outras-participacoes/arq-royalties/pe/tab/2026/19-pe-2t-2026.xls"
+        d = pd.read_excel(io.BytesIO(requests.get(url, headers=H, timeout=120).content), sheet_name=None, header=None)
+        for aba, t in d.items():
+            print(f"### PE xls aba {aba} {t.shape}")
+            with pd.option_context("display.width", 250, "display.max_columns", 8, "display.max_rows", 400):
+                print(t.dropna(how="all").iloc[:, :6].to_string(max_colwidth=40))
+        base = "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/pg/participacao-especial/"
+        for arq in ("pe_municipio.csv", "pe_estado.csv"):
+            t = pd.read_csv(io.BytesIO(requests.get(base + arq, headers=H, timeout=120).content), sep=";", encoding="latin-1")
+            t["comp"] = pd.to_datetime(pd.to_numeric(t["competencia"], errors="coerce"), unit="D", origin="1899-12-30")
+            t["cx"] = pd.to_datetime(pd.to_numeric(t["caixa"], errors="coerce"), unit="D", origin="1899-12-30")
+            print(f"### {arq}: {len(t)} linhas; competência {t['comp'].min()} a {t['comp'].max()}; caixa {t['cx'].min()} a {t['cx'].max()}")
+            print(t.groupby(t["comp"].dt.to_period("M")).size().tail(8).to_string())
+        r = requests.get("https://servicodados.ibge.gov.br/api/v1/localidades/municipios", headers=H, timeout=120)
+        m = r.json()
+        print(f"### IBGE municípios: HTTP {r.status_code}, {len(m)} itens; exemplo: {m[0]['id']} {m[0]['nome']}")
+        r = requests.get("https://servicodados.ibge.gov.br/api/v3/agregados/6579/periodos/-1/variaveis/9324?localidades=N6[all]",
+                         headers=H, timeout=180)
+        print(f"### IBGE população: HTTP {r.status_code}, {len(r.content) / 1e6:.1f} MB")
+        try:
+            j = r.json()
+            res = j[0]["resultados"][0]["series"]
+            print(len(res), res[0]["localidade"], res[0]["serie"])
+        except Exception as e:
+            print("erro população:", e, r.text[:300])
     elif a.grupo == "fontes":
         from .noticias import testar
         print(testar())
