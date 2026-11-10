@@ -85,7 +85,8 @@ def baixar(pasta: Path = PASTA) -> dict:
     anos_csv = {int(n[4:8]) for n in alvo if n.startswith("mun_")}
     for texto, h in _links(PAGINA_ROYALTIES):
         m = re.search(r"valor-mensal-dos-royalties-dos-beneficiarios/(\d{4})/[^/]+\.xlsx$", h)
-        if m and int(m.group(1)) > max(anos_csv or {0}):
+        # o arquivo do ano inteiro tem o link "Janeiro a Dezembro"; há outros (educação e saúde) na mesma pasta
+        if m and int(m.group(1)) > max(anos_csv or {0}) and ("janeiro" in texto.lower() or "jan-dez" in h):
             alvo[f"tabela_{m.group(1)}.xlsx"] = h
     for texto, h in _links(PAGINA_PE):
         m = re.search(r"(\d)º\s*Trimestre de (\d{4})", texto, re.I)
@@ -180,7 +181,13 @@ def ler_csv_estados(caminho: Path) -> pd.DataFrame:
 
 def ler_tabela_ano(caminho: Path, ano: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Planilha do ano corrente, aba TOTAL: blocos de estados e de municípios, 3 colunas por mês."""
-    d = pd.read_excel(caminho, sheet_name="TOTAL", header=None, dtype=object)
+    abas = pd.ExcelFile(caminho).sheet_names
+    aba = next((a for a in abas if sem_acento(a).strip().upper() == "TOTAL"), None)
+    if aba is None:
+        print(f"Royalties: {caminho.name} sem aba TOTAL (abas: {abas}); ano {ano} fica de fora")
+        return (pd.DataFrame(columns=["mes", "chave", "nome_anp", "uf", "valor"]),
+                pd.DataFrame(columns=["mes", "uf", "valor"]))
+    d = pd.read_excel(caminho, sheet_name=aba, header=None, dtype=object)
     col_mes = {}
     for _, linha in d.iterrows():
         for j, v in linha.items():
