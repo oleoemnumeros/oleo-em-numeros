@@ -65,7 +65,19 @@ def main(argv=None):
     p.add_argument("grupo")
     p.add_argument("--meses", type=int, default=3)
     a = p.parse_args(argv)
-    if a.grupo == "fontes":
+    if a.grupo.startswith("links:"):
+        # lista os links de arquivos de uma página (para achar fontes novas)
+        import re
+        import requests
+        from .noticias import NAVEGADOR
+        url = a.grupo[len("links:"):]
+        r = requests.get(url, headers={"User-Agent": NAVEGADOR}, timeout=60)
+        print(f"HTTP {r.status_code} {url}")
+        for href, texto in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', r.text, re.S):
+            t = re.sub(r"<[^>]+>|\s+", " ", texto).strip()
+            if re.search(r"\.(xlsx?|csv|zip|ods|json)(\?|$)|royalt|particip|benefici|distribu", href + " " + t, re.I):
+                print(f"LINK | {t[:90]} | {href}")
+    elif a.grupo == "fontes":
         from .noticias import testar
         print(testar())
     elif a.grupo == "cvm-contas":
