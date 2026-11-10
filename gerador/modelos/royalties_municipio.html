@@ -2,7 +2,7 @@
 {% from "_macros.html" import kpi, var_classe %}
 {% block conteudo %}
 <section class="miolo cabeca">
-<nav class="trilha" aria-label="Você está em"><a href="{{ u('royalties/') }}">Royalties</a> / <a href="{{ u('royalties/' ~ m.estado_slug ~ '/') }}">{{ m.estado_nome }}</a> / {{ m.nome }}</nav>
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('royalties/') }}">Royalties</a><span aria-hidden="true"> / </span><a href="{{ u('royalties/' ~ m.estado_slug ~ '/') }}">{{ m.estado_nome }}</a><span aria-hidden="true"> / </span><span aria-current="page">{{ m.nome }}</span></nav>
 <h1>Royalties de petróleo de {{ m.nome }} ({{ m.uf }})</h1>
 <p class="sub">{% if m.rank %}{{ m.rank }}º município do Brasil em royalties e participação especial · {{ m.rank_uf }}º {{ m.estado_de }} · {% endif %}pagamentos até {{ R.mes_extenso }}</p>
 <div class="kpis kpis-6 kpis-dinheiro">
@@ -49,7 +49,7 @@
 <table>
 <tbody>
 {% for x in m.serie_ult12 %}
-<tr><td>{{ mes_extenso(x.mes) }}</td><td class="n">{{ dinheiro(x.valor) if x.valor else '—' }}</td></tr>
+<tr><th scope="row">{{ mes_extenso(x.mes) }}</th><td class="n">{{ dinheiro(x.valor) if x.valor else '—' }}</td></tr>
 {% endfor %}
 </tbody>
 </table>

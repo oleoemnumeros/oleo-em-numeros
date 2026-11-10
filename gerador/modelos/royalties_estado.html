@@ -2,7 +2,7 @@
 {% from "_macros.html" import kpi, var_classe %}
 {% block conteudo %}
 <section class="miolo cabeca">
-<nav class="trilha" aria-label="Você está em"><a href="{{ u('royalties/') }}">Royalties</a> / {{ e.nome }}</nav>
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('royalties/') }}">Royalties</a><span aria-hidden="true"> / </span><span aria-current="page">{{ e.nome }}</span></nav>
 <h1>Royalties de petróleo {{ e.de }}</h1>
 <p class="sub">{{ e.n_municipios }} {{ 'município recebeu' if e.n_municipios == 1 else 'municípios receberam' }} royalties ou participação especial nos últimos 12 meses · pagamentos até {{ R.mes_extenso }}</p>
 <div class="kpis kpis-dinheiro">
@@ -30,7 +30,7 @@
 <p class="legenda">Ordem: total recebido nos últimos 12 meses (royalties + participação especial)</p>
 <div class="tabela">
 <table>
-<thead><tr><th>#</th><th>Município</th><th class="n">Total 12 meses</th><th class="n">Royalties 12 meses</th><th class="n">Participação especial</th><th class="n">Último mês</th><th class="n">Por habitante/ano</th><th class="n">12 meses</th></tr></thead>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Município</th><th class="n">Total 12 meses</th><th class="n">Royalties 12 meses</th><th class="n">Participação especial</th><th class="n">Último mês</th><th class="n">Por habitante/ano</th><th class="n">12 meses</th></tr></thead>
 <tbody>
 {% for m in e.municipios if m.total12 > 0 %}
 <tr><td>{{ loop.index }}</td><td><a href="{{ u('royalties/' ~ e.slug ~ '/' ~ m.slug ~ '/') }}">{{ m.nome }}</a></td><td class="n"><strong>{{ dinheiro(m.total12) }}</strong></td><td class="n">{{ dinheiro(m.r12) }}</td><td class="n">{{ dinheiro(m.pe12) if m.pe12 else '—' }}</td><td class="n">{{ dinheiro(m.ultimo_mes) if m.ultimo_mes else '—' }}</td><td class="n">{{ dinheiro(m.per_capita) if m.per_capita else '—' }}</td><td class="n {{ var_classe(m.var12) }}">{{ fmt_var(m.var12) }}</td></tr>

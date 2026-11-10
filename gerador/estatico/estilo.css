@@ -170,3 +170,16 @@ h2.bloco { margin: 48px 0 0; font-size: 26px; }
 /* royalties: valores em reais são longos */
 .kpis-dinheiro .kpi .num { font-size: 26px; }
 @media (max-width: 700px) { .kpis-dinheiro .kpi .num { font-size: 21px; } }
+
+/* acessibilidade */
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.pular { position: absolute; left: 12px; top: -64px; z-index: 10; padding: 10px 16px; border-radius: 8px; background: var(--tinta); color: #FFFFFF; font-weight: 600; text-decoration: none; }
+.pular:focus, .pular:hover { top: 12px; color: #FFFFFF; }
+:focus-visible { outline: 3px solid var(--ambar); outline-offset: 2px; }
+.rodape :focus-visible { outline-color: #FBBF24; }
+main:focus { outline: none; }
+.tabela:focus-visible { outline-offset: -3px; }
+/* primeira célula de tabelas de duas colunas (rótulo e valor) */
+tbody th { padding: 12px; font-size: 14px; font-weight: 400; color: var(--tinta); text-transform: none; letter-spacing: 0; border-bottom-color: var(--grade); }
+tr.eu th { font-weight: 600; }
+@media (max-width: 600px) { tbody th { padding: 10px 8px; } }

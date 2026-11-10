@@ -43,7 +43,7 @@
 <div class="linha-titulo"><h2>Maiores operadoras</h2><a href="{{ u('rankings/') }}">Ver ranking completo</a></div>
 <div class="tabela">
 <table>
-<thead><tr><th>#</th><th>Operadora</th><th class="n">Total (mil boe/d)</th><th class="n">Petróleo (mil bbl/d)</th><th class="n">Participação</th><th class="n">12 meses</th></tr></thead>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Operadora</th><th class="n">Total (mil boe/d)</th><th class="n">Petróleo (mil bbl/d)</th><th class="n">Participação</th><th class="n">12 meses</th></tr></thead>
 <tbody>
 {% for o in ag.operadores[:8] %}
 <tr><td>{{ o.rank }}</td><td><a href="{{ u('operadoras/' ~ o.slug ~ '/') }}">{{ o.nome }}</a></td><td class="n"><strong>{{ fmt_inteligente(o.boe) }}</strong></td><td class="n">{{ fmt_inteligente(o.petroleo) }}</td><td class="n">{{ fmt(o.share, 1) }}%</td><td class="n {{ var_classe(o.var12) }}">{{ fmt_var(o.var12) }}</td></tr>
@@ -88,7 +88,7 @@
 <h2 class="bloco">Explore</h2>
 <div class="cards">
 <a class="card" href="{{ u('campos/') }}"><h3>Todos os campos</h3><p>{{ ag.campos|length }} campos produtores, com histórico mês a mês.</p></a>
-<a class="card" href="{{ u('operadoras/') }}"><h3>Todas as operadoras</h3><p>{{ ag.operadores|length }} operadoras, com seus campos e bacias.</p></a>
+<a class="card" href="{{ u('operadoras/') }}"><h3>Todas as operadoras</h3><p>{{ ag.n_operadoras }} operadoras, com seus campos e bacias.</p></a>
 <a class="card" href="{{ u('royalties/') }}"><h3>Royalties por município</h3><p>Quanto cada cidade e cada estado recebe, mês a mês, e por habitante.</p></a>
 <a class="card" href="{{ u('estados/') }}"><h3>Estados e bacias</h3><p>Produção de cada estado e de cada bacia, com empresas e campos.</p></a>
 <a class="card" href="{{ u('pocos/') }}"><h3>Produção por poço</h3><p>Busque qualquer poço e veja o gráfico mês a mês desde 2018.</p></a>

@@ -14,6 +14,7 @@
 <label for="busca-mun">Procure o seu município</label>
 <input id="busca-mun" type="search" placeholder="Digite o nome da cidade" autocomplete="off" list="lista-mun">
 <datalist id="lista-mun">{% for m in R.ranking %}<option value="{{ m.nome }} ({{ m.uf }})">{% endfor %}</datalist>
+<p class="nota" id="busca-aviso" role="status"></p>
 </div>
 </section>
 
@@ -32,7 +33,7 @@
 <p class="legenda">Royalties + participação especial nos últimos 12 meses</p>
 <div class="tabela">
 <table>
-<thead><tr><th>#</th><th>Município</th><th class="n">Total 12 meses</th><th class="n">Por habitante/ano</th><th class="n">12 meses</th></tr></thead>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Município</th><th class="n">Total 12 meses</th><th class="n">Por habitante/ano</th><th class="n">12 meses</th></tr></thead>
 <tbody>
 {% for m in R.ranking[:25] %}
 <tr><td>{{ m.rank }}</td><td><a href="{{ u('royalties/' ~ m.estado_slug ~ '/' ~ m.slug ~ '/') }}">{{ m.nome }}</a> <span class="legenda">{{ m.uf }}</span></td><td class="n"><strong>{{ dinheiro(m.total12) }}</strong></td><td class="n">{{ dinheiro(m.per_capita) if m.per_capita else '—' }}</td><td class="n {{ var_classe(m.var12) }}">{{ fmt_var(m.var12) }}</td></tr>
@@ -49,7 +50,7 @@
 <table>
 <tbody>
 {% for e in R.estados if e.total12 > 0 %}
-<tr><td><a href="{{ u('royalties/' ~ e.slug ~ '/') }}">{{ e.nome }}</a></td><td class="n">{{ dinheiro(e.total12) }}</td></tr>
+<tr><th scope="row"><a href="{{ u('royalties/' ~ e.slug ~ '/') }}">{{ e.nome }}</a></th><td class="n">{{ dinheiro(e.total12) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>
@@ -66,8 +67,23 @@
 <script>
 (function () {
   var mapa = { {% for m in R.ranking %}{{ (m.nome ~ ' (' ~ m.uf ~ ')')|tojson }}: {{ u('royalties/' ~ m.estado_slug ~ '/' ~ m.slug ~ '/')|tojson }}{% if not loop.last %},{% endif %}{% endfor %} };
-  var campo = document.getElementById("busca-mun");
+  var campo = document.getElementById("busca-mun"), aviso = document.getElementById("busca-aviso");
+  function norm(s) { return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim(); }
+  var lista = Object.keys(mapa).map(function (k) { return { k: k, n: norm(k), s: norm(k.replace(/ \([A-Z]{2}\)$/, "")) }; });
+  // aceita o nome sem acento e sem a UF, sem depender da lista de sugestões (que nem todo navegador mostra)
+  function ir() {
+    var q = norm(campo.value);
+    if (!q) return;
+    if (mapa[campo.value]) { location.href = mapa[campo.value]; return; }
+    var exatos = lista.filter(function (x) { return x.n === q || x.s === q; });
+    var achados = exatos.length ? exatos : lista.filter(function (x) { return x.n.indexOf(q) === 0; });
+    if (achados.length === 1) { location.href = mapa[achados[0].k]; return; }
+    aviso.textContent = achados.length ? "Há " + achados.length + " municípios com esse nome: escolha um na lista, com a UF."
+                                       : "Nenhum município com royalties encontrado com esse nome.";
+  }
   campo.addEventListener("change", function () { if (mapa[campo.value]) location.href = mapa[campo.value]; });
+  campo.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); ir(); } });
+  campo.addEventListener("input", function () { aviso.textContent = ""; });
 })();
 </script>
 {% endblock %}

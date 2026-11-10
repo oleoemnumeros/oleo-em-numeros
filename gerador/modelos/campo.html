@@ -2,10 +2,10 @@
 {% from "_macros.html" import kpi, var_classe, lista_noticias  %}
 {% block conteudo %}
 <section class="miolo cabeca">
-<nav class="trilha" aria-label="Você está em"><a href="{{ u('campos/') }}">Campos</a> / {% if c.bacia_slug %}<a href="{{ u('bacias/' ~ c.bacia_slug ~ '/') }}">{{ c.bacia }}</a>{% else %}{{ c.bacia }}{% endif %} / {{ c.nome }}</nav>
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('campos/') }}">Campos</a><span aria-hidden="true"> / </span>{% if c.bacia_slug %}<a href="{{ u('bacias/' ~ c.bacia_slug ~ '/') }}">{{ c.bacia }}</a>{% else %}{{ c.bacia }}{% endif %}<span aria-hidden="true"> / </span><span aria-current="page">{{ c.nome }}</span></nav>
 <h1>{{ c.nome }}</h1>
 <div class="chips">
-{% if c.bacia_slug %}<a class="chip" href="{{ u('bacias/' ~ c.bacia_slug ~ '/') }}">Bacia {{ c.bacia }}</a>{% else %}<span class="chip">Bacia {{ c.bacia }}</span>{% endif %}
+{% if c.bacia_slug %}<a class="chip" href="{{ u('bacias/' ~ c.bacia_slug ~ '/') }}">{{ titulo_bacia(c.bacia) }}</a>{% else %}<span class="chip">{{ titulo_bacia(c.bacia) }}</span>{% endif %}
 {% if c.estado_slug %}<a class="chip" href="{{ u('estados/' ~ c.estado_slug ~ '/') }}">{{ c.estado.nome }}</a>{% else %}<span class="chip">{{ c.estado.nome }}</span>{% endif %}
 <span class="chip">{{ 'Terra' if c.ambiente == 'terra' else 'Mar' }}</span>
 <a class="chip" href="{{ u('operadoras/' ~ c.operador_slug ~ '/') }}">{{ c.grupo }}</a>
@@ -15,7 +15,7 @@
 {{ kpi('Produção total', fmt(c.boe), 'boe/d', fmt_var(c.var12) ~ ' em 12 meses', var_classe(c.var12), principal=True) }}
 {{ kpi('Petróleo', fmt(c.petroleo), 'bbl/d', fmt_var(c.var12_petroleo) ~ ' em 12 meses', var_classe(c.var12_petroleo)) }}
 {{ kpi('Gás natural', fmt_inteligente(c.gas), 'mil m³/d', fmt_var(c.var12_gas) ~ ' em 12 meses', var_classe(c.var12_gas)) }}
-{{ kpi('BSW', fmt(c.bsw, 1) ~ '%', 'água no líquido', fmt_pp(c.bsw_pp) ~ ' em 12 meses') }}
+{{ kpi('BSW', pct(c.bsw, 1), 'água no líquido', fmt_pp(c.bsw_pp) ~ ' em 12 meses') }}
 {{ kpi('Poços ativos', fmt(c.pocos), 'poços', fmt_var(c.var12_pocos) ~ ' em 12 meses', var_classe(c.var12_pocos)) }}
 {{ kpi('Média por poço', fmt_inteligente(c.por_poco), 'boe/d', fmt_var(c.var12_porpoco) ~ ' em 12 meses', var_classe(c.var12_porpoco)) }}
 </div>
@@ -46,7 +46,7 @@
 <thead><tr><th>Poço</th><th class="n">Total (boe/d)</th><th class="n">Petróleo (bbl/d)</th><th class="n">Gás (mil m³/d)</th><th class="n">BSW</th>{% if c.top_pocos and c.top_pocos[0].horas is not none %}<th class="n">Horas no mês</th>{% endif %}<th class="n">vs. mês anterior</th></tr></thead>
 <tbody>
 {% for p in c.top_pocos %}
-<tr><td><a href="{{ u('pocos/') }}?p={{ p.poco|urlencode }}">{{ p.poco }}</a></td><td class="n"><strong>{{ fmt_inteligente(p.boe) }}</strong></td><td class="n">{{ fmt_inteligente(p.petroleo) }}</td><td class="n">{{ fmt_inteligente(p.gas) }}</td><td class="n">{{ fmt(p.bsw, 1) }}%</td>{% if c.top_pocos[0].horas is not none %}<td class="n">{{ fmt(p.horas) }}</td>{% endif %}<td class="n {{ var_classe(p.varmes) }}">{{ 'novo' if p.novo else fmt_var(p.varmes) }}</td></tr>
+<tr><td><a href="{{ u('pocos/') }}?p={{ p.poco|urlencode }}">{{ p.poco }}</a></td><td class="n"><strong>{{ fmt_inteligente(p.boe) }}</strong></td><td class="n">{{ fmt_inteligente(p.petroleo) }}</td><td class="n">{{ fmt_inteligente(p.gas) }}</td><td class="n">{{ pct(p.bsw, 1) }}</td>{% if c.top_pocos[0].horas is not none %}<td class="n">{{ fmt(p.horas) }}</td>{% endif %}<td class="n {{ var_classe(p.varmes) }}">{{ 'novo' if p.novo else fmt_var(p.varmes) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>
@@ -55,13 +55,13 @@
 </div>
 <div class="cartao aside">
 <h2>Campos vizinhos</h2>
-<p class="legenda">Bacia {{ c.bacia }} · {{ mes_extenso(ag.ultimo) }}</p>
+<p class="legenda">{{ titulo_bacia(c.bacia) }} · {{ mes_extenso(ag.ultimo) }}</p>
 <div class="tabela">
 <table>
 <thead><tr><th>Campo</th><th class="n">boe/d</th><th class="n">BSW</th><th class="n">Por poço</th></tr></thead>
 <tbody>
 {% for v in c.vizinhos %}
-<tr{% if v.eu %} class="eu"{% endif %}><td>{% if v.eu %}{{ v.nome }}{% else %}<a href="{{ u('campos/' ~ v.slug ~ '/') }}">{{ v.nome }}</a>{% endif %}</td><td class="n">{{ fmt(v.boe) }}</td><td class="n">{{ fmt(v.bsw, 1) }}%</td><td class="n">{{ fmt_inteligente(v.por_poco) }}</td></tr>
+<tr{% if v.eu %} class="eu"{% endif %}><td>{% if v.eu %}{{ v.nome }}<span class="sr"> (este campo)</span>{% else %}<a href="{{ u('campos/' ~ v.slug ~ '/') }}">{{ v.nome }}</a>{% endif %}</td><td class="n">{{ fmt(v.boe) }}</td><td class="n">{{ pct(v.bsw, 1) }}</td><td class="n">{{ fmt_inteligente(v.por_poco) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>

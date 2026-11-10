@@ -470,3 +470,40 @@ def test_paginas_de_royalties(base, tmp_path):
     html = (tmp_path / "site" / "royalties" / "rio-de-janeiro" / "marica" / "index.html").read_text("utf-8")
     assert "Royalties de petróleo de Maricá (RJ)" in html and "Em resumo" in html
     assert "É o município que mais recebe" in html
+
+
+def test_grafico_desenha_lacuna_e_rotulos_do_eixo():
+    """Mês sem dado quebra a linha (antes ela ligava os vizinhos) e o eixo mostra 0,25 e 2,5 por inteiro."""
+    from gerador.graficos import _casas, _ticks, linha
+    per = [f"2025-{m:02d}" for m in range(1, 7)]
+    svg = str(linha([10, 12, None, 14, 15, 16], per, "Teste, em bbl/d"))
+    larga = svg.split("</svg>")[0]
+    assert larga.count("<polyline") == 2
+    assert "De janeiro de 2025 a junho de 2025" in larga and "Máximo: 16,0" in larga
+    assert _casas(_ticks(0, 1)) == 2 and _casas([0, 2.5, 5]) == 1 and _casas([0, 1000, 2000]) == 0
+
+
+def test_nomes_compostos_e_valores_em_reais():
+    from gerador.royalties import dinheiro
+    from robo.util import nome_bonito
+    assert nome_bonito("PAPA-TERRA") == "Papa-Terra"
+    assert nome_bonito("SABIÁ BICO-DE-OSSO") == "Sabiá Bico-de-Osso"
+    assert dinheiro(1840.6) == "R$ 1.841" and dinheiro(532_000) == "R$ 532 mil" and dinheiro(3.2e9) == "R$ 3,20 bi"
+
+
+def test_operadora_nao_identificada_fica_fora_do_ranking_e_404_usa_a_raiz(base, tmp_path):
+    import json
+    from robo.executar import _leve
+    ag = _leve(agregar(base))
+    falso = dict(ag["operadores"][-1], nome="Não identificado", slug="nao-identificado", boe=999.0)
+    ag["operadores"].insert(0, falso)
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "agregados.json").write_text(json.dumps(ag, ensure_ascii=False, default=str), "utf-8")
+    gerar(proc, tmp_path / "site", limpos=True)
+    html = (tmp_path / "site" / "operadoras" / "nao-identificado" / "index.html").read_text("utf-8")
+    assert "fora do ranking" in html and "maior operadora do país" not in html
+    lista = (tmp_path / "site" / "operadoras" / "index.html").read_text("utf-8")
+    assert lista.index("nao-identificado") > lista.index("<td>1</td>")
+    erro = (tmp_path / "site" / "404.html").read_text("utf-8")
+    assert 'href="/estilo.css"' in erro and 'rel="canonical"' not in erro and "noindex" in erro

@@ -2,24 +2,24 @@
 {% from "_macros.html" import kpi, var_classe, barras, lista_noticias  %}
 {% block conteudo %}
 <section class="miolo cabeca">
-<nav class="trilha" aria-label="Você está em"><a href="{{ u('operadoras/') }}">Operadoras</a> / {{ o.nome }}</nav>
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('operadoras/') }}">Operadoras</a><span aria-hidden="true"> / </span><span aria-current="page">{{ o.nome }}</span></nav>
 <h1>{{ o.nome }}</h1>
-<p class="sub">Opera {{ o.n_campos }} {{ 'campo' if o.n_campos == 1 else 'campos' }} em {{ o.bacias|length }} {{ 'bacia' if o.bacias|length == 1 else 'bacias' }} · dado mais recente: {{ mes_extenso(ag.ultimo) }}</p>
+<p class="sub">{{ 'Opera ' if o.rank else '' }}{{ o.n_campos }} {{ 'campo' if o.n_campos == 1 else 'campos' }} em {{ o.bacias|length }} {{ 'bacia' if o.bacias|length == 1 else 'bacias' }} · dado mais recente: {{ mes_extenso(ag.ultimo) }}</p>
 <div class="kpis">
 {{ kpi('Produção operada', fmt_inteligente(o.boe), 'mil boe/d', fmt_var(o.var12) ~ ' em 12 meses', var_classe(o.var12), principal=True) }}
 {{ kpi('Petróleo', fmt_inteligente(o.petroleo), 'mil bbl/d', fmt_var(o.var12_petroleo) ~ ' em 12 meses', var_classe(o.var12_petroleo)) }}
 {{ kpi('Gás natural', fmt_inteligente(o.gas), 'milhões m³/d', fmt_var(o.var12_gas) ~ ' em 12 meses', var_classe(o.var12_gas)) }}
 {{ kpi('Poços ativos', fmt(o.pocos), 'poços', fmt_var(o.var12_pocos) ~ ' em 12 meses', var_classe(o.var12_pocos)) }}
-{{ kpi('Água no líquido', fmt(o.bsw, 0) ~ '%', 'BSW médio', fmt_pp(o.bsw_pp) ~ ' em 12 meses') }}
+{{ kpi('Água no líquido', pct(o.bsw, 0), 'BSW médio', fmt_pp(o.bsw_pp) ~ ' em 12 meses') }}
 </div>
 <div class="cartao resumo">
 <p class="olho">Em resumo</p>
 <p>{{ o.resumo }}</p>
 </div>
-<div class="explica">
+{% if o.rank %}<div class="explica">
 <p class="explica-titulo">Este número pode não bater com o que a {{ o.nome }} divulga</p>
 <p>Aqui está a <strong>produção operada</strong>: 100% dos campos em que a {{ o.nome }} é operadora, como a ANP publica, incluindo a parte dos sócios e todo o gás produzido, também o reinjetado e o consumido nas plataformas. Nos relatórios a investidores, as empresas mostram a <strong>produção própria</strong>: só a fatia que detêm em cada campo e, em geral, só o gás vendido. Por isso o número da empresa costuma ser menor. Os dois estão certos; medem coisas diferentes. <a href="{{ u('sobre/') }}#operada">Veja um exemplo conferido</a></p>
-</div>
+</div>{% endif %}
 </section>
 
 <section class="miolo secao">
@@ -53,10 +53,10 @@
 <div class="tabela">
 <table>
 <tbody>
-<tr><td>Em terra</td><td class="n">{{ fmt(o.terra_pct, 1) }}%</td></tr>
-<tr><td>Em mar</td><td class="n">{{ fmt(100 - o.terra_pct, 1) }}%</td></tr>
-<tr><td>Posição no ranking</td><td class="n">{{ o.rank }}º de {{ ag.operadores|length }}</td></tr>
-<tr><td>Participação no Brasil</td><td class="n">{{ fmt(o.share, 1) }}%</td></tr>
+<tr><th scope="row">Em terra</th><td class="n">{{ fmt(o.terra_pct, 1) }}%</td></tr>
+<tr><th scope="row">Em mar</th><td class="n">{{ fmt(100 - o.terra_pct, 1) }}%</td></tr>
+<tr><th scope="row">Posição no ranking</th><td class="n">{{ (o.rank ~ 'º de ' ~ ag.n_operadoras) if o.rank else '—' }}</td></tr>
+<tr><th scope="row">Participação no Brasil</th><td class="n">{{ fmt(o.share, 1) }}%</td></tr>
 </tbody>
 </table>
 </div>
@@ -67,7 +67,7 @@
 <table>
 <tbody>
 {% for e in o.entidades %}
-<tr><td>{{ e.nome }}</td><td class="n">{{ fmt_inteligente(e.boe) }}</td></tr>
+<tr><th scope="row">{{ e.nome }}</th><td class="n">{{ fmt_inteligente(e.boe) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>

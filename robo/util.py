@@ -49,7 +49,10 @@ def nome_bonito(texto) -> str:
         elif i > 0 and baixa in _PEQUENAS:
             saida.append(baixa)
         else:
-            saida.append(baixa[:1].upper() + baixa[1:])
+            # nomes compostos com hífen: 'PAPA-TERRA' -> 'Papa-Terra', 'BICO-DE-OSSO' -> 'Bico-de-Osso'
+            pedacos = baixa.split("-")
+            saida.append("-".join(x if j > 0 and x in _PEQUENAS else x[:1].upper() + x[1:]
+                                  for j, x in enumerate(pedacos)))
     return " ".join(saida)
 
 

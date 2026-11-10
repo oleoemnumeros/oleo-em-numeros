@@ -2,7 +2,7 @@
 {% from "_macros.html" import kpi, var_classe, lista_noticias %}
 {% block conteudo %}
 <section class="miolo cabeca">
-<nav class="trilha" aria-label="Você está em"><a href="{{ u(pasta ~ '/') }}">{{ nome_lista }}</a> / {{ r.nome }}</nav>
+<nav class="trilha" aria-label="Você está em"><a href="{{ u(pasta ~ '/') }}">{{ nome_lista }}</a><span aria-hidden="true"> / </span><span aria-current="page">{{ r.nome }}</span></nav>
 <h1>{{ h1 }}</h1>
 {% if tipo == 'estado' and r.uf in ufs_royalties %}<p class="nota"><a href="{{ u('royalties/' ~ r.slug ~ '/') }}">Royalties dos municípios {{ r.de }}</a></p>{% endif %}
 <p class="sub">{{ r.rank }}º {{ 'estado' if tipo == 'estado' else 'bacia' }} em produção no Brasil · {{ r.n_campos }} {{ 'campo' if r.n_campos == 1 else 'campos' }} · dado mais recente: {{ mes_extenso(ag.ultimo) }}</p>
@@ -35,7 +35,7 @@
 <p class="legenda">Produção operada {{ r.de if tipo == 'estado' else 'na ' ~ r.titulo }}, {{ mes_extenso(ag.ultimo) }}</p>
 <div class="tabela">
 <table>
-<thead><tr><th>#</th><th>Operadora</th><th class="n">mil boe/d</th><th class="n">Participação</th><th class="n">12 meses</th></tr></thead>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Operadora</th><th class="n">mil boe/d</th><th class="n">Participação</th><th class="n">12 meses</th></tr></thead>
 <tbody>
 {% for o in r.operadores %}
 <tr><td>{{ loop.index }}</td><td><a href="{{ u('operadoras/' ~ o.slug ~ '/') }}">{{ o.nome }}</a></td><td class="n"><strong>{{ fmt_inteligente(o.boe) }}</strong></td><td class="n">{{ fmt(o.pct, 1) }}%</td><td class="n {{ var_classe(o.var12) }}">{{ fmt_var(o.var12) }}</td></tr>

@@ -8,7 +8,10 @@ from robo.util import fmt, mes_extenso, slug
 
 
 def dinheiro(v, curto: bool = True) -> str:
-    """R$ 3,23 bi · R$ 312,4 mi · R$ 532 mil · R$ 812."""
+    """R$ 3,23 bi · R$ 312,4 mi · R$ 532 mil · R$ 1.841 · R$ 812.
+
+    Abaixo de R$ 100 mil o valor sai inteiro: 'R$ 2 mil' escondia a diferença entre R$ 1.500 e R$ 2.499
+    (o valor por habitante fica quase sempre nessa faixa)."""
     if v is None:
         return "—"
     a = abs(v)
@@ -16,7 +19,7 @@ def dinheiro(v, curto: bool = True) -> str:
         return f"R$ {fmt(v / 1e9, 2)} {'bi' if curto else 'bilhões'}"
     if a >= 1e6:
         return f"R$ {fmt(v / 1e6, 1)} {'mi' if curto else 'milhões'}"
-    if a >= 1e3:
+    if a >= 1e5:
         return f"R$ {fmt(v / 1e3, 0)} mil"
     return f"R$ {fmt(v, 0)}"
 

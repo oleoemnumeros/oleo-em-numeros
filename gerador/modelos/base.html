@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ titulo }}{% if titulo != site.nome %} | {{ site.nome }}{% endif %}</title>
 <meta name="description" content="{{ descricao }}">
-<link rel="canonical" href="{{ site.url }}/{{ caminho }}">
+{% if not erro %}<link rel="canonical" href="{{ site.url }}/{{ caminho }}">{% endif %}
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="{{ site.nome }}">
 <meta property="og:title" content="{{ titulo }}">
 <meta property="og:description" content="{{ descricao }}">
-<meta property="og:url" content="{{ site.url }}/{{ caminho }}">
+{% if not erro %}<meta property="og:url" content="{{ site.url }}/{{ caminho }}">{% endif %}
 <meta property="og:locale" content="pt_BR">
 {% if site.teste or site.previa %}<meta name="robots" content="noindex">{% elif noindex %}<meta name="robots" content="noindex, follow">{% endif %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,6 +20,7 @@
 <link rel="icon" href="{{ raiz }}icone.svg" type="image/svg+xml">
 </head>
 <body>
+<a class="pular" href="#conteudo">Pular para o conteúdo</a>
 {% if site.teste %}<div class="faixa-teste">Versão de teste com dados FICTÍCIOS. Nenhum número desta página é real.</div>{% elif site.previa %}<div class="faixa-teste">Versão em validação: os números ainda estão sendo conferidos com a ANP e podem mudar.</div>{% endif %}
 <header class="topo">
 <div class="miolo">
@@ -41,7 +42,7 @@
 </nav>
 </div>
 </header>
-<main>
+<main id="conteudo" tabindex="-1">
 {% block conteudo %}{% endblock %}
 </main>
 <footer class="rodape">
@@ -57,5 +58,31 @@
 </nav>
 </div>
 </footer>
+<script>
+(function () {
+  // tabela mais larga que a tela: precisa receber foco para rolar pelo teclado
+  function tabelas() {
+    document.querySelectorAll(".tabela").forEach(function (d) {
+      var rola = d.scrollWidth > d.clientWidth + 1;
+      if (rola && d.getAttribute("role") !== "region") {
+        var cartao = d.closest(".cartao"), h = cartao && cartao.querySelector("h2");
+        d.setAttribute("tabindex", "0");
+        d.setAttribute("role", "region");
+        d.setAttribute("aria-label", h ? h.textContent.trim() : "Tabela");
+      } else if (!rola && d.getAttribute("role") === "region") {
+        d.removeAttribute("tabindex"); d.removeAttribute("role"); d.removeAttribute("aria-label");
+      }
+    });
+  }
+  window.ajustarTabelas = tabelas;
+  tabelas();
+  window.addEventListener("resize", tabelas);
+  // menu rolável no celular: a seção atual fica à vista
+  var nav = document.querySelector(".nav"), atual = nav && nav.querySelector('[aria-current="page"]');
+  if (atual && nav.scrollWidth > nav.clientWidth) {
+    nav.scrollLeft += atual.getBoundingClientRect().left - nav.getBoundingClientRect().left - 16;
+  }
+})();
+</script>
 </body>
 </html>

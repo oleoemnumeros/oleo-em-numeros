@@ -26,7 +26,7 @@
 <ul class="noticias">
 {% for n in itens %}
 <li>
-<a class="noticia-titulo" href="{{ n.link }}" target="_blank" rel="noopener">{{ n.titulo }}</a>
+<a class="noticia-titulo" href="{{ n.link }}" target="_blank" rel="noopener">{{ n.titulo }}<span class="sr"> (abre em nova aba)</span></a>
 <div class="noticia-meta">{{ n.dia }} · {{ n.fonte }}{% if tags %}{% for nome, alvo in n.tags %} · <a href="{{ u(alvo) }}">{{ nome }}</a>{% endfor %}{% endif %}</div>
 </li>
 {% endfor %}

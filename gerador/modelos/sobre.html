@@ -3,7 +3,7 @@
 <section class="miolo cabeca texto">
 <h1>Sobre e metodologia</h1>
 <p class="sub" style="font-size: 19px; color: var(--tinta)">O {{ site.nome }} organiza os dados públicos de petróleo e gás do Brasil em gráficos e tabelas fáceis de usar e de compartilhar.</p>
-<p>É um projeto independente: não é mantido pela ANP nem por nenhuma operadora. Os dados são atualizados por um processo automático, que confere os números antes de publicar. Última atualização: {{ mes_extenso(ag.ultimo) }}.</p>
+<p>É um projeto independente: não é mantido pela ANP nem por nenhuma operadora. Os dados são atualizados por um processo automático, que confere os números antes de publicar. Dado de produção mais recente: {{ mes_extenso(ag.ultimo) }}.</p>
 
 <h2 id="dados">De onde vêm os dados</h2>
 <div class="cartao" style="padding: 0; margin-top: 12px">
@@ -12,6 +12,11 @@
 <thead><tr><th>Conjunto</th><th>Fonte</th><th>Atualização</th><th>Defasagem</th></tr></thead>
 <tbody>
 <tr><td><strong>Produção por poço</strong></td><td>ANP, dados abertos</td><td>Mensal</td><td>Cerca de 2 meses: os dados de janeiro saem em março</td></tr>
+<tr><td><strong>Royalties</strong></td><td>ANP, dados abertos e planilha mensal por beneficiário</td><td>Mensal</td><td>O pagamento do mês se refere à produção de cerca de 2 meses antes</td></tr>
+<tr><td><strong>Participação especial</strong></td><td>ANP</td><td>Trimestral</td><td>Paga cerca de 45 dias depois do fim do trimestre</td></tr>
+<tr><td><strong>Resultados das listadas</strong></td><td>CVM, dados abertos (ITR e DFP)</td><td>Trimestral</td><td>Alguns dias depois da entrega à CVM</td></tr>
+<tr><td><strong>População dos municípios</strong></td><td>IBGE, estimativas da população</td><td>Anual</td><td>Estimativa mais recente publicada</td></tr>
+<tr><td><strong>Notícias</strong></td><td>{{ fontes_noticias or 'Veículos do setor' }}</td><td>Diária</td><td>Mesmo dia</td></tr>
 </tbody>
 </table>
 </div>

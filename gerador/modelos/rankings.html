@@ -4,10 +4,10 @@
 {% if lista %}
 <div class="tabela">
 <table>
-<thead><tr><th>#</th><th>Campo</th><th>Empresa</th><th class="n">boe/d</th><th class="n">%</th></tr></thead>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Campo</th><th>Empresa</th><th class="n">boe/d</th><th class="n">%</th></tr></thead>
 <tbody>
 {% for c in lista %}
-<tr><td>{{ loop.index }}</td><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.grupo }}</td><td class="n {{ var_classe(c.delta_mes) }}">{{ '+' if c.delta_mes > 0 else '' }}{{ fmt(c.delta_mes) }}</td><td class="n {{ var_classe(c.varmes) }}">{{ fmt_var(c.varmes) }}</td></tr>
+<tr><td>{{ loop.index }}</td><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.grupo }}</td><td class="n {{ var_classe(c.delta_mes) }}">{{ '+' if fmt(c.delta_mes) not in ('0', '—') and c.delta_mes > 0 else '' }}{{ fmt(c.delta_mes) }}</td><td class="n {{ var_classe(c.varmes) }}">{{ fmt_var(c.varmes) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>
@@ -44,7 +44,7 @@
 <div class="linha-titulo"><h2>Ranking de operadoras</h2><a href="{{ u('operadoras/') }}">Ver todas</a></div>
 <div class="tabela">
 <table>
-<thead><tr><th>#</th><th>Empresa</th><th class="n">Total (mil boe/d)</th><th class="n">Petróleo (mil bbl/d)</th><th class="n">Gás (milhões m³/d)</th><th class="n">Poços ativos</th><th class="n">12 meses</th></tr></thead>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Empresa</th><th class="n">Total (mil boe/d)</th><th class="n">Petróleo (mil bbl/d)</th><th class="n">Gás (milhões m³/d)</th><th class="n">Poços ativos</th><th class="n">12 meses</th></tr></thead>
 <tbody>
 {% for o in ag.operadores[:15] %}
 <tr><td>{{ o.rank }}</td><td><a href="{{ u('operadoras/' ~ o.slug ~ '/') }}">{{ o.nome }}</a></td><td class="n"><strong>{{ fmt_inteligente(o.boe) }}</strong></td><td class="n">{{ fmt_inteligente(o.petroleo) }}</td><td class="n">{{ fmt_inteligente(o.gas) }}</td><td class="n">{{ fmt(o.pocos) }}</td><td class="n {{ var_classe(o.var12) }}">{{ fmt_var(o.var12) }}</td></tr>
