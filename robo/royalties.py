@@ -39,6 +39,11 @@ ANO_INICIAL = 2018
 PAGINA_DADOS = "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/participacoes-governamentais"
 PAGINA_ROYALTIES = "https://www.gov.br/anp/pt-br/assuntos/royalties-e-outras-participacoes/royalties"
 PAGINA_PE = "https://www.gov.br/anp/pt-br/assuntos/royalties-e-outras-participacoes/participacao-especial"
+PAGINA_PE_ANT = "https://www.gov.br/anp/pt-br/assuntos/royalties-e-outras-participacoes/participacao-especial-anos-anteriores"
+POPULACAO = "https://ftp.ibge.gov.br/Estimativas_de_Populacao/Estimativas_{ano}/estimativa_dou_{ano}.xls"
+# municípios que mudaram de nome e a ANP ainda escreve do jeito antigo
+NOMES_ANTIGOS = {"embu-sp": "embu-das-artes-sp", "augusto-severo-rn": "campo-grande-rn",
+                 "presidente-juscelino-rn": "serra-caiada-rn", "parati-rj": "paraty-rj"}
 NAVEGADOR = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
              "Chrome/124.0 Safari/537.36")
 MESES = {"JANEIRO": 1, "FEVEREIRO": 2, "MARCO": 3, "ABRIL": 4, "MAIO": 5, "JUNHO": 6, "JULHO": 7, "AGOSTO": 8,
@@ -88,10 +93,24 @@ def baixar(pasta: Path = PASTA) -> dict:
         # o arquivo do ano inteiro tem o link "Janeiro a Dezembro"; há outros (educação e saúde) na mesma pasta
         if m and int(m.group(1)) > max(anos_csv or {0}) and ("janeiro" in texto.lower() or "jan-dez" in h):
             alvo[f"tabela_{m.group(1)}.xlsx"] = h
-    for texto, h in _links(PAGINA_PE):
-        m = re.search(r"(\d)º\s*Trimestre de (\d{4})", texto, re.I)
-        if m and h.lower().endswith((".xls", ".xlsx")):
-            alvo[f"pe_{m.group(2)}T{m.group(1)}{Path(h).suffix.lower()}"] = h
+    for pagina in (PAGINA_PE_ANT, PAGINA_PE):
+        try:
+            links = _links(pagina)
+        except requests.RequestException as e:
+            print(f"Royalties: falhou {pagina}: {e}")
+            continue
+        for texto, h in links:
+            m = re.search(r"(\d)º\s*Trimestre de (\d{4})", texto, re.I)
+            if m and int(m.group(2)) >= ANO_INICIAL and h.lower().endswith((".xls", ".xlsx")):
+                alvo[f"pe_{m.group(2)}T{m.group(1)}{Path(h).suffix.lower()}"] = h
+    for ano in (hoje, hoje - 1):
+        if not (pasta / "populacao.xls").exists() or ano == hoje:
+            try:
+                (pasta / "populacao.xls").write_bytes(_get(POPULACAO.format(ano=ano), tentativas=1))
+                print(f"Royalties: população do IBGE, estimativa {ano}")
+                break
+            except requests.RequestException:
+                continue
     baixados = 0
     for nome, url in sorted(alvo.items()):
         destino = pasta / nome
@@ -199,7 +218,9 @@ def ler_tabela_ano(caminho: Path, ano: int) -> tuple[pd.DataFrame, pd.DataFrame]
     mun, est, secao = [], [], None
     for _, linha in d.iterrows():
         rot = sem_acento(str(linha[1])).strip().upper()
-        if rot in ("ESTADOS", "MUNICIPIOS"):
+        # cabeçalho de bloco: tem "Total - MÊS" nas colunas de valor. Só valem os blocos ESTADOS e
+        # MUNICIPIOS; o bloco "Somatório dos Municípios por UF" repete nomes de estados e é ignorado.
+        if any(str(linha[j]).strip().lower().startswith("total -") for j in col_mes):
             secao = rot
             continue
         if rot.startswith("TOTAL") or rot in ("", "NAN"):
@@ -275,6 +296,35 @@ def carregar_ibge(arq: Path = config.MANUAIS / "municipios.csv") -> dict:
     return {_chave(n, uf): {"nome": n, "uf": uf, "ibge": c} for c, n, uf in zip(t["ibge"], t["nome"], t["uf"])}
 
 
+def carregar_populacao(arq: Path = PASTA / "populacao.xls") -> dict:
+    """Código IBGE (7 dígitos) -> população estimada. Vazio se o arquivo não veio."""
+    if not arq.exists():
+        return {}
+    try:
+        abas = pd.read_excel(arq, sheet_name=None, header=None, dtype=object)
+    except Exception as e:  # noqa: BLE001 - planilha do IBGE muda de formato; sem população, segue sem per capita
+        print(f"Royalties: não li a população do IBGE: {e}")
+        return {}
+    pop = {}
+    for d in abas.values():
+        cab = None
+        for i, l in d.iterrows():
+            txt = [sem_acento(str(x)).upper() for x in l]
+            if any("COD. MUNIC" in t for t in txt):
+                cab = {k: j for j, t in enumerate(txt) for k in ("COD. UF", "COD. MUNIC", "POPULACAO") if k in t}
+                continue
+            if cab and len(cab) == 3:
+                uf, mu, po = l[cab["COD. UF"]], l[cab["COD. MUNIC"]], l[cab["POPULACAO"]]
+                try:
+                    codigo = f"{int(float(uf)):02d}{int(float(mu)):05d}"
+                    valor = int(re.sub(r"\D", "", str(po).split("(")[0]))
+                except (TypeError, ValueError):
+                    continue
+                if valor:
+                    pop[codigo] = valor
+    return pop
+
+
 def casar_nomes(chaves: dict, ibge: dict) -> tuple[dict, list]:
     """chave ANP -> nome oficial. Sem par exato, procura o nome mais parecido no mesmo estado."""
     por_uf = {}
@@ -282,8 +332,9 @@ def casar_nomes(chaves: dict, ibge: dict) -> tuple[dict, list]:
         por_uf.setdefault(v["uf"], {})[k] = v
     saida, sem_par = {}, []
     for k, (nome_anp, uf) in chaves.items():
-        if k in ibge:
-            saida[k] = ibge[k]
+        k_ibge = NOMES_ANTIGOS.get(k, k)
+        if k_ibge in ibge:
+            saida[k] = ibge[k_ibge]
             continue
         candidatos = por_uf.get(uf, {})
         parecido = difflib.get_close_matches(k, list(candidatos), n=1, cutoff=0.85)
@@ -347,6 +398,7 @@ def montar(pasta: Path = PASTA) -> dict:
     for k, v in nomes.items():
         por_id.setdefault(unificada[k], v)
 
+    populacao = carregar_populacao(pasta / "populacao.xls")
     municipios = []
     serie_m = mun.groupby(["id", "mes"])["valor"].sum()
     pe_mt = pe_m.groupby(["id", "tri"])["valor"].sum()
@@ -359,7 +411,7 @@ def montar(pasta: Path = PASTA) -> dict:
         pe = {t: round(float(v), 2) for t, v in pe_mt.loc[i].items()} if i in pe_mt.index.get_level_values(0) else {}
         info = por_id[i]
         municipios.append({"nome": info["nome"], "uf": info["uf"], "ibge": info["ibge"],
-                           "slug": slug(info["nome"]), "r": r, "pe": pe})
+                           "pop": populacao.get(info["ibge"] or ""), "slug": slug(info["nome"]), "r": r, "pe": pe})
     estados = []
     serie_e = est.groupby(["uf", "mes"])["valor"].sum()
     pe_et = pe_e.groupby(["chave", "tri"])["valor"].sum()
@@ -415,6 +467,18 @@ def resumo(r: dict) -> str:
                 linhas.append(f"  {alvo}-{m['uf']}: royalties por ano " +
                               ", ".join(f"{a}: {v / 1e6:,.1f} mi" for a, v in list(anos.items())[-4:]) +
                               " | PE por ano " + ", ".join(f"{a}: {v / 1e6:,.1f} mi" for a, v in list(pe.items())[-4:]))
+    com_pop = sum(1 for m in r["municipios"] if m.get("pop"))
+    linhas.append(f"População do IBGE: {com_pop} de {len(r['municipios'])} municípios")
+    mes_jan = f"{r['ultimo'][:4]}-01"
+    if mes_jan in r["meses"]:
+        i = r["meses"].index(mes_jan)
+        linhas.append(f"Conferência {mes_jan}: municípios R$ {sum(m['r'][i] for m in r['municipios']) / 1e6:,.2f} mi · "
+                      f"estados R$ {sum(e['r'][i] for e in r['estados']) / 1e6:,.2f} mi")
+    pe_por_tri = {}
+    for m in r["municipios"]:
+        for t, v in m["pe"].items():
+            pe_por_tri[t] = pe_por_tri.get(t, 0) + v
+    linhas.append("PE municípios por trimestre: " + ", ".join(f"{t} {v / 1e6:,.0f} mi" for t, v in sorted(pe_por_tri.items())[-10:]))
     if r["sem_par_ibge"]:
         linhas.append(f"Sem nome oficial do IBGE ({len(r['sem_par_ibge'])}): " + ", ".join(r["sem_par_ibge"][:30]))
     return "\n".join(linhas)
