@@ -39,6 +39,18 @@
 <h2 id="pocos">Produção por poço</h2>
 <p>A <a href="{{ u('pocos/') }}">busca de poços</a> mostra a série mensal de cada poço que produziu desde 2018, como a ANP publica: petróleo, gás natural e água em volume por dia, e o BSW calculado a partir deles. Mês em que a ANP não publicou dados para aquele ambiente (terra ou mar) aparece como lacuna; mês com o poço parado aparece como zero.</p>
 
+<h2 id="resultados">Resultados das empresas listadas</h2>
+<p>Para Petrobras, PRIO, Brava e PetroRecôncavo, o site mostra o resultado de cada trimestre a partir das demonstrações financeiras consolidadas que as empresas entregam à CVM (ITR e DFP), publicadas nos dados abertos da CVM. Só entra o que já foi divulgado oficialmente. A mesma regra vale para todas as empresas:</p>
+<ul>
+<li><strong>Trimestre:</strong> o fluxo de caixa e a DVA vêm acumulados no ano; o trimestre é a diferença entre acumulados. O 4º trimestre é o ano (DFP) menos os 9 meses.</li>
+<li><strong>EBITDA calculado</strong> = resultado antes do resultado financeiro e dos tributos + depreciação, amortização e exaustão (da DVA). Não tira efeitos não recorrentes, por isso pode diferir do "EBITDA ajustado" do release.</li>
+<li><strong>Lucro líquido</strong> = atribuído aos acionistas da controladora, quando a empresa informa essa conta.</li>
+<li><strong>Dívida líquida</strong> = empréstimos, financiamentos e debêntures menos caixa e aplicações financeiras de curto prazo, sem arrendamentos. Os <strong>arrendamentos</strong> (IFRS 16, como o afretamento de plataformas) aparecem à parte, porque cada empresa os registra numa conta diferente do balanço. A alavancagem é mostrada com e sem eles, sobre o EBITDA calculado dos últimos 12 meses.</li>
+<li><strong>Capex pago</strong> = investimento em imobilizado, intangível, exploração e desenvolvimento pago no período, pelo fluxo de caixa. Compras de empresas ou de participação em campos ficam fora. Os releases costumam trazer o investimento pelo regime de competência, que pode ser maior.</li>
+<li><strong>Brava:</strong> a Enauta incorporou a 3R em agosto de 2024 e passou a se chamar Brava Energia. Os trimestres anteriores não são comparáveis e não aparecem.</li>
+</ul>
+<p>Valores em reais, como entregues à CVM, mesmo quando a empresa divulga o release em dólar. Nada disso é recomendação de investimento.</p>
+
 <h2 id="noticias">Notícias</h2>
 <p>As <a href="{{ u('noticias/') }}">manchetes do setor</a> são coletadas automaticamente todo dia{% if fontes_noticias %} de {{ fontes_noticias }}{% endif %}. Guardamos só o título, a data e o link: o texto das matérias fica no site de origem. Quando a manchete cita uma empresa ou um campo, ela aparece também na página dele aqui.</p>
 

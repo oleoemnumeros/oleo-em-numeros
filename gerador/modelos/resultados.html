@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<h1>Petroleiras listadas na B3</h1>
+<p class="sub">Resultado do último trimestre de cada empresa, a partir das demonstrações entregues à CVM, ao lado da produção que ela opera segundo a ANP.</p>
+</section>
+<section class="miolo secao">
+<div class="cartao">
+<div class="tabela">
+<table>
+<thead><tr><th>Empresa</th><th>Trimestre</th><th class="n">Receita líquida</th><th class="n">EBITDA calculado</th><th class="n">Margem</th><th class="n">Lucro líquido</th><th class="n">Dívida líquida</th><th class="n">Dív. líq. / EBITDA 12m</th><th class="n">Com arrendamentos</th><th class="n">Produção operada ANP (mil boe/d)</th></tr></thead>
+<tbody>
+{% for e in empresas %}{% set t = e.ultimo %}
+<tr><td><a href="{{ u('operadoras/' ~ e.slug ~ '/') }}#resultados">{{ e.nome }}</a> <span class="legenda">{{ e.ticker }}</span></td><td>{{ t.rotulo }}</td><td class="n">{{ fmt(t.receita) }}</td><td class="n"><strong>{{ fmt(t.ebitda) }}</strong></td><td class="n">{{ fmt(t.margem_ebitda, 1) ~ '%' if t.margem_ebitda is not none else '—' }}</td><td class="n">{{ fmt(t.lucro) }}</td><td class="n">{{ fmt(t.divida_liquida) }}</td><td class="n">{{ fmt(t.alavancagem, 2) ~ 'x' if t.alavancagem is not none else '—' }}</td><td class="n">{{ fmt(t.alavancagem_com_arrend, 2) ~ 'x' if t.alavancagem_com_arrend is not none else '—' }}</td><td class="n">{{ fmt_inteligente(t.producao) if t.producao is not none else '—' }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">Valores em R$ milhões. Cada empresa aparece com o último trimestre que já entregou à CVM; logo depois da divulgação, os dados abertos da CVM podem levar alguns dias para incluir o trimestre novo. Clique na empresa para ver os trimestres anteriores.</p>
+</div>
+</section>
+<section class="miolo secao">
+<div class="explica">
+<p class="explica-titulo">Por que os números podem diferir do release da empresa</p>
+<p>Aqui todas as empresas seguem a mesma regra, a partir das demonstrações oficiais. Os releases trazem números "ajustados", cada empresa com o seu critério: tiram efeitos não recorrentes ou de hedge, incluem ou não os arrendamentos na dívida, e muitas vezes vêm em dólar. A produção ao lado é a operada (100% dos campos), não a parte que cabe à empresa. <a href="{{ u('sobre/') }}#resultados">Veja como calculamos</a>. Nada nesta página é recomendação de investimento.</p>
+</div>
+</section>
+{% endblock %}

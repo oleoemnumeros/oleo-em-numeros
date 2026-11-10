@@ -1,0 +1,26 @@
+{% from "_macros.html" import kpi %}{% set f = o.financeiro %}{% set t = f.ultimo %}
+<section class="miolo secao" id="resultados">
+<div class="cartao">
+<div class="linha-titulo"><h2>Resultados trimestrais ({{ f.ticker }})</h2><a href="{{ u('resultados/') }}">Comparar com as outras listadas</a></div>
+<p class="legenda">Demonstrações consolidadas entregues à CVM · último trimestre: {{ t.rotulo }}</p>
+<div class="kpis kpis-6">
+{{ kpi('Receita líquida', reais(t.receita), '', None, '', principal=True) }}
+{{ kpi('EBITDA calculado', reais(t.ebitda), '', ('margem de ' ~ fmt(t.margem_ebitda, 1) ~ '%') if t.margem_ebitda is not none else None) }}
+{{ kpi('Lucro líquido', reais(t.lucro), '') }}
+{{ kpi('Capex pago', reais(t.capex), '') }}
+{{ kpi('Dívida líquida', reais(t.divida_liquida), '', ('com arrendamentos: ' ~ reais(t.divida_liquida + t.arrendamentos)) if t.divida_liquida is not none and t.arrendamentos is not none else None) }}
+{{ kpi('Dívida líquida / EBITDA', (fmt(t.alavancagem, 2) ~ 'x') if t.alavancagem is not none else '—', '12 meses', ('com arrendamentos: ' ~ fmt(t.alavancagem_com_arrend, 2) ~ 'x') if t.alavancagem_com_arrend is not none else None) }}
+</div>
+<div class="tabela">
+<table>
+<thead><tr><th>Trimestre</th><th class="n">Receita líquida</th><th class="n">EBITDA calculado</th><th class="n">Margem</th><th class="n">Lucro líquido</th><th class="n">Capex pago</th><th class="n">Dívida líquida</th><th class="n">Arrendamentos</th><th class="n">Dív. líq. / EBITDA 12m</th><th class="n">Produção operada ANP (mil boe/d)</th></tr></thead>
+<tbody>
+{% for q in f.trimestres %}
+<tr><td>{{ q.rotulo }}</td><td class="n">{{ fmt(q.receita) }}</td><td class="n"><strong>{{ fmt(q.ebitda) }}</strong></td><td class="n">{{ fmt(q.margem_ebitda, 1) ~ '%' if q.margem_ebitda is not none else '—' }}</td><td class="n {{ 'cai' if q.lucro is not none and q.lucro < 0 }}">{{ fmt(q.lucro) }}</td><td class="n">{{ fmt(q.capex) }}</td><td class="n">{{ fmt(q.divida_liquida) }}</td><td class="n">{{ fmt(q.arrendamentos) }}</td><td class="n">{{ fmt(q.alavancagem, 2) ~ 'x' if q.alavancagem is not none else '—' }}</td><td class="n">{{ fmt_inteligente(q.producao) if q.producao is not none else '—' }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">Valores em R$ milhões, das demonstrações consolidadas (ITR e DFP) entregues à CVM; o 4º trimestre é o ano menos os 9 meses. O EBITDA é calculado com a mesma regra para todas as empresas e pode diferir do "EBITDA ajustado" do release. A dívida líquida não inclui arrendamentos, que aparecem à parte. A produção é a operada (100% dos campos), não a parte da empresa. <a href="{{ u('sobre/') }}#resultados">Como calculamos</a>. Não é recomendação de investimento.</p>
+</div>
+</section>

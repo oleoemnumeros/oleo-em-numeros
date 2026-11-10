@@ -170,14 +170,19 @@ def calcular(d: pd.DataFrame) -> dict:
         linhas = {}
         # --- fluxos acumulados no ano (YTD), por data de fim ---
         acum = {}
-        dre = g[g["DEM"] == "DRE_con"]
-        conta_lucro = "3.11.01" if (dre["CD_CONTA"] == "3.11.01").any() else "3.11"
         for dem, codigo, chave in (("DRE_con", "3.01", "receita"), ("DRE_con", "3.05", "ebit"),
-                                   ("DRE_con", conta_lucro, "lucro"), ("DVA_con", "7.04.01", "da")):
+                                   ("DRE_con", "3.11", "lucro"), ("DRE_con", "3.11.01", "lucro_ctrl"),
+                                   ("DVA_con", "7.04.01", "da")):
             x = _conta(g[g["DEM"] == dem], codigo)
             x = x[x["DT_INI_EXERC"].str[5:] == "01-01"]           # acumulado desde 1º de janeiro
             for fim, v in x.groupby("DT_FIM_EXERC")["valor"].sum().items():
                 acum.setdefault(fim, {})[chave] = v
+        # lucro dos acionistas da controladora quando a empresa preenche a conta em todos os períodos
+        usa_ctrl = all(abs(x.get("lucro_ctrl", 0.0)) > 0 for x in acum.values() if "lucro" in x)
+        for x in acum.values():
+            ctrl = x.pop("lucro_ctrl", None)
+            if usa_ctrl and ctrl is not None:
+                x["lucro"] = ctrl
         dfc = g[g["DEM"] == "DFC_MI_con"]
         for (ini, fim), v in _capex(dfc[dfc["DT_INI_EXERC"].str[5:] == "01-01"]).items():
             acum.setdefault(fim, {})["capex"] = v

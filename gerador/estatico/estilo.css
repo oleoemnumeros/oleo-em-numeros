@@ -157,3 +157,7 @@ h2.bloco { margin: 48px 0 0; font-size: 26px; }
 .noticia-titulo:hover { color: var(--ambar-escuro); text-decoration: underline; }
 .noticia-meta { margin-top: 4px; font-size: 13px; color: var(--cinza); }
 .noticia-meta a { color: var(--ambar-escuro); }
+
+/* resultados trimestrais: números em reais são mais longos que os de produção */
+#resultados .kpi .num { font-size: 26px; }
+@media (max-width: 700px) { #resultados .kpi .num { font-size: 22px; } }

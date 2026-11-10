@@ -19,6 +19,7 @@ from robo import config
 from robo.util import MESES, fmt, fmt_inteligente, fmt_pp, fmt_var, mes_extenso
 
 from .graficos import linha
+from .financeiro import carregar_financeiro, reais
 from .pocos import gerar_pocos
 
 AQUI = Path(__file__).resolve().parent
@@ -172,7 +173,10 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     paginas = []
 
     noticias, noticias_op, noticias_campo, fontes_noticias = carregar_noticias(dados, ag)
-    env.globals.update(fontes_noticias=fontes_noticias)
+    env.globals.update(fontes_noticias=fontes_noticias, reais=reais)
+    financeiro = carregar_financeiro(dados, ag)
+    for o in ag["operadores"]:
+        o["financeiro"] = financeiro.get(o["nome"])
 
     def escrever(caminho: str, modelo: str, **ctx):
         raiz = "../" * caminho.count("/")
@@ -240,6 +244,13 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         r = gerar_pocos(base_csv, saida, ag)
         print(f"Busca de poços: {r['pocos']} poços ({r['ativos']} ativos) em {r['campos']} campos, {r['mb']} MB; "
               f"índice {r['indice_mb']} MB; maior campo {r['maior']}")
+    if financeiro:
+        ordem = sorted(financeiro.values(), key=lambda e: -(e["ultimo"].get("receita") or 0))
+        escrever("resultados/", "resultados.html", secao="resultados",
+                 titulo="Resultados das petroleiras listadas: PETR4, PRIO3, BRAV3 e RECV3",
+                 descricao="Receita, EBITDA, lucro, dívida e capex por trimestre de Petrobras, PRIO, Brava e PetroRecôncavo, "
+                           "a partir das demonstrações entregues à CVM, ao lado da produção operada pela ANP.",
+                 empresas=ordem)
     escrever("noticias/", "noticias.html", secao="noticias", titulo="Notícias do setor de petróleo e gás",
              descricao="Manchetes diárias de petróleo e gás, com links para os números de cada empresa e campo.",
              noticias=noticias[:200], noindex=True)
