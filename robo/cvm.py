@@ -214,6 +214,26 @@ def executar(baixar_dados: bool = True) -> dict:
     return r
 
 
+def contas(ultimo_so: bool = True) -> str:
+    """Para conferir a regra: contas de dívida, arrendamento e investimento do último trimestre de cada empresa."""
+    d = carregar(sorted(PASTA.glob("*.csv.gz")))
+    linhas = []
+    for grupo, g in d.groupby("grupo"):
+        fim = g["DT_FIM_EXERC"].max()
+        u = g[g["DT_FIM_EXERC"] == fim]
+        linhas.append(f"## {grupo} {fim}")
+        bp = u[u["DEM"] == "BPP_con"]
+        sel = bp[bp["CD_CONTA"].str.match(r"^2\.0[12]\.0[1-5]") & (bp["CD_CONTA"].str.count(r"\.") <= 4)
+                 & (bp["CD_CONTA"].str.match(r"^2\.0[12]\.0[14]") | bp["desc"].str.contains("arrend"))]
+        for _, r in sel.iterrows():
+            linhas.append(f"  BP {r['CD_CONTA']:<16} {r['DS_CONTA'][:60]:<60} {r['valor'] / 1000:>12,.0f}")
+        dfc = u[(u["DEM"] == "DFC_MI_con") & u["CD_CONTA"].str.match(r"^6\.02\.")]
+        for _, r in dfc.iterrows():
+            marca = "*" if (CAPEX_SIM.search(r["desc"]) and not CAPEX_NAO.search(r["desc"]) and r["CD_CONTA"].count(".") == 2) else " "
+            linhas.append(f" {marca}DFC {r['CD_CONTA']:<15} {r['DS_CONTA'][:60]:<60} {r['valor'] / 1000:>12,.0f}")
+    return "\n".join(linhas)
+
+
 def tabela(r: dict, ultimos: int = 6) -> str:
     linhas = []
     for grupo, e in r.items():

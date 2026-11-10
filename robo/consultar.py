@@ -68,6 +68,11 @@ def main(argv=None):
     if a.grupo == "fontes":
         from .noticias import testar
         print(testar())
+    elif a.grupo == "cvm-contas":
+        from .cvm import baixar, contas, ANO_INICIAL
+        from datetime import date
+        baixar(list(range(date.today().year - 1, date.today().year + 1)))
+        print(contas())
     elif a.grupo == "cvm":
         from .cvm import main as cvm_main
         cvm_main(["--mostrar"])
