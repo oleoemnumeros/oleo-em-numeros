@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from . import config, grupos
-from .util import mes_anterior, nome_bonito, slug, variacao
+from .util import mes_anterior, nome_bonito, sem_acento, slug, variacao
 
 UFS = {
     "AC": ("do", "Acre"), "AL": ("de", "Alagoas"), "AM": ("do", "Amazonas"), "AP": ("do", "Amapá"),
@@ -18,6 +18,12 @@ UFS = {
     "TO": ("do", "Tocantins"),
 }
 _POR_NOME = {nome.lower(): (art, nome, uf) for uf, (art, nome) in UFS.items()}
+
+
+# "Bacia de Santos", mas "Bacia do Recôncavo" e "Bacia Potiguar"
+PREP_BACIA = {"reconcavo": "do", "espirito santo": "do", "solimoes": "do", "parnaiba": "do", "ceara": "do",
+              "amazonas": "do", "parana": "do", "tucano sul": "do", "tucano": "do", "para-maranhao": "do",
+              "sao francisco": "do", "potiguar": "", "foz do amazonas": "da"}
 
 
 def estado_info(valor: str) -> dict:
@@ -124,21 +130,6 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
         "varmes_terra": variacao(terra.get(ultimo), terra.get(ant)),
     }
     total_boe = br_val("boe", ultimo) or 1.0
-
-    # ---------- Bacias ----------
-    bac = _soma_mensal(base, ["bacia"])
-    bac_u = bac[bac["periodo"] == ultimo].sort_values("boe", ascending=False)
-    amb_bacia = base[base["periodo"] == ultimo].groupby("bacia")["ambiente"].agg(lambda s: set(s))
-    bacias = []
-    for _, r in bac_u.iterrows():
-        anterior = bac[(bac["bacia"] == r["bacia"]) & (bac["periodo"] == ano_ant)]["boe"]
-        bacias.append({
-            "nome": nome_bonito(r["bacia"]),
-            "slug": slug(r["bacia"]),
-            "boe": r["boe"] / 1000, "petroleo": r["petroleo"] / 1000,
-            "terra": amb_bacia.get(r["bacia"], set()) == {"terra"},
-            "var12": variacao(r["boe"], anterior.iloc[0] if len(anterior) else None),
-        })
 
     # ---------- Campos ----------
     cam = _soma_mensal(base, ["campo"])
@@ -264,6 +255,74 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
                              key=lambda x: -x["pct"]),
         })
 
+    # ---------- Estados e bacias ----------
+    base_r = base_g.assign(uf=base_g["estado"].map(lambda v: estado_info(v)["uf"]),
+                           bacia=base_g["bacia"].map(nome_bonito))
+
+    def regioes(chave: str, de_campo) -> list[dict]:
+        """Uma entrada por estado (chave 'uf') ou bacia (chave 'bacia'), na ordem da produção total."""
+        tab = _soma_mensal(base_r, [chave])
+        terra_t = _soma_mensal(base_r[base_r["ambiente"] == "terra"], [chave])
+        terra_u = terra_t[terra_t["periodo"] == ultimo].set_index(chave)["boe"]
+        por_op = _soma_mensal(base_r[base_r["periodo"].isin([ultimo, ano_ant])], [chave, "operador"])
+        u = tab[tab["periodo"] == ultimo].sort_values("boe", ascending=False)
+        saida = []
+        for rank, (_, r) in enumerate(u.iterrows(), start=1):
+            k = r[chave]
+            hist = tab[tab[chave] == k].set_index("periodo")
+
+            def h(per, col):
+                return float(hist.at[per, col]) if per in hist.index else None
+
+            tot, pet = r["boe"], r["petroleo"]
+            tt = float(terra_u.get(k, 0.0))
+            meus = [c for c in campos if de_campo(c) == k]
+            ou = por_op[(por_op["periodo"] == ultimo) & (por_op[chave] == k)].sort_values("boe", ascending=False)
+            oa = por_op[(por_op["periodo"] == ano_ant) & (por_op[chave] == k)].set_index("operador")["boe"]
+            ops = [{"nome": ng(o), "slug": slug(o), "boe": b_ / 1000, "pct": b_ / tot * 100 if tot else 0.0,
+                    "var12": variacao(b_, oa.get(o))} for o, b_ in zip(ou["operador"], ou["boe"]) if b_ > 0]
+            saida.append({
+                "chave": k, "rank": rank,
+                "boe": tot / 1000, "petroleo": pet / 1000, "gas": r["gas"] / 1000, "pocos": int(r["pocos"]),
+                "bsw": _bsw(r["agua"], pet), "share": tot / total_boe * 100,
+                "terra_pct": tt / tot * 100 if tot else 0.0, "terra": tt / tot > 0.98 if tot else False,
+                "var12": variacao(tot, h(ano_ant, "boe")), "var12_petroleo": variacao(pet, h(ano_ant, "petroleo")),
+                "var12_gas": variacao(r["gas"], h(ano_ant, "gas")), "var12_pocos": variacao(r["pocos"], h(ano_ant, "pocos")),
+                "varmes": variacao(tot, h(ant, "boe")),
+                "serie": {"periodo": m60, "boe": _serie(
+                    tab[tab[chave] == k], m60, "boe", 1000,
+                    completo_para({a for a, peso in (("terra", tt), ("mar", tot - tt)) if tot and peso / tot > 0.02}))},
+                "operadores": ops, "campos": meus, "n_campos": len(meus),
+            })
+        return saida
+
+    estados = regioes("uf", lambda c: c["estado"]["uf"])
+    for e in estados:
+        info = estado_info(e["chave"])
+        e.update(nome=info["nome"], uf=info["uf"], de=info["de"], slug=slug(info["nome"]))
+        e["artigo"] = {"da": "a", "do": "o"}.get(info["de"].split(" ")[0], "")
+        por_bacia = {}
+        for c in e["campos"]:
+            por_bacia[c["bacia"]] = por_bacia.get(c["bacia"], 0.0) + c["boe"]
+        e["cruzado"] = sorted(({"nome": k, "slug": slug(k), "pct": v_ / (e["boe"] * 1000) * 100 if e["boe"] else 0}
+                               for k, v_ in por_bacia.items()), key=lambda x: -x["pct"])
+    bacias = regioes("bacia", lambda c: c["bacia"])
+    for b_ in bacias:
+        nome = b_["chave"]
+        prep = PREP_BACIA.get(sem_acento(nome).lower(), "de")
+        b_.update(nome=nome, slug=slug(nome), titulo=f"Bacia {prep} {nome}".replace("  ", " "))
+        por_uf = {}
+        for c in b_["campos"]:
+            por_uf[c["estado"]["uf"]] = por_uf.get(c["estado"]["uf"], 0.0) + c["boe"]
+        b_["cruzado"] = sorted(({"nome": estado_info(k)["nome"], "slug": slug(estado_info(k)["nome"]),
+                                 "pct": v_ / (b_["boe"] * 1000) * 100 if b_["boe"] else 0}
+                                for k, v_ in por_uf.items()), key=lambda x: -x["pct"])
+    por_slug_e = {e["uf"]: e["slug"] for e in estados}
+    por_slug_b = {b_["nome"]: b_["slug"] for b_ in bacias}
+    for c in campos:
+        c["estado_slug"] = por_slug_e.get(c["estado"]["uf"])
+        c["bacia_slug"] = por_slug_b.get(c["bacia"])
+
     # ---------- Rankings de campos (mês contra mês anterior) ----------
     def ranking(filtro):
         lista = [c for c in campos if filtro(c) and c["anterior_mes"] is not None]
@@ -280,6 +339,6 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
     return {
         "gerado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "ultimo": ultimo, "anterior": ant, "ano_anterior": ano_ant,
-        "brasil": brasil, "bacias": bacias, "campos": campos,
+        "brasil": brasil, "bacias": bacias, "estados": estados, "campos": campos,
         "operadores": operadores, "rankings": rankings,
     }

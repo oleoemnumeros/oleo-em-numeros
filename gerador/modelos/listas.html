@@ -17,7 +17,7 @@
 <thead><tr><th>#</th><th>Campo</th><th>Empresa</th><th>Bacia</th><th>UF</th><th>Ambiente</th><th class="n">Total (boe/d)</th><th class="n">Petróleo (bbl/d)</th><th class="n">12 meses</th></tr></thead>
 <tbody>
 {% for c in itens %}
-<tr><td>{{ loop.index }}</td><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.grupo }}</td><td>{{ c.bacia }}</td><td>{{ c.estado.uf }}</td><td>{{ 'Terra' if c.ambiente == 'terra' else 'Mar' }}</td><td class="n"><strong>{{ fmt(c.boe) }}</strong></td><td class="n">{{ fmt(c.petroleo) }}</td><td class="n {{ var_classe(c.var12) }}">{{ fmt_var(c.var12) }}</td></tr>
+<tr><td>{{ loop.index }}</td><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.grupo }}</td><td>{% if c.bacia_slug %}<a href="{{ u('bacias/' ~ c.bacia_slug ~ '/') }}">{{ c.bacia }}</a>{% else %}{{ c.bacia }}{% endif %}</td><td>{% if c.estado_slug %}<a href="{{ u('estados/' ~ c.estado_slug ~ '/') }}">{{ c.estado.uf }}</a>{% else %}{{ c.estado.uf }}{% endif %}</td><td>{{ 'Terra' if c.ambiente == 'terra' else 'Mar' }}</td><td class="n"><strong>{{ fmt(c.boe) }}</strong></td><td class="n">{{ fmt(c.petroleo) }}</td><td class="n {{ var_classe(c.var12) }}">{{ fmt_var(c.var12) }}</td></tr>
 {% endfor %}
 </tbody>
 {% else %}

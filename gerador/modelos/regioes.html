@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import var_classe %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<h1>{{ h1 }}</h1>
+<p class="sub">{{ sub }}</p>
+</section>
+<section class="miolo secao">
+<div class="cartao">
+<div class="tabela">
+<table>
+<thead><tr><th>#</th><th>{{ 'Estado' if tipo == 'estado' else 'Bacia' }}</th><th class="n">Total (mil boe/d)</th><th class="n">Petróleo (mil bbl/d)</th><th class="n">Gás (milhões m³/d)</th><th class="n">Participação</th><th class="n">Em terra</th><th class="n">Campos</th><th class="n">12 meses</th></tr></thead>
+<tbody>
+{% for r in itens %}
+<tr><td>{{ r.rank }}</td><td><a href="{{ u(pasta ~ '/' ~ r.slug ~ '/') }}">{{ r.nome }}</a></td><td class="n"><strong>{{ fmt_inteligente(r.boe) }}</strong></td><td class="n">{{ fmt_inteligente(r.petroleo) }}</td><td class="n">{{ fmt_inteligente(r.gas) }}</td><td class="n">{{ fmt(r.share, 1) }}%</td><td class="n">{{ fmt(r.terra_pct, 0) }}%</td><td class="n">{{ r.n_campos }}</td><td class="n {{ var_classe(r.var12) }}">{{ fmt_var(r.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">{% if tipo == 'estado' %}Campos no mar contam para o estado a que a ANP os associa (o estado confrontante). {% endif %}Fonte: ANP, produção por poço, {{ mes_extenso(ag.ultimo) }}.</p>
+</div>
+</section>
+<section class="miolo secao">
+<p class="nota">Veja também a produção por {% if tipo == 'estado' %}<a href="{{ u('bacias/') }}">bacia</a>{% else %}<a href="{{ u('estados/') }}">estado</a>{% endif %}, por <a href="{{ u('operadoras/') }}">empresa</a> e por <a href="{{ u('campos/') }}">campo</a>.</p>
+</section>
+{% endblock %}

@@ -357,3 +357,35 @@ def test_cvm_trimestres_saem_da_diferenca_dos_acumulados(tmp_path):
     assert t["2025T4"]["alavancagem"] == pytest.approx(420 / 200)
     assert t["2025T4"]["alavancagem_com_arrend"] == pytest.approx(470 / 200)
     assert "alavancagem" not in t["2025T3"]                       # precisa de 4 trimestres
+
+
+# ---------------- estados e bacias ----------------
+
+def test_estados_e_bacias_somam_o_brasil(base, tmp_path):
+    import json
+    from robo.executar import _leve
+    from gerador.gerar import gerar
+    ag = agregar(base)
+    br = ag["brasil"]["boe"]
+    for chave in ("estados", "bacias"):
+        regs = ag[chave]
+        assert sum(r["boe"] for r in regs) == pytest.approx(br, rel=1e-9)
+        assert sum(r["share"] for r in regs) == pytest.approx(100)
+        assert [r["rank"] for r in regs] == list(range(1, len(regs) + 1))
+        for r in regs:
+            assert sum(o["boe"] for o in r["operadores"]) == pytest.approx(r["boe"], rel=1e-9)
+            assert sum(c["boe"] for c in r["campos"]) / 1000 == pytest.approx(r["boe"], rel=1e-9)
+            assert sum(x["pct"] for x in r["cruzado"]) == pytest.approx(100)
+    assert all(c["estado_slug"] and c["bacia_slug"] for c in ag["campos"])
+    nomes = {b["slug"]: b["titulo"] for b in ag["bacias"]}
+    assert nomes.get("reconcavo", "Bacia do Recôncavo") == "Bacia do Recôncavo"
+    assert nomes.get("potiguar", "Bacia Potiguar") == "Bacia Potiguar"
+    # páginas
+    (tmp_path / "proc").mkdir()
+    (tmp_path / "proc" / "agregados.json").write_text(json.dumps(_leve(ag), ensure_ascii=False, default=str), "utf-8")
+    paginas = gerar(tmp_path / "proc", tmp_path / "site", teste=True)
+    e = ag["estados"][0]
+    assert f"estados/{e['slug']}/" in paginas and "bacias/" in paginas and "estados/" in paginas
+    html = (tmp_path / "site" / "estados" / e["slug"] / "index.html").read_text("utf-8")
+    assert e["resumo"] if "resumo" in e else True
+    assert "Em resumo" in html and e["campos"][0]["nome"] in html

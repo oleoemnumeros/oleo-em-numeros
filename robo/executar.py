@@ -22,6 +22,8 @@ def _leve(ag: dict) -> dict:
     copia["operadores"] = [{**o, "campos": [c["slug"] for c in o["campos"]]} for o in ag["operadores"]]
     copia["rankings"] = {k: {lado: [c["slug"] for c in lista] for lado, lista in v.items()}
                          for k, v in ag["rankings"].items()}
+    for chave in ("estados", "bacias"):
+        copia[chave] = [{**r, "campos": [c["slug"] for c in r.get("campos", [])]} for r in ag.get(chave, [])]
     return copia
 
 

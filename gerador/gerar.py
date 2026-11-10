@@ -83,6 +83,40 @@ def resumo_operadora(o, ag):
     return " ".join(partes)
 
 
+def resumo_regiao(r, ag, tipo):
+    """Texto do 'Em resumo' das páginas de estado e de bacia."""
+    # "a Bahia", "o Rio de Janeiro", "São Paulo", "a Bacia de Santos"
+    sujeito = f"{r['artigo']} {r['nome']}".strip() if tipo == "estado" else f"a {r['titulo']}"
+    coisa = "estado produtor" if tipo == "estado" else "bacia produtora"
+    partes = [f"Em {mes_extenso(ag['ultimo'])}, {sujeito} produziu "
+              f"{fmt_inteligente(r['boe'])} mil barris de óleo equivalente por dia (boe/d)"]
+    mm = _mais_menos(r["var12"])
+    partes[0] += f", {mm} que um ano antes." if mm else "."
+    partes.append(f"Foram {fmt_inteligente(r['petroleo'])} mil barris de petróleo e {fmt_inteligente(r['gas'])} "
+                  f"milhões de m³ de gás natural por dia, em {r['n_campos']} {'campo' if r['n_campos'] == 1 else 'campos'} "
+                  f"e {fmt(r['pocos'])} poços ativos.")
+    genero = "o maior" if tipo == "estado" else "a maior"
+    ordem = genero if r["rank"] == 1 else (f"o {r['rank']}º maior" if tipo == "estado" else f"a {r['rank']}ª maior")
+    partes.append(f"É {ordem} {coisa} do país, com {fmt(r['share'], 1)}% da produção nacional.")
+    if r["terra"]:
+        partes.append("Toda a produção vem de campos em terra.")
+    elif r["terra_pct"] >= 1:
+        partes.append(f"{fmt(r['terra_pct'], 0)}% vêm de campos em terra; o resto, do mar.")
+    else:
+        partes.append("Praticamente toda a produção vem do mar.")
+    if r["operadores"]:
+        o = r["operadores"][0]
+        if len(r["operadores"]) == 1:
+            partes.append(f"A única operadora é a {o['nome']}.")
+        else:
+            partes.append(f"A maior operadora é a {o['nome']}, com {fmt(o['pct'], 0)}% do total, entre "
+                          f"{len(r['operadores'])} empresas.")
+    if r["campos"]:
+        c = r["campos"][0]
+        partes.append(f"O maior campo é o {c['nome']}, com {fmt(c['boe'])} boe/d.")
+    return " ".join(partes)
+
+
 def destaques(ag, u):
     lista = []
     altas = ag["rankings"]["todos"]["altas"]
@@ -124,6 +158,9 @@ def carregar(pasta: Path) -> dict:
     for recorte in ag["rankings"].values():
         for lado in ("altas", "quedas"):
             recorte[lado] = [por_slug[s] for s in recorte[lado] if s in por_slug]
+    for chave in ("estados", "bacias"):
+        for r in ag.get(chave, []):
+            r["campos"] = [por_slug[s] if isinstance(s, str) else s for s in r.get("campos", []) if not isinstance(s, str) or s in por_slug]
     return ag
 
 
@@ -235,6 +272,45 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         escrever(caminho, "rankings.html", secao="rankings", recorte=recorte, r=ag["rankings"][recorte], h1=h1,
                  titulo=f"{h1}: maiores altas e quedas de produção",
                  descricao=f"Campos de petróleo que mais cresceram e mais caíram em {mes}. Dados da ANP.")
+
+    # ---------- estados e bacias ----------
+    for tipo, chave, pasta, nome_lista in (("estado", "estados", "estados", "Estados"), ("bacia", "bacias", "bacias", "Bacias")):
+        regs = ag.get(chave, [])
+        if not regs or "operadores" not in regs[0]:
+            continue
+        for r in regs:
+            r["resumo"] = resumo_regiao(r, ag, tipo)
+            vistos, nots = set(), []
+            for c in r["campos"]:
+                for n in noticias_campo.get(c["slug"], []):
+                    if n["link"] not in vistos:
+                        vistos.add(n["link"])
+                        nots.append(n)
+            nots.sort(key=lambda n: n["data"], reverse=True)
+            if tipo == "estado":
+                titulo = f"Produção de petróleo e gás {r['de']}"
+                h1 = f"Petróleo e gás {r['de']}"
+                desc = (f"Produção de petróleo e gás natural {r['de']} mês a mês: {fmt_inteligente(r['boe'])} mil boe/d em "
+                        f"{mes}, por empresa e por campo. Dados da ANP.")
+            else:
+                titulo = f"{r['titulo']}: produção de petróleo e gás"
+                h1 = r["titulo"]
+                desc = (f"Produção de petróleo e gás natural da {r['titulo']} mês a mês: {fmt_inteligente(r['boe'])} mil boe/d "
+                        f"em {mes}, por empresa e por campo. Dados da ANP.")
+            escrever(f"{pasta}/{r['slug']}/", "regiao.html", secao=pasta, r=r, tipo=tipo, pasta=pasta,
+                     nome_lista=nome_lista, todos=regs, noticias=nots[:6], titulo=titulo, h1=h1, descricao=desc)
+        if tipo == "estado":
+            escrever("estados/", "regioes.html", secao="estados", tipo=tipo, pasta=pasta, itens=regs,
+                     titulo="Produção de petróleo e gás por estado", h1="Produção por estado",
+                     sub=f"Os {len(regs)} estados com produção de petróleo ou gás em {mes}, do maior para o menor.",
+                     descricao=f"Ranking dos estados produtores de petróleo e gás do Brasil em {mes}: produção, "
+                               f"empresas e campos de cada um. Dados da ANP.")
+        else:
+            escrever("bacias/", "regioes.html", secao="bacias", tipo=tipo, pasta=pasta, itens=regs,
+                     titulo="Produção de petróleo e gás por bacia", h1="Produção por bacia",
+                     sub=f"As {len(regs)} bacias sedimentares com produção em {mes}, da maior para a menor.",
+                     descricao=f"Ranking das bacias produtoras de petróleo e gás do Brasil em {mes}: Santos, Campos, "
+                               f"Recôncavo, Potiguar e outras, com empresas e campos. Dados da ANP.")
 
     escrever("pocos/", "pocos.html", secao="pocos", titulo="Produção por poço",
              descricao="Busque qualquer poço de petróleo e gás do Brasil e veja a produção mês a mês desde 2018: "

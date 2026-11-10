@@ -56,7 +56,7 @@
 <div class="cartao">
 <div class="linha-titulo"><h2>Produção por bacia</h2><span class="legenda">mil boe/d · {{ mes_extenso(ag.ultimo) }}</span></div>
 {{ barras(ag.bacias[:8], ag.bacias[0].boe, 'boe', 1) }}
-<p class="nota">Bacias só em terra: {{ ag.bacias|selectattr('terra')|map(attribute='nome')|join(', ') or 'nenhuma' }}. <a href="{{ u('rankings/terra/') }}">Ranking dos campos em terra</a></p>
+<p class="nota">Bacias só em terra: {{ ag.bacias|selectattr('terra')|map(attribute='nome')|join(', ') or 'nenhuma' }}. <a href="{{ u('bacias/') }}">Todas as bacias</a> · <a href="{{ u('estados/') }}">Produção por estado</a> · <a href="{{ u('rankings/terra/') }}">Campos em terra</a></p>
 </div>
 </section>
 
@@ -89,6 +89,7 @@
 <div class="cards">
 <a class="card" href="{{ u('campos/') }}"><h3>Todos os campos</h3><p>{{ ag.campos|length }} campos produtores, com histórico mês a mês.</p></a>
 <a class="card" href="{{ u('operadoras/') }}"><h3>Todas as operadoras</h3><p>{{ ag.operadores|length }} operadoras, com seus campos e bacias.</p></a>
+<a class="card" href="{{ u('estados/') }}"><h3>Estados e bacias</h3><p>Produção de cada estado e de cada bacia, com empresas e campos.</p></a>
 <a class="card" href="{{ u('pocos/') }}"><h3>Produção por poço</h3><p>Busque qualquer poço e veja o gráfico mês a mês desde 2018.</p></a>
 <a class="card" href="{{ u('resultados/') }}"><h3>Petroleiras listadas</h3><p>Resultado trimestral de PETR4, PRIO3, BRAV3 e RECV3 ao lado da produção.</p></a>
 <a class="card" href="{{ u('rankings/') }}"><h3>Rankings do mês</h3><p>Quem mais cresceu e quem mais caiu.</p></a>

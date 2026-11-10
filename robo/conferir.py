@@ -94,5 +94,9 @@ def relatorio(ag, criticos, avisos) -> str:
         linhas += ["", "### Avisos"] + [f"- {a}" for a in avisos]
     linhas += ["", "### Operadoras (mil boe/d · petróleo mil bbl/d)",
                "; ".join(f"{o['nome']} {fmt(o['boe'], 1)} · {fmt(o['petroleo'], 1)}" for o in ag["operadores"])]
+    if ag.get("estados"):
+        linhas += ["", "### Estados (mil boe/d · % do Brasil)",
+                   "; ".join(f"{e['uf']} {fmt(e['boe'], 1)} · {fmt(e['share'], 1)}%" for e in ag["estados"])]
+        linhas += ["", "### Bacias (mil boe/d)", "; ".join(f"{b['nome']} {fmt(b['boe'], 1)}" for b in ag["bacias"])]
     linhas += ["", "Antes de divulgar, confira 3 números contra o Painel Dinâmico da ANP."]
     return "\n".join(linhas) + "\n"

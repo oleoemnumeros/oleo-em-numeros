@@ -2,11 +2,11 @@
 {% from "_macros.html" import kpi, var_classe, lista_noticias  %}
 {% block conteudo %}
 <section class="miolo cabeca">
-<nav class="trilha" aria-label="Você está em"><a href="{{ u('campos/') }}">Campos</a> / {{ c.bacia }} / {{ c.nome }}</nav>
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('campos/') }}">Campos</a> / {% if c.bacia_slug %}<a href="{{ u('bacias/' ~ c.bacia_slug ~ '/') }}">{{ c.bacia }}</a>{% else %}{{ c.bacia }}{% endif %} / {{ c.nome }}</nav>
 <h1>{{ c.nome }}</h1>
 <div class="chips">
-<span class="chip">Bacia {{ c.bacia }}</span>
-<span class="chip">{{ c.estado.nome }}</span>
+{% if c.bacia_slug %}<a class="chip" href="{{ u('bacias/' ~ c.bacia_slug ~ '/') }}">Bacia {{ c.bacia }}</a>{% else %}<span class="chip">Bacia {{ c.bacia }}</span>{% endif %}
+{% if c.estado_slug %}<a class="chip" href="{{ u('estados/' ~ c.estado_slug ~ '/') }}">{{ c.estado.nome }}</a>{% else %}<span class="chip">{{ c.estado.nome }}</span>{% endif %}
 <span class="chip">{{ 'Terra' if c.ambiente == 'terra' else 'Mar' }}</span>
 <a class="chip" href="{{ u('operadoras/' ~ c.operador_slug ~ '/') }}">{{ c.grupo }}</a>
 </div>

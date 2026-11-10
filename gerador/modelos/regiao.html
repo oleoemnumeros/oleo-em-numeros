@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe, lista_noticias %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<nav class="trilha" aria-label="Você está em"><a href="{{ u(pasta ~ '/') }}">{{ nome_lista }}</a> / {{ r.nome }}</nav>
+<h1>{{ h1 }}</h1>
+<p class="sub">{{ r.rank }}º {{ 'estado' if tipo == 'estado' else 'bacia' }} em produção no Brasil · {{ r.n_campos }} {{ 'campo' if r.n_campos == 1 else 'campos' }} · dado mais recente: {{ mes_extenso(ag.ultimo) }}</p>
+<div class="kpis kpis-6">
+{{ kpi('Produção total', fmt_inteligente(r.boe), 'mil boe/d', fmt_var(r.var12) ~ ' em 12 meses', var_classe(r.var12), principal=True) }}
+{{ kpi('Petróleo', fmt_inteligente(r.petroleo), 'mil bbl/d', fmt_var(r.var12_petroleo) ~ ' em 12 meses', var_classe(r.var12_petroleo)) }}
+{{ kpi('Gás natural', fmt_inteligente(r.gas), 'milhões m³/d', fmt_var(r.var12_gas) ~ ' em 12 meses', var_classe(r.var12_gas)) }}
+{{ kpi('Poços ativos', fmt(r.pocos), 'poços', fmt_var(r.var12_pocos) ~ ' em 12 meses', var_classe(r.var12_pocos)) }}
+{{ kpi('Participação no Brasil', fmt(r.share, 1) ~ '%', 'da produção nacional') }}
+{{ kpi('Em terra', fmt(r.terra_pct, 1) ~ '%', 'da produção') }}
+</div>
+<div class="cartao resumo">
+<p class="olho">Em resumo</p>
+<p>{{ r.resumo }}</p>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>{{ titulo_tendencia('Produção', r.var12) }}</h2>
+<p class="legenda">Petróleo e gás, em mil boe por dia · últimos {{ r.serie.periodo|length }} meses</p>
+{{ linha(r.serie.boe, r.serie.periodo, 'Produção ' ~ (r.de if tipo == 'estado' else 'da ' ~ r.titulo) ~ ', em mil boe por dia') }}
+<p class="nota">Fonte: ANP, produção por poço. Meses que a ANP não publicou aparecem como lacuna.</p>
+</div>
+</section>
+
+<section class="miolo secao lado">
+<div class="cartao principal">
+<h2>Empresas</h2>
+<p class="legenda">Produção operada {{ r.de if tipo == 'estado' else 'na ' ~ r.titulo }}, {{ mes_extenso(ag.ultimo) }}</p>
+<div class="tabela">
+<table>
+<thead><tr><th>#</th><th>Operadora</th><th class="n">mil boe/d</th><th class="n">Participação</th><th class="n">12 meses</th></tr></thead>
+<tbody>
+{% for o in r.operadores %}
+<tr><td>{{ loop.index }}</td><td><a href="{{ u('operadoras/' ~ o.slug ~ '/') }}">{{ o.nome }}</a></td><td class="n"><strong>{{ fmt_inteligente(o.boe) }}</strong></td><td class="n">{{ fmt(o.pct, 1) }}%</td><td class="n {{ var_classe(o.var12) }}">{{ fmt_var(o.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">Produção operada: 100% dos campos de cada operadora, incluindo a parte dos sócios.</p>
+</div>
+<div class="cartao aside">
+<h2>{{ 'Bacias no estado' if tipo == 'estado' else 'Estados da bacia' }}</h2>
+<p class="legenda">Participação na produção, em %</p>
+<div class="barras">
+{% for x in r.cruzado %}
+<div class="barra">
+<div class="nome"><a href="{{ u(('bacias/' if tipo == 'estado' else 'estados/') ~ x.slug ~ '/') }}">{{ x.nome }}</a></div>
+<div class="trilho"><div class="cheio" style="width: {{ [x.pct|round(1), 1]|max }}%"></div></div>
+<div class="valor">{{ fmt(x.pct, 0) }}</div>
+</div>
+{% endfor %}
+</div>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Campos produtores</h2>
+<p class="legenda">{{ r.n_campos }} {{ 'campo' if r.n_campos == 1 else 'campos' }} com produção em {{ mes_extenso(ag.ultimo) }}</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Campo</th><th>Empresa</th><th>{{ 'Bacia' if tipo == 'estado' else 'Estado' }}</th><th>Ambiente</th><th class="n">Total (boe/d)</th><th class="n">Petróleo (bbl/d)</th><th class="n">12 meses</th><th class="n">Poços ativos</th></tr></thead>
+<tbody>
+{% for c in r.campos %}
+<tr><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.grupo }}</td>
+<td>{% if tipo == 'estado' %}{% if c.bacia_slug %}<a href="{{ u('bacias/' ~ c.bacia_slug ~ '/') }}">{{ c.bacia }}</a>{% else %}{{ c.bacia }}{% endif %}{% else %}{% if c.estado_slug %}<a href="{{ u('estados/' ~ c.estado_slug ~ '/') }}">{{ c.estado.uf }}</a>{% else %}{{ c.estado.uf }}{% endif %}{% endif %}</td>
+<td>{{ 'Terra' if c.ambiente == 'terra' else 'Mar' }}</td><td class="n"><strong>{{ fmt(c.boe) }}</strong></td><td class="n">{{ fmt(c.petroleo) }}</td><td class="n {{ var_classe(c.var12) }}">{{ fmt_var(c.var12) }}</td><td class="n">{{ fmt(c.pocos) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+{% if noticias %}
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Notícias sobre campos {{ r.de if tipo == 'estado' else 'da ' ~ r.titulo }}</h2>
+{{ lista_noticias(noticias, u) }}
+<p class="nota">Manchetes coletadas automaticamente. Os links abrem a matéria no site de origem.</p>
+</div>
+</section>
+{% endif %}
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>{{ 'Outros estados produtores' if tipo == 'estado' else 'Outras bacias produtoras' }}</h2>
+<p class="vizinhos">{% for x in todos if x.slug != r.slug %}<a href="{{ u(pasta ~ '/' ~ x.slug ~ '/') }}">{{ x.nome }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+</div>
+</section>
+{% endblock %}
