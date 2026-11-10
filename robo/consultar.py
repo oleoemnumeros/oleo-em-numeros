@@ -191,6 +191,45 @@ def main(argv=None):
                     if mes >= "2024-07":
                         print(f"  {mes}: R$ {v:,.2f}")
                 print("  PE:", json.dumps(m["pe"]))
+    elif a.grupo.startswith("royalties-ano:"):
+        # confere o CSV de um ano fechado contra a planilha "Janeiro a Dezembro" do mesmo ano: royalties-ano:2025
+        import csv, io, re, tempfile
+        from pathlib import Path
+        from .royalties import (_get, _links, _texto_csv, ler_csv_municipios, ler_csv_estados, ler_tabela_ano,
+                                PAGINA_DADOS, PAGINA_ROYALTIES)
+        ano = int(a.grupo.split(":", 1)[1])
+        tmp = Path(tempfile.mkdtemp())
+        for texto, h in _links(PAGINA_DADOS):
+            for tipo in ("municipio", "estado"):
+                if re.search(rf"royalties[-_]{tipo}s?[-_]{ano}\.csv$", h):
+                    (tmp / f"{tipo}.csv").write_bytes(_get(h))
+        cab = next(csv.reader(io.StringIO(_texto_csv(tmp / "municipio.csv")), delimiter=";"))
+        print("Colunas do CSV de municípios:", cab)
+        xl = [(t, h) for t, h in _links(PAGINA_ROYALTIES)
+              if re.search(rf"beneficiarios/{ano}/[^/]+\.xlsx$", h)]
+        print("Planilhas do ano:", xl)
+        alvo = next((h for t, h in xl if "janeiro" in t.lower() or "jan-dez" in h), None)
+        cm, ce = ler_csv_municipios(tmp / "municipio.csv"), ler_csv_estados(tmp / "estado.csv")
+        if alvo:
+            (tmp / "tab.xlsx").write_bytes(_get(alvo))
+            tm, te = ler_tabela_ano(tmp / "tab.xlsx", ano)
+        else:
+            tm = te = None
+        print(f"\n{'mês':8} {'CSV mun':>14} {'planilha mun':>14} {'CSV est':>14} {'planilha est':>14}")
+        for mes in sorted(set(cm["mes"]) | set(ce["mes"])):
+            if not mes.startswith(str(ano)):
+                continue
+            linha = [cm[cm.mes == mes].valor.sum(), tm[tm.mes == mes].valor.sum() if tm is not None else 0,
+                     ce[ce.mes == mes].valor.sum(), te[te.mes == mes].valor.sum() if te is not None else 0]
+            print(f"{mes:8} " + " ".join(f"{v / 1e6:14,.2f}" for v in linha))
+        fora = sorted({m for m in cm["mes"] if not m.startswith(str(ano))})
+        print(f"\nMeses de caixa fora de {ano} no CSV de {ano}: {fora}")
+        print(f"Total {ano}: CSV mun R$ {cm[cm.mes.str.startswith(str(ano))].valor.sum() / 1e9:.3f} bi"
+              f" (todas as linhas: {cm.valor.sum() / 1e9:.3f} bi)")
+        if tm is not None:
+            print(f"Total {ano}: planilha mun R$ {tm.valor.sum() / 1e9:.3f} bi, est R$ {te.valor.sum() / 1e9:.3f} bi")
+            so_planilha = sorted(set(tm.chave) - set(cm.chave))
+            print(f"Municípios só na planilha ({len(so_planilha)}):", so_planilha[:40])
     elif a.grupo == "royalties":
         from .royalties import main as roy_main
         roy_main(["--mostrar"])
