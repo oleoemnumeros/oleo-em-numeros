@@ -161,6 +161,17 @@ def main(argv=None):
             print(len(res), res[0]["localidade"], res[0]["serie"])
         except Exception as e:
             print("erro população:", e, r.text[:300])
+    elif a.grupo == "royalties":
+        from .royalties import main as roy_main
+        roy_main(["--mostrar"])
+        import requests
+        for u in ("https://ftp.ibge.gov.br/Estimativas_de_Populacao/Estimativas_2025/estimativa_dou_2025.xls",
+                  "https://ftp.ibge.gov.br/Estimativas_de_Populacao/Estimativas_2024/estimativa_dou_2024.xls"):
+            try:
+                r = requests.get(u, timeout=40)
+                print(f"IBGE ftp: HTTP {r.status_code} {len(r.content) / 1e6:.1f} MB {u}")
+            except requests.RequestException as e:
+                print(f"IBGE ftp: falhou {u}: {type(e).__name__}")
     elif a.grupo == "fontes":
         from .noticias import testar
         print(testar())
