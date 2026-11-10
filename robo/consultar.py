@@ -103,6 +103,33 @@ def main(argv=None):
             for aba, d in list(abas.items())[:4]:
                 print(f"--- aba {aba} ({d.shape})")
                 print(d.head(14).to_string(max_colwidth=28)[:3000])
+    elif a.grupo == "royalties-amostra":
+        import io
+        import pandas as pd
+        import requests
+        from .noticias import NAVEGADOR
+        base = "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/pg/"
+        for arq in ("royalties-municipios/royalties-municipio-2025.csv", "royalties-estados/royalties-estado-2025.csv",
+                    "participacao-especial/pe_municipio.csv", "participacao-especial/pe_estado.csv"):
+            r = requests.get(base + arq, headers={"User-Agent": NAVEGADOR}, timeout=120)
+            t = r.content.decode("utf-8", errors="replace") if r.content[:3] == b"\xef\xbb\xbf" else r.content.decode("latin-1")
+            linhas = t.splitlines()
+            print(f"### {arq}: HTTP {r.status_code}, {len(r.content) / 1e6:.1f} MB, {len(linhas)} linhas")
+            print("\n".join(linhas[:6]))
+            print("...")
+            print("\n".join(l for l in linhas if "MARIC" in l.upper())[:900])
+            print("\n".join(linhas[-3:]))
+        url = ("https://www.gov.br/anp/pt-br/assuntos/royalties-e-outras-participacoes/arq-royalties/"
+               "tabelas-contendo-o-valor-mensal-dos-royalties-dos-beneficiarios/2026/royalties-tabelas-jan-dez-2026_03.xlsx")
+        r = requests.get(url, headers={"User-Agent": NAVEGADOR}, timeout=180)
+        for aba in ("TOTAL", "CONCESSÃO"):
+            d = pd.read_excel(io.BytesIO(r.content), sheet_name=aba, header=None)
+            print(f"### xlsx 2026 aba {aba}: {d.shape}")
+            with pd.option_context("display.width", 250, "display.max_columns", 12):
+                print(d.iloc[:22, :11].to_string(max_colwidth=26))
+                m = d[d.astype(str).apply(lambda c: c.str.upper().str.contains("MARIC")).any(axis=1)]
+                print(m.iloc[:3, :11].to_string(max_colwidth=26))
+                print(d.iloc[-6:, :11].to_string(max_colwidth=26))
     elif a.grupo == "fontes":
         from .noticias import testar
         print(testar())
