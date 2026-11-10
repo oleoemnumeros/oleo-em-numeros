@@ -161,6 +161,23 @@ def main(argv=None):
             print(len(res), res[0]["localidade"], res[0]["serie"])
         except Exception as e:
             print("erro população:", e, r.text[:300])
+    elif a.grupo == "royalties-secoes":
+        import io
+        import re
+        import pandas as pd
+        from .royalties import _get, _links, PAGINA_ROYALTIES
+        from .util import sem_acento
+        url = next(h for t, h in _links(PAGINA_ROYALTIES) if "jan-dez-2026" in h)
+        d = pd.read_excel(io.BytesIO(_get(url)), sheet_name="TOTAL", header=None, dtype=object)
+        for i, l in d.iterrows():
+            rot = sem_acento(str(l[1])).strip()
+            if not re.match(r"^.+-[A-Z]{2}$", rot.upper()) and rot.upper() not in ("NAN", "") and rot.lower() not in (
+                    "acre alagoas amazonas amapa bahia ceara espirito santo goias maranhao minas gerais mato grosso do sul "
+                    "mato grosso para paraiba pernambuco piaui parana rio de janeiro rio grande do norte rondonia roraima "
+                    "rio grande do sul santa catarina sergipe sao paulo tocantins distrito federal"):
+                print(f"LINHA {i}: {str(l[0])[:12]} | {rot[:70]} | jan={l[4]}")
+            if "MARICA" in rot.upper():
+                print(f"MARICA {i}: {str(l[0])[:12]} | {rot} | jan={l[4]} fev={l[7]}")
     elif a.grupo == "royalties":
         from .royalties import main as roy_main
         roy_main(["--mostrar"])
