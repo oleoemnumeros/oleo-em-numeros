@@ -312,3 +312,43 @@ def test_dados_da_busca_de_pocos(base, tmp_path):
     esperado = base[(base["poco"] == nome) & (base["periodo"] == ultimo)]["petroleo_bbl_d"].sum()
     assert w["p"][-1] == pytest.approx(esperado, abs=0.05)
     assert idx["campos"][cslug]["pg"] == 1
+
+
+# ---------------- resultados trimestrais (CVM) ----------------
+
+def _cvm_fake(tmp_path):
+    """ITR e DFP fictícios da PRIO: acumulados no ano, como a CVM entrega."""
+    import pandas as pd
+    linhas = []
+    acum = {"03-31": 1, "06-30": 2, "09-30": 3, "12-31": 4}     # receita de 100 por trimestre etc.
+    for fim, k in acum.items():
+        doc = "DFP" if fim == "12-31" else "ITR"
+        base = dict(CNPJ_CIA="10.629.105/0001-68", DT_REFER=f"2025-{fim}", VERSAO="1", DENOM_CIA="PRIO S.A.",
+                    ESCALA_MOEDA="MIL", ORDEM_EXERC="ÚLTIMO", DT_INI_EXERC="2025-01-01", DT_FIM_EXERC=f"2025-{fim}", DOC=doc)
+        for dem, conta, desc, v in (("DRE_con", "3.01", "Receita", 100_000 * k), ("DRE_con", "3.05", "EBIT", 40_000 * k),
+                                    ("DRE_con", "3.11", "Lucro", 20_000 * k), ("DVA_con", "7.04.01", "Depreciação", 10_000 * k),
+                                    ("DFC_MI_con", "6.02.01", "Aquisição de imobilizado", -30_000 * k),
+                                    ("DFC_MI_con", "6.02.02", "Aquisição de controlada", -500_000 * k)):
+            linhas.append({**base, "DEM": dem, "CD_CONTA": conta, "DS_CONTA": desc, "VL_CONTA": str(v)})
+        for dem, conta, v in (("BPA_con", "1.01.01", 50_000), ("BPA_con", "1.01.02", 10_000),
+                              ("BPP_con", "2.01.04", 100_000), ("BPP_con", "2.02.01", 400_000)):
+            linhas.append({**base, "DEM": dem, "CD_CONTA": conta, "DS_CONTA": "x", "VL_CONTA": str(v), "DT_INI_EXERC": ""})
+    # versão antiga reapresentada do 2º tri, que deve ser ignorada
+    linhas.append({**linhas[6], "VERSAO": "0", "VL_CONTA": "999999999"})
+    arq = tmp_path / "itr_2025.csv.gz"
+    pd.DataFrame(linhas).to_csv(arq, index=False, compression="gzip")
+    return [arq]
+
+
+def test_cvm_trimestres_saem_da_diferenca_dos_acumulados(tmp_path):
+    from robo.cvm import calcular, carregar
+    r = calcular(carregar(_cvm_fake(tmp_path)))
+    t = {x["trimestre"]: x for x in r["PRIO"]["trimestres"]}
+    assert list(t) == ["2025T1", "2025T2", "2025T3", "2025T4"]
+    for q in t.values():                     # R$ milhões
+        assert q["receita"] == pytest.approx(100) and q["lucro"] == pytest.approx(20)
+        assert q["ebitda"] == pytest.approx(50) and q["margem_ebitda"] == pytest.approx(50)
+        assert q["capex"] == pytest.approx(30)                   # compra de controlada fica fora
+        assert q["divida_liquida"] == pytest.approx(440)
+    assert t["2025T4"]["alavancagem"] == pytest.approx(440 / 200)
+    assert "alavancagem" not in t["2025T3"]                       # precisa de 4 trimestres

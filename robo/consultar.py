@@ -68,6 +68,9 @@ def main(argv=None):
     if a.grupo == "fontes":
         from .noticias import testar
         print(testar())
+    elif a.grupo == "cvm":
+        from .cvm import main as cvm_main
+        cvm_main(["--mostrar"])
     elif a.grupo == "govbr":
         from .noticias import depurar_govbr
         print(depurar_govbr())
