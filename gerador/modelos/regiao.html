@@ -50,7 +50,7 @@
 <div class="barras">
 {% for x in r.cruzado %}
 <div class="barra">
-<div class="nome"><a href="{{ u(('bacias/' if tipo == 'estado' else 'estados/') ~ x.slug ~ '/') }}">{{ x.nome }}</a></div>
+<div class="nome">{% if x.slug %}<a href="{{ u(('bacias/' if tipo == 'estado' else 'estados/') ~ x.slug ~ '/') }}">{{ x.nome }}</a>{% else %}{{ x.nome }}{% endif %}</div>
 <div class="trilho"><div class="cheio" style="width: {{ [x.pct|round(1), 1]|max }}%"></div></div>
 <div class="valor">{{ fmt(x.pct, 0) }}</div>
 </div>
@@ -91,7 +91,7 @@
 <section class="miolo secao">
 <div class="cartao">
 <h2>{{ 'Outros estados produtores' if tipo == 'estado' else 'Outras bacias produtoras' }}</h2>
-<p class="vizinhos">{% for x in todos if x.slug != r.slug %}<a href="{{ u(pasta ~ '/' ~ x.slug ~ '/') }}">{{ x.nome }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+<p class="vizinhos">{% for x in todos if x.slug and x.slug != r.slug %}<a href="{{ u(pasta ~ '/' ~ x.slug ~ '/') }}">{{ x.nome }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
 </div>
 </section>
 {% endblock %}

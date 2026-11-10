@@ -279,6 +279,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         if not regs or "operadores" not in regs[0]:
             continue
         for r in regs:
+            if not r.get("slug"):
+                continue
             r["resumo"] = resumo_regiao(r, ag, tipo)
             vistos, nots = set(), []
             for c in r["campos"]:

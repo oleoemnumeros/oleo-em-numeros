@@ -299,7 +299,9 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
     estados = regioes("uf", lambda c: c["estado"]["uf"])
     for e in estados:
         info = estado_info(e["chave"])
-        e.update(nome=info["nome"], uf=info["uf"], de=info["de"], slug=slug(info["nome"]))
+        valido = info["uf"] in UFS
+        e.update(nome=info["nome"] if valido else "Não informado", uf=info["uf"], de=info["de"],
+                 slug=slug(info["nome"]) if valido else None)
         e["artigo"] = {"da": "a", "do": "o"}.get(info["de"].split(" ")[0], "")
         por_bacia = {}
         for c in e["campos"]:
@@ -314,7 +316,8 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
         por_uf = {}
         for c in b_["campos"]:
             por_uf[c["estado"]["uf"]] = por_uf.get(c["estado"]["uf"], 0.0) + c["boe"]
-        b_["cruzado"] = sorted(({"nome": estado_info(k)["nome"], "slug": slug(estado_info(k)["nome"]),
+        b_["cruzado"] = sorted(({"nome": estado_info(k)["nome"] if k in UFS else "Não informado",
+                                 "slug": slug(estado_info(k)["nome"]) if k in UFS else None,
                                  "pct": v_ / (b_["boe"] * 1000) * 100 if b_["boe"] else 0}
                                 for k, v_ in por_uf.items()), key=lambda x: -x["pct"])
     por_slug_e = {e["uf"]: e["slug"] for e in estados}

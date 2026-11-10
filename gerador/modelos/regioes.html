@@ -12,7 +12,7 @@
 <thead><tr><th>#</th><th>{{ 'Estado' if tipo == 'estado' else 'Bacia' }}</th><th class="n">Total (mil boe/d)</th><th class="n">Petróleo (mil bbl/d)</th><th class="n">Gás (milhões m³/d)</th><th class="n">Participação</th><th class="n">Em terra</th><th class="n">Campos</th><th class="n">12 meses</th></tr></thead>
 <tbody>
 {% for r in itens %}
-<tr><td>{{ r.rank }}</td><td><a href="{{ u(pasta ~ '/' ~ r.slug ~ '/') }}">{{ r.nome }}</a></td><td class="n"><strong>{{ fmt_inteligente(r.boe) }}</strong></td><td class="n">{{ fmt_inteligente(r.petroleo) }}</td><td class="n">{{ fmt_inteligente(r.gas) }}</td><td class="n">{{ fmt(r.share, 1) }}%</td><td class="n">{{ fmt(r.terra_pct, 0) }}%</td><td class="n">{{ r.n_campos }}</td><td class="n {{ var_classe(r.var12) }}">{{ fmt_var(r.var12) }}</td></tr>
+<tr><td>{{ r.rank }}</td><td>{% if r.slug %}<a href="{{ u(pasta ~ '/' ~ r.slug ~ '/') }}">{{ r.nome }}</a>{% else %}{{ r.nome }}{% endif %}</td><td class="n"><strong>{{ fmt_inteligente(r.boe) }}</strong></td><td class="n">{{ fmt_inteligente(r.petroleo) }}</td><td class="n">{{ fmt_inteligente(r.gas) }}</td><td class="n">{{ fmt(r.share, 1) }}%</td><td class="n">{{ fmt(r.terra_pct, 0) }}%</td><td class="n">{{ r.n_campos }}</td><td class="n {{ var_classe(r.var12) }}">{{ fmt_var(r.var12) }}</td></tr>
 {% endfor %}
 </tbody>
 </table>

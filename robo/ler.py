@@ -23,7 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import config
-from .agregar import estado_info
+from .agregar import UFS, estado_info
 from .util import dias_no_mes, normalizar_cabecalho, numero_br, periodo, sem_acento
 
 COLUNAS = ["periodo", "estado", "bacia", "campo", "poco", "operador", "ambiente",
@@ -325,6 +325,11 @@ def consolidar(pasta: Path = config.BRUTOS, manual: Path = config.MANUAIS / "ope
         preferida = base.loc[valido, col].groupby(chave).agg(lambda s: s.value_counts().idxmax())
         base.loc[valido, col] = chave.map(preferida)
     base["estado"] = base["estado"].map(lambda v: estado_info(v)["uf"])
+    # linha sem estado (vem em branco em alguns arquivos): usa o estado que o campo tem nos outros meses
+    ok = base["estado"].isin(UFS)
+    if (~ok).any():
+        do_campo = base[ok].groupby("campo")["estado"].agg(lambda s: s.value_counts().idxmax())
+        base.loc[~ok, "estado"] = base.loc[~ok, "campo"].map(do_campo).fillna(base.loc[~ok, "estado"])
 
     mapa = _operador_por_campo(base)
     mapa_poco = _operador_por_poco(base)

@@ -63,6 +63,12 @@ def conferir(base, ag) -> tuple[bool, list[str], list[str]]:
             avisos.append(f"A ANP não publicou dados de {amb} em: {', '.join(mes_extenso(p) for p in faltam)}. "
                           "Esses meses aparecem como lacuna nos gráficos.")
 
+    from .agregar import UFS
+    sem_uf = base[(base["periodo"] == ultimo) & ~base["estado"].isin(UFS)]
+    if len(sem_uf):
+        avisos.append("Campos sem estado na ANP (ficam como 'Não informado'): " +
+                      ", ".join(sorted(sem_uf["campo"].astype(str).unique())[:10]))
+
     campos_u = set(base[base["periodo"] == ultimo]["campo"])
     campos_a = set(base[base["periodo"] == ant]["campo"])
     if campos_u - campos_a:
