@@ -330,9 +330,12 @@ def _cvm_fake(tmp_path):
                                     ("DFC_MI_con", "6.02.01", "Aquisição de imobilizado", -30_000 * k),
                                     ("DFC_MI_con", "6.02.02", "Aquisição de controlada", -500_000 * k)):
             linhas.append({**base, "DEM": dem, "CD_CONTA": conta, "DS_CONTA": desc, "VL_CONTA": str(v)})
-        for dem, conta, v in (("BPA_con", "1.01.01", 50_000), ("BPA_con", "1.01.02", 10_000),
-                              ("BPP_con", "2.01.04", 100_000), ("BPP_con", "2.02.01", 400_000)):
-            linhas.append({**base, "DEM": dem, "CD_CONTA": conta, "DS_CONTA": "x", "VL_CONTA": str(v), "DT_INI_EXERC": ""})
+        for dem, conta, desc, v in (("BPA_con", "1.01.01", "Caixa", 50_000), ("BPA_con", "1.01.02", "Aplicações", 10_000),
+                                    ("BPP_con", "2.01.04", "Empréstimos", 100_000), ("BPP_con", "2.02.01", "Empréstimos", 400_000),
+                                    ("BPP_con", "2.02.01.03", "Financiamento por Arrendamento", 20_000),
+                                    ("BPP_con", "2.02.02.02", "Outros", 70_000),
+                                    ("BPP_con", "2.02.02.02.03", "Arrendamentos mercantis", 30_000)):
+            linhas.append({**base, "DEM": dem, "CD_CONTA": conta, "DS_CONTA": desc, "VL_CONTA": str(v), "DT_INI_EXERC": ""})
     # versão antiga reapresentada do 2º tri, que deve ser ignorada
     linhas.append({**linhas[6], "VERSAO": "0", "VL_CONTA": "999999999"})
     arq = tmp_path / "itr_2025.csv.gz"
@@ -349,6 +352,8 @@ def test_cvm_trimestres_saem_da_diferenca_dos_acumulados(tmp_path):
         assert q["receita"] == pytest.approx(100) and q["lucro"] == pytest.approx(20)
         assert q["ebitda"] == pytest.approx(50) and q["margem_ebitda"] == pytest.approx(50)
         assert q["capex"] == pytest.approx(30)                   # compra de controlada fica fora
-        assert q["divida_liquida"] == pytest.approx(440)
-    assert t["2025T4"]["alavancagem"] == pytest.approx(440 / 200)
+        assert q["divida_liquida"] == pytest.approx(420)          # sem o arrendamento que estava nos empréstimos
+        assert q["arrendamentos"] == pytest.approx(50)            # 20 dentro dos empréstimos + 30 em outras obrigações
+    assert t["2025T4"]["alavancagem"] == pytest.approx(420 / 200)
+    assert t["2025T4"]["alavancagem_com_arrend"] == pytest.approx(470 / 200)
     assert "alavancagem" not in t["2025T3"]                       # precisa de 4 trimestres

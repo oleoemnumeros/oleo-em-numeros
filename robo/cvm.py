@@ -10,11 +10,15 @@ Regras de cálculo (as mesmas descritas na metodologia do site):
 - EBITDA calculado = resultado antes do resultado financeiro e dos tributos
   (conta 3.05) + depreciação, amortização e exaustão (DVA, conta 7.04.01).
   Não é o "EBITDA ajustado" que as empresas divulgam.
-- Dívida líquida = empréstimos, financiamentos e debêntures (2.01.04 + 2.02.01)
+- Lucro líquido = atribuído aos acionistas da controladora (3.11.01), como as
+  empresas divulgam; sem essa conta, o consolidado (3.11).
+- Dívida líquida = empréstimos, financiamentos e debêntures (2.01.04 + 2.02.01,
+  sem os arrendamentos que algumas empresas registram ali, 2.01.04.03 e 2.02.01.03)
   menos caixa e aplicações financeiras de curto prazo (1.01.01 + 1.01.02).
-  Não inclui arrendamentos (IFRS 16).
-- Capex = saídas do fluxo de investimento com imobilizado, intangível e
-  ativos de exploração e produção (sem compra de empresas).
+  Arrendamentos (IFRS 16) aparecem à parte, estejam onde estiverem no balanço,
+  porque cada empresa os registra numa conta diferente.
+- Capex = investimento pago no período (fluxo de caixa): imobilizado, intangível,
+  exploração e desenvolvimento. Compra de empresas ou de participação em campos fica fora.
 
 Uso:
     python -m robo.cvm            # baixa, calcula e grava
@@ -45,14 +49,15 @@ ANO_INICIAL = 2021
 EMPRESAS = {
     "Petrobras": {"nome": r"PETROLEO BRASILEIRO", "ticker": "PETR4"},
     "PRIO": {"nome": r"^(PRIO S\.?A|PETRO RIO S\.?A|PETRORIO)", "ticker": "PRIO3"},
-    "Brava Energia": {"nome": r"^(BRAVA ENERGIA|ENAUTA PARTICIPACOES)", "ticker": "BRAV3"},
+    # a Enauta incorporou a 3R em agosto de 2024 e virou Brava: antes disso, os números não são comparáveis
+    "Brava Energia": {"nome": r"^(BRAVA ENERGIA|ENAUTA PARTICIPACOES)", "ticker": "BRAV3", "desde": "2024T4"},
     "PetroRecôncavo": {"nome": r"^PETRORECONCAVO", "ticker": "RECV3"},
 }
 DEMONSTRACOES = ["DRE_con", "BPA_con", "BPP_con", "DFC_MI_con", "DVA_con"]
 
-CAPEX_SIM = re.compile(r"imobilizado|intangivel|exploracao|desenvolvimento|ativos? de (?:oleo|petroleo|o&g)|ativo de producao|e&p")
+CAPEX_SIM = re.compile(r"imobilizado|intangivel|exploracao|desenvolvimento|ativo de producao")
 CAPEX_NAO = re.compile(r"venda|alienac|recebimento|baixa|controlad|coligad|participac|combinac|aquisicao de empresa|"
-                       r"aquisicao de negocio|adiantamento|caixa liquido")
+                       r"aquisicao de negocio|adiantamento|caixa liquido|ativos? (?:de )?oleo|mantido para venda")
 
 
 def _filtrar_zip(conteudo: bytes, doc: str, ano: int) -> pd.DataFrame:
@@ -146,6 +151,18 @@ def _capex(dfc: pd.DataFrame) -> pd.Series:
     return -inv.groupby(["DT_INI_EXERC", "DT_FIM_EXERC"])["valor"].sum()
 
 
+def _arrendamentos_fora(bp: pd.DataFrame) -> float:
+    """Passivo de arrendamento registrado fora de 'Empréstimos e Financiamentos' (em outras obrigações).
+    Fica só a conta mais detalhada, para não somar a conta-mãe e a filha."""
+    a = bp[bp["desc"].str.contains("arrendament") & ~bp["CD_CONTA"].str.match(r"^2\.0[12]\.0[14]")
+           & bp["CD_CONTA"].str.match(r"^2\.0[12]\.")]
+    if a.empty:
+        return 0.0
+    codigos = set(a["CD_CONTA"])
+    folha = [not any(o != c and o.startswith(c + ".") for o in codigos) for c in a["CD_CONTA"]]
+    return float(a.loc[folha, "valor"].sum())
+
+
 def calcular(d: pd.DataFrame) -> dict:
     """Uma linha por trimestre para cada grupo, valores em R$ milhões."""
     saida = {}
@@ -153,8 +170,10 @@ def calcular(d: pd.DataFrame) -> dict:
         linhas = {}
         # --- fluxos acumulados no ano (YTD), por data de fim ---
         acum = {}
+        dre = g[g["DEM"] == "DRE_con"]
+        conta_lucro = "3.11.01" if (dre["CD_CONTA"] == "3.11.01").any() else "3.11"
         for dem, codigo, chave in (("DRE_con", "3.01", "receita"), ("DRE_con", "3.05", "ebit"),
-                                   ("DRE_con", "3.11", "lucro"), ("DVA_con", "7.04.01", "da")):
+                                   ("DRE_con", conta_lucro, "lucro"), ("DVA_con", "7.04.01", "da")):
             x = _conta(g[g["DEM"] == dem], codigo)
             x = x[x["DT_INI_EXERC"].str[5:] == "01-01"]           # acumulado desde 1º de janeiro
             for fim, v in x.groupby("DT_FIM_EXERC")["valor"].sum().items():
@@ -182,8 +201,11 @@ def calcular(d: pd.DataFrame) -> dict:
             if t not in linhas:
                 continue
             caixa = v("1.01.01") + v("1.01.02")
-            divida = v("2.01.04") + v("2.02.01")
-            linhas[t].update({"caixa": caixa / 1000, "divida_bruta": divida / 1000, "divida_liquida": (divida - caixa) / 1000})
+            arrend_dentro = v("2.01.04.03") + v("2.02.01.03")
+            divida = v("2.01.04") + v("2.02.01") - arrend_dentro
+            linhas[t].update({"caixa": caixa / 1000, "divida_bruta": divida / 1000,
+                              "divida_liquida": (divida - caixa) / 1000,
+                              "arrendamentos": (arrend_dentro + _arrendamentos_fora(bp)) / 1000})
         # --- EBITDA, margem e alavancagem ---
         ordem = sorted(linhas, key=lambda t: linhas[t]["fim"])
         for i, t in enumerate(ordem):
@@ -196,8 +218,12 @@ def calcular(d: pd.DataFrame) -> dict:
                 e12 = sum(linhas[x]["ebitda"] for x in ult4)
                 l["ebitda_12m"] = e12
                 l["alavancagem"] = l["divida_liquida"] / e12 if e12 > 0 else None
+                l["alavancagem_com_arrend"] = (l["divida_liquida"] + l["arrendamentos"]) / e12 if e12 > 0 else None
+        desde = EMPRESAS[grupo].get("desde", "")
+        ordem = [t for t in ordem if t >= desde]
         saida[grupo] = {"ticker": EMPRESAS[grupo]["ticker"],
                         "empresa_cvm": g.sort_values("DT_REFER")["DENOM_CIA"].iloc[-1],
+                        "cnpj": g["CNPJ_CIA"].iloc[-1],
                         "trimestres": [{"trimestre": t, **linhas[t]} for t in ordem]}
     return saida
 
@@ -238,14 +264,14 @@ def tabela(r: dict, ultimos: int = 6) -> str:
     linhas = []
     for grupo, e in r.items():
         linhas += [f"## {grupo} ({e['ticker']}) · {e['empresa_cvm']}", "",
-                   "| Tri | Receita | EBIT | D&A | EBITDA | Margem | Lucro | Capex | Caixa | Dív. bruta | Dív. líq. | Dív.líq/EBITDA |",
-                   "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+                   "| Tri | Receita | EBIT | D&A | EBITDA | Margem | Lucro | Capex | Caixa | Dív. bruta | Dív. líq. | Arrend. | Alav. | Alav. c/ arrend. |",
+                   "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
         f = lambda v, c=0: "—" if v is None else f"{v:,.{c}f}"  # noqa: E731
         for t in e["trimestres"][-ultimos:]:
             linhas.append(f"| {t['trimestre']} | {f(t.get('receita'))} | {f(t.get('ebit'))} | {f(t.get('da'))} | "
                           f"{f(t.get('ebitda'))} | {f(t.get('margem_ebitda'), 1)} | {f(t.get('lucro'))} | {f(t.get('capex'))} | "
                           f"{f(t.get('caixa'))} | {f(t.get('divida_bruta'))} | {f(t.get('divida_liquida'))} | "
-                          f"{f(t.get('alavancagem'), 2)} |")
+                          f"{f(t.get('arrendamentos'))} | {f(t.get('alavancagem'), 2)} | {f(t.get('alavancagem_com_arrend'), 2)} |")
         linhas.append("")
     return "\n".join(linhas)
 
