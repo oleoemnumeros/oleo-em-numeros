@@ -1,0 +1,4 @@
+# Estado de campos que a ANP publica sem estado e que ficam numa bacia com mais de um estado.
+# campo: nome como aparece na ANP. uf: sigla do estado (confrontante, para campos no mar).
+campo,uf
+AnC_ARGONAUTA_ME1,ES

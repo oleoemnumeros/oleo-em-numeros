@@ -330,6 +330,19 @@ def consolidar(pasta: Path = config.BRUTOS, manual: Path = config.MANUAIS / "ope
     if (~ok).any():
         do_campo = base[ok].groupby("campo")["estado"].agg(lambda s: s.value_counts().idxmax())
         base.loc[~ok, "estado"] = base.loc[~ok, "campo"].map(do_campo).fillna(base.loc[~ok, "estado"])
+    # campo novo, sem nenhum mês com estado: planilha manual; senão, a bacia, se ela fica num estado só
+    ok = base["estado"].isin(UFS)
+    arq_uf = manual.parent / "estado_por_campo.csv"
+    if (~ok).any() and arq_uf.exists():
+        m = pd.read_csv(arq_uf, dtype=str, comment="#").dropna()
+        chave_c = lambda t: sem_acento(str(t)).casefold().strip()  # noqa: E731
+        por_c = {chave_c(c): uf.strip().upper() for c, uf in zip(m["campo"], m["uf"])}
+        base.loc[~ok, "estado"] = base.loc[~ok, "campo"].map(lambda c: por_c.get(chave_c(c))).fillna(base.loc[~ok, "estado"])
+        ok = base["estado"].isin(UFS)
+    if (~ok).any():
+        ufs_bacia = base[ok].groupby("bacia")["estado"].agg(lambda s: set(s))
+        unica = {b: next(iter(u)) for b, u in ufs_bacia.items() if len(u) == 1}
+        base.loc[~ok, "estado"] = base.loc[~ok, "bacia"].map(unica).fillna(base.loc[~ok, "estado"])
 
     mapa = _operador_por_campo(base)
     mapa_poco = _operador_por_poco(base)
