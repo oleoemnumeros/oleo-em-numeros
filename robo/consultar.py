@@ -178,6 +178,19 @@ def main(argv=None):
                 print(f"LINHA {i}: {str(l[0])[:12]} | {rot[:70]} | jan={l[4]}")
             if "MARICA" in rot.upper():
                 print(f"MARICA {i}: {str(l[0])[:12]} | {rot} | jan={l[4]} fev={l[7]}")
+    elif a.grupo.startswith("royalties:"):
+        # série mensal de um município, para conferir: royalties:Nome do Município
+        import json
+        from .royalties import executar
+        r = executar(baixar_dados=True)
+        alvo = a.grupo.split(":", 1)[1].strip().lower()
+        for m in r["municipios"]:
+            if m["nome"].lower() == alvo:
+                print(f"## {m['nome']}-{m['uf']} (IBGE {m['ibge']}, população {m.get('pop')})")
+                for mes, v in zip(r["meses"], m["r"]):
+                    if mes >= "2024-07":
+                        print(f"  {mes}: R$ {v:,.2f}")
+                print("  PE:", json.dumps(m["pe"]))
     elif a.grupo == "royalties":
         from .royalties import main as roy_main
         roy_main(["--mostrar"])
