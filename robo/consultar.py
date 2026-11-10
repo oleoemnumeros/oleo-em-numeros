@@ -186,7 +186,7 @@ def main(argv=None):
         alvo = a.grupo.split(":", 1)[1].strip().lower()
         for m in r["municipios"]:
             if m["nome"].lower() == alvo:
-                print(f"## {m['nome']}-{m['uf']} (IBGE {m['ibge']}, população {m.get('pop')})")
+                print(f"## {m['nome']}-{m['uf']} (IBGE {m["ibge"]}, população {m.get("populacao")})")
                 for mes, v in zip(r["meses"], m["r"]):
                     if mes >= "2024-07":
                         print(f"  {mes}: R$ {v:,.2f}")

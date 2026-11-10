@@ -389,3 +389,84 @@ def test_estados_e_bacias_somam_o_brasil(base, tmp_path):
     html = (tmp_path / "site" / "estados" / e["slug"] / "index.html").read_text("utf-8")
     assert e["resumo"] if "resumo" in e else True
     assert "Em resumo" in html and e["campos"][0]["nome"] in html
+
+
+# ---------------- royalties ----------------
+
+def _pasta_royalties(tmp_path):
+    """Arquivos fictícios no formato da ANP: CSV de 2025 e a planilha de 2026."""
+    import pandas as pd
+    p = tmp_path / "roy"
+    p.mkdir()
+    # 2025: competência (produção) e caixa (pagamento) em número serial do Excel; decimal com vírgula
+    jan25, fev25 = 45658, 45689
+    (p / "mun_2025.csv").write_text(
+        "competencia;caixa;municipio;estado;royalties minimos;royalties excedentes\n"
+        f"45597;{jan25};marica-rj;rj;1000000,50;9000000\n"
+        f"45627;{fev25};marica-rj;rj;1000000;10000000\n"
+        f"45597;{jan25};parati-rj;rj;100000;0\n"
+        f"45597;{jan25};pojuca-ba;ba;50000;1000\n", encoding="latin-1")
+    (p / "est_2025.csv").write_text(
+        "competencia;caixa;bahia;rio de janeiro\n"
+        f"45597;{jan25};200000;5000000\n;;;\n", encoding="latin-1")
+    # 2026: aba TOTAL com resumo, estados, somatório por UF (deve ser ignorado) e municípios
+    linhas = [[None] * 8 for _ in range(4)]
+    linhas += [[None, "BENEFICIÁRIOS", "Royalties até 5%", "Royalties excedentes a 5%", "Total - JANEIRO", "a", "b", "Total - FEVEREIRO"],
+               [None, "Estados", 1, 1, 999, 1, 1, 999],
+               [None, "Municípios", 1, 1, 999, 1, 1, 999],
+               [None, "TOTAL", 1, 1, 999, 1, 1, 999],
+               [None, "ESTADOS", "x", "y", "Total - JANEIRO", "x", "y", "Total - FEVEREIRO"],
+               [None, "BAHIA", 1, 1, 300000, 1, 1, 310000],
+               [None, "RIO DE JANEIRO", 1, 1, 6000000, 1, 1, 6100000],
+               [None, "TOTAL", 1, 1, 6300000, 1, 1, 6410000],
+               [None, "Somatório dos Municípios por Unidade da Federação", "x", "y", "Total - JANEIRO", "x", "y", "Total - FEVEREIRO"],
+               [None, "BAHIA", 1, 1, 7777777, 1, 1, 7777777],
+               [None, "RIO DE JANEIRO", 1, 1, 8888888, 1, 1, 8888888],
+               [None, "MUNICÍPIOS", "x", "y", "Total - JANEIRO", "x", "y", "Total - FEVEREIRO"],
+               ["RJ", "MARICA-RJ", 1, 1, 12000000, 1, 1, 13000000],
+               ["BA", "POJUCA-BA", 1, 1, 60000, 1, 1, 0],
+               [None, "TOTAL", 1, 1, 12060000, 1, 1, 13000000],
+               [None, "MUNICÍPIOS", "x", "y", "Total - JANEIRO", "x", "y", "Total - FEVEREIRO"],
+               [None, "Depósitos judiciais", 1, 1, 5555, 1, 1, 5555]]
+    with pd.ExcelWriter(p / "tabela_2026.xlsx") as w:
+        pd.DataFrame([["CONCESSÃO"]]).to_excel(w, sheet_name="CONCESSÃO", header=False, index=False)
+        pd.DataFrame(linhas).to_excel(w, sheet_name="TOTAL", header=False, index=False)
+    (p / "pe_municipio.csv").write_text("competencia;caixa;municipio;estado;valor\n"
+                                        "45901;45962;marica;rio de janeiro;40000000\n", encoding="latin-1")
+    return p
+
+
+def test_royalties_lidos_somados_e_com_nome_oficial(tmp_path):
+    from robo import royalties as RY
+    r = RY.montar(_pasta_royalties(tmp_path))
+    meses = r["meses"]
+    assert meses[0] == "2018-01" and r["ultimo"] == "2026-02"
+    m = {x["nome"]: x for x in r["municipios"]}
+    assert set(m) == {"Maricá", "Paraty", "Pojuca"}                      # nome do IBGE, com acento; Parati -> Paraty
+    i = meses.index
+    assert m["Maricá"]["r"][i("2025-01")] == pytest.approx(10000000.50)   # até 5% + excedente
+    assert m["Maricá"]["r"][i("2026-02")] == pytest.approx(13000000)
+    assert m["Maricá"]["pe"] == {"2025T3": 40000000}
+    e = {x["uf"]: x for x in r["estados"]}
+    # o bloco "Somatório dos Municípios por UF" não entra como dinheiro do estado
+    assert e["RJ"]["r"][i("2026-01")] == pytest.approx(6000000)
+    assert e["BA"]["r"][i("2026-02")] == pytest.approx(310000)
+    assert sum(x["r"][i("2026-01")] for x in r["municipios"]) == pytest.approx(12060000)   # sem depósitos judiciais
+
+
+def test_paginas_de_royalties(base, tmp_path):
+    import json
+    from robo import royalties as RY
+    from robo.executar import _leve
+    from gerador.gerar import gerar
+    r = RY.montar(_pasta_royalties(tmp_path))
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "royalties.json").write_text(json.dumps(r, ensure_ascii=False), "utf-8")
+    (proc / "agregados.json").write_text(json.dumps(_leve(agregar(base)), ensure_ascii=False, default=str), "utf-8")
+    paginas = gerar(proc, tmp_path / "site", teste=True)
+    assert "royalties/" in paginas and "royalties/rio-de-janeiro/" in paginas
+    assert "royalties/rio-de-janeiro/marica/" in paginas and "royalties/bahia/pojuca/" in paginas
+    html = (tmp_path / "site" / "royalties" / "rio-de-janeiro" / "marica" / "index.html").read_text("utf-8")
+    assert "Royalties de petróleo de Maricá (RJ)" in html and "Em resumo" in html
+    assert "É o município que mais recebe" in html

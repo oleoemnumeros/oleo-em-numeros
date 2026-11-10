@@ -43,7 +43,8 @@ PAGINA_PE_ANT = "https://www.gov.br/anp/pt-br/assuntos/royalties-e-outras-partic
 POPULACAO = "https://ftp.ibge.gov.br/Estimativas_de_Populacao/Estimativas_{ano}/estimativa_dou_{ano}.xls"
 # municípios que mudaram de nome e a ANP ainda escreve do jeito antigo
 NOMES_ANTIGOS = {"embu-sp": "embu-das-artes-sp", "augusto-severo-rn": "campo-grande-rn",
-                 "presidente-juscelino-rn": "serra-caiada-rn", "parati-rj": "paraty-rj"}
+                 "presidente-juscelino-rn": "serra-caiada-rn", "parati-rj": "paraty-rj",
+                 "januario-cicco-rn": "boa-saude-rn"}
 NAVEGADOR = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
              "Chrome/124.0 Safari/537.36")
 MESES = {"JANEIRO": 1, "FEVEREIRO": 2, "MARCO": 3, "ABRIL": 4, "MAIO": 5, "JUNHO": 6, "JULHO": 7, "AGOSTO": 8,
@@ -411,7 +412,7 @@ def montar(pasta: Path = PASTA) -> dict:
         pe = {t: round(float(v), 2) for t, v in pe_mt.loc[i].items()} if i in pe_mt.index.get_level_values(0) else {}
         info = por_id[i]
         municipios.append({"nome": info["nome"], "uf": info["uf"], "ibge": info["ibge"],
-                           "pop": populacao.get(info["ibge"] or ""), "slug": slug(info["nome"]), "r": r, "pe": pe})
+                           "populacao": populacao.get(info["ibge"] or ""), "slug": slug(info["nome"]), "r": r, "pe": pe})
     estados = []
     serie_e = est.groupby(["uf", "mes"])["valor"].sum()
     pe_et = pe_e.groupby(["chave", "tri"])["valor"].sum()
@@ -467,7 +468,7 @@ def resumo(r: dict) -> str:
                 linhas.append(f"  {alvo}-{m['uf']}: royalties por ano " +
                               ", ".join(f"{a}: {v / 1e6:,.1f} mi" for a, v in list(anos.items())[-4:]) +
                               " | PE por ano " + ", ".join(f"{a}: {v / 1e6:,.1f} mi" for a, v in list(pe.items())[-4:]))
-    com_pop = sum(1 for m in r["municipios"] if m.get("pop"))
+    com_pop = sum(1 for m in r["municipios"] if m.get("populacao"))
     linhas.append(f"População do IBGE: {com_pop} de {len(r['municipios'])} municípios")
     mes_jan = f"{r['ultimo'][:4]}-01"
     if mes_jan in r["meses"]:

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('royalties/') }}">Royalties</a> / {{ e.nome }}</nav>
+<h1>Royalties de petróleo {{ e.de }}</h1>
+<p class="sub">{{ e.n_municipios }} {{ 'município recebeu' if e.n_municipios == 1 else 'municípios receberam' }} royalties ou participação especial nos últimos 12 meses · pagamentos até {{ R.mes_extenso }}</p>
+<div class="kpis kpis-dinheiro">
+{{ kpi('Municípios do estado', dinheiro(e.mun_total12), '', 'royalties + participação especial, 12 meses', '', principal=True) }}
+{% if e.proprio %}
+{{ kpi('Governo do estado', dinheiro(e.proprio.total12), '', 'royalties + participação especial, 12 meses') }}
+{{ kpi('Royalties do estado no mês', dinheiro(e.proprio.ultimo_mes), '', 'em ' ~ R.mes_extenso) }}
+{% endif %}
+{{ kpi('Participação especial', dinheiro(e.mun_pe12 + (e.proprio.pe12 if e.proprio else 0)), '', 'estado e municípios, 4 trimestres') }}
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Royalties recebidos pelos municípios {{ e.de }}</h2>
+<p class="legenda">{{ e.grafico.unidade }} por mês · soma de todos os municípios do estado</p>
+{{ linha(e.grafico.valores, R.meses, 'Royalties dos municípios ' ~ e.de ~ ', em ' ~ e.grafico.unidade, zero=True) }}
+{% if e.proprio %}<p class="nota">O governo do estado recebeu {{ dinheiro(e.proprio.r12) }} em royalties nos últimos 12 meses{% if e.proprio.pe12 %}, mais {{ dinheiro(e.proprio.pe12) }} de participação especial{% endif %}.</p>{% endif %}
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Municípios</h2>
+<p class="legenda">Ordem: total recebido nos últimos 12 meses (royalties + participação especial)</p>
+<div class="tabela">
+<table>
+<thead><tr><th>#</th><th>Município</th><th class="n">Total 12 meses</th><th class="n">Royalties 12 meses</th><th class="n">Participação especial</th><th class="n">Último mês</th><th class="n">Por habitante/ano</th><th class="n">12 meses</th></tr></thead>
+<tbody>
+{% for m in e.municipios if m.total12 > 0 %}
+<tr><td>{{ loop.index }}</td><td><a href="{{ u('royalties/' ~ e.slug ~ '/' ~ m.slug ~ '/') }}">{{ m.nome }}</a></td><td class="n"><strong>{{ dinheiro(m.total12) }}</strong></td><td class="n">{{ dinheiro(m.r12) }}</td><td class="n">{{ dinheiro(m.pe12) if m.pe12 else '—' }}</td><td class="n">{{ dinheiro(m.ultimo_mes) if m.ultimo_mes else '—' }}</td><td class="n">{{ dinheiro(m.per_capita) if m.per_capita else '—' }}</td><td class="n {{ var_classe(m.var12) }}">{{ fmt_var(m.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% set sem = e.municipios|rejectattr('total12')|list %}
+{% if sem %}<p class="nota">Receberam antes, mas não nos últimos 12 meses: {% for m in sem %}<a href="{{ u('royalties/' ~ e.slug ~ '/' ~ m.slug ~ '/') }}">{{ m.nome }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+</div>
+</section>
+<section class="miolo secao">
+<p class="nota">{% if prod_estado %}Veja a <a href="{{ u('estados/' ~ prod_estado ~ '/') }}">produção de petróleo e gás {{ e.de }}</a> · {% endif %}<a href="{{ u('royalties/') }}">Royalties no Brasil</a> · <a href="{{ u('sobre/') }}#royalties">Como calculamos</a></p>
+</section>
+{% endblock %}

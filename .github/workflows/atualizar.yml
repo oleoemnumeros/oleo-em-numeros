@@ -68,6 +68,10 @@ jobs:
       - name: Resultados das listadas (CVM)
         run: python -m robo.cvm || echo "::warning::Leitura da CVM falhou; o site sai sem os resultados trimestrais."
 
+      # royalties e participação especial por estado e município: se falhar, o site sai sem a seção
+      - name: Royalties (ANP)
+        run: python -m robo.royalties || echo "::warning::Leitura dos royalties falhou; o site sai sem a seção de royalties."
+
       - name: Guarda os arquivos baixados
         if: always() && steps.modo.outputs.baixar == 'sim'
         uses: actions/cache/save@v4

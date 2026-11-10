@@ -4,6 +4,7 @@
 <section class="miolo cabeca">
 <nav class="trilha" aria-label="Você está em"><a href="{{ u(pasta ~ '/') }}">{{ nome_lista }}</a> / {{ r.nome }}</nav>
 <h1>{{ h1 }}</h1>
+{% if tipo == 'estado' and r.uf in ufs_royalties %}<p class="nota"><a href="{{ u('royalties/' ~ r.slug ~ '/') }}">Royalties dos municípios {{ r.de }}</a></p>{% endif %}
 <p class="sub">{{ r.rank }}º {{ 'estado' if tipo == 'estado' else 'bacia' }} em produção no Brasil · {{ r.n_campos }} {{ 'campo' if r.n_campos == 1 else 'campos' }} · dado mais recente: {{ mes_extenso(ag.ultimo) }}</p>
 <div class="kpis kpis-6">
 {{ kpi('Produção total', fmt_inteligente(r.boe), 'mil boe/d', fmt_var(r.var12) ~ ' em 12 meses', var_classe(r.var12), principal=True) }}

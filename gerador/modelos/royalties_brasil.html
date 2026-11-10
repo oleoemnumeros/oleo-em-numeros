@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<h1>Royalties de petróleo e gás</h1>
+<p class="sub">Quanto cada estado e cada município recebe de royalties e participação especial, com dados da ANP · pagamentos até {{ R.mes_extenso }}</p>
+<div class="kpis kpis-dinheiro">
+{{ kpi('Municípios', dinheiro(B.mun_r12 + B.mun_pe12), '', 'royalties + participação especial, 12 meses', '', principal=True) }}
+{{ kpi('Estados', dinheiro(B.est_r12 + B.est_pe12), '', 'royalties + participação especial, 12 meses') }}
+{{ kpi('Royalties dos municípios', dinheiro(B.mun_r12), '', (fmt_var(B.var12_mun) ~ ' sobre os 12 anteriores') if B.var12_mun is not none else None, var_classe(B.var12_mun)) }}
+{{ kpi('Municípios beneficiados', fmt(B.n_municipios), '', 'receberam algo nos últimos 12 meses') }}
+</div>
+<div class="filtro busca">
+<label for="busca-mun">Procure o seu município</label>
+<input id="busca-mun" type="search" placeholder="Digite o nome da cidade" autocomplete="off" list="lista-mun">
+<datalist id="lista-mun">{% for m in R.ranking %}<option value="{{ m.nome }} ({{ m.uf }})">{% endfor %}</datalist>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Royalties distribuídos a estados e municípios</h2>
+<p class="legenda">{{ B.grafico.unidade }} por mês de pagamento, desde {{ mes_extenso(R.meses[0]) }} · sem participação especial</p>
+{{ linha(B.grafico.valores, R.meses, 'Royalties pagos a estados e municípios, em ' ~ B.grafico.unidade, zero=True) }}
+<p class="nota">Fonte: ANP. Royalties de concessão e de partilha. A parte da União fica de fora.</p>
+</div>
+</section>
+
+<section class="miolo secao lado">
+<div class="cartao principal">
+<h2>Municípios que mais recebem</h2>
+<p class="legenda">Royalties + participação especial nos últimos 12 meses</p>
+<div class="tabela">
+<table>
+<thead><tr><th>#</th><th>Município</th><th class="n">Total 12 meses</th><th class="n">Por habitante/ano</th><th class="n">12 meses</th></tr></thead>
+<tbody>
+{% for m in R.ranking[:25] %}
+<tr><td>{{ m.rank }}</td><td><a href="{{ u('royalties/' ~ m.estado_slug ~ '/' ~ m.slug ~ '/') }}">{{ m.nome }}</a> <span class="legenda">{{ m.uf }}</span></td><td class="n"><strong>{{ dinheiro(m.total12) }}</strong></td><td class="n">{{ dinheiro(m.per_capita) if m.per_capita else '—' }}</td><td class="n {{ var_classe(m.var12) }}">{{ fmt_var(m.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">A variação compara só os royalties dos últimos 12 meses com os 12 anteriores.</p>
+</div>
+<div class="cartao aside">
+<h2>Por estado</h2>
+<p class="legenda">Municípios + governo do estado, 12 meses</p>
+<div class="tabela">
+<table>
+<tbody>
+{% for e in R.estados if e.total12 > 0 %}
+<tr><td><a href="{{ u('royalties/' ~ e.slug ~ '/') }}">{{ e.nome }}</a></td><td class="n">{{ dinheiro(e.total12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="explica">
+<p class="explica-titulo">Como funciona</p>
+<p>Royalties são a compensação que as empresas pagam pela produção de petróleo e gás, calculada pela ANP todo mês sobre o valor produzido. Parte vai para a União; o resto, para estados e municípios produtores, confrontantes com campos no mar ou com instalações de embarque e desembarque. A participação especial é uma cobrança extra sobre campos de grande produção, paga por trimestre. <a href="{{ u('sobre/') }}#royalties">Como calculamos</a></p>
+</div>
+</section>
+<script>
+(function () {
+  var mapa = { {% for m in R.ranking %}{{ (m.nome ~ ' (' ~ m.uf ~ ')')|tojson }}: {{ u('royalties/' ~ m.estado_slug ~ '/' ~ m.slug ~ '/')|tojson }}{% if not loop.last %},{% endif %}{% endfor %} };
+  var campo = document.getElementById("busca-mun");
+  campo.addEventListener("change", function () { if (mapa[campo.value]) location.href = mapa[campo.value]; });
+})();
+</script>
+{% endblock %}

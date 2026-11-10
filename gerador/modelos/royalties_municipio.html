@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('royalties/') }}">Royalties</a> / <a href="{{ u('royalties/' ~ m.estado_slug ~ '/') }}">{{ m.estado_nome }}</a> / {{ m.nome }}</nav>
+<h1>Royalties de petróleo de {{ m.nome }} ({{ m.uf }})</h1>
+<p class="sub">{% if m.rank %}{{ m.rank }}º município do Brasil em royalties e participação especial · {{ m.rank_uf }}º {{ m.estado_de }} · {% endif %}pagamentos até {{ R.mes_extenso }}</p>
+<div class="kpis kpis-6 kpis-dinheiro">
+{{ kpi('Recebido no mês', dinheiro(m.ultimo_mes), '', 'em ' ~ R.mes_extenso, '', principal=True) }}
+{{ kpi('Royalties em 12 meses', dinheiro(m.r12), '', (fmt_var(m.var12) ~ ' sobre os 12 anteriores') if m.var12 is not none else None, var_classe(m.var12)) }}
+{{ kpi('Participação especial', dinheiro(m.pe12), '', 'últimos 4 trimestres') }}
+{{ kpi('Total em 12 meses', dinheiro(m.total12), '', 'royalties + participação especial') }}
+{{ kpi('Por habitante', dinheiro(m.per_capita) if m.per_capita else '—', '', 'por ano · população ' ~ fmt(m.populacao) if m.populacao else None) }}
+{{ kpi('No estado', (fmt(m.share_uf, 1) ~ '%') if m.share_uf is not none else '—', '', 'do total dos municípios ' ~ m.estado_de) }}
+</div>
+<div class="cartao resumo">
+<p class="olho">Em resumo</p>
+<p>{{ m.resumo }}</p>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Royalties recebidos por mês</h2>
+<p class="legenda">{{ m.grafico.unidade }} · por mês de pagamento, desde {{ mes_extenso(R.meses[0]) }}</p>
+{{ linha(m.grafico.valores, R.meses, 'Royalties recebidos por ' ~ m.nome ~ ', em ' ~ m.grafico.unidade, zero=True) }}
+<p class="nota">Fonte: ANP. Royalties de contratos de concessão e de partilha, pelo mês em que o dinheiro foi pago ao município. Não inclui a participação especial, que é paga por trimestre.</p>
+</div>
+</section>
+
+<section class="miolo secao lado">
+<div class="cartao principal">
+<h2>Por ano</h2>
+<div class="tabela">
+<table>
+<thead><tr><th>Ano</th><th class="n">Royalties</th><th class="n">Participação especial</th><th class="n">Total</th></tr></thead>
+<tbody>
+{% for a in m.anos %}
+<tr><td>{{ a.ano }}{% if a.parcial %} <span class="legenda">(até {{ mes_extenso(R.ultimo)|replace(' de ' ~ a.ano, '') }})</span>{% endif %}</td><td class="n">{{ dinheiro(a.royalties) }}</td><td class="n">{{ dinheiro(a.pe) if a.pe else '—' }}</td><td class="n"><strong>{{ dinheiro(a.total) }}</strong></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">Participação especial pelo trimestre de produção a que se refere.</p>
+</div>
+<div class="cartao aside">
+<h2>Últimos 12 meses</h2>
+<div class="tabela">
+<table>
+<tbody>
+{% for x in m.serie_ult12 %}
+<tr><td>{{ mes_extenso(x.mes) }}</td><td class="n">{{ dinheiro(x.valor) if x.valor else '—' }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+
+{% if m.pe_lista %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>Participação especial por trimestre</h2>
+<p class="legenda">Paga sobre campos de grande produção, cerca de 45 dias depois do fim de cada trimestre</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Trimestre de produção</th><th class="n">Valor</th></tr></thead>
+<tbody>
+{% for p in m.pe_lista[:12] %}
+<tr><td>{{ p.rotulo }}</td><td class="n">{{ dinheiro(p.valor) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+{% endif %}
+
+<section class="miolo secao">
+<div class="explica">
+<p class="explica-titulo">De onde vem esse dinheiro</p>
+<p>Royalties são a compensação que as empresas pagam pela produção de petróleo e gás. A ANP calcula e distribui todo mês: uma parte vai para a União e o resto para estados e municípios produtores, confrontantes com campos no mar ou com instalações de embarque e desembarque. A participação especial é uma cobrança extra sobre os campos de grande produção, paga por trimestre. <a href="{{ u('sobre/') }}#royalties">Como calculamos</a></p>
+</div>
+<p class="nota">Veja também os royalties de <a href="{{ u('royalties/' ~ m.estado_slug ~ '/') }}">todos os municípios {{ m.estado_de }}</a>{% if prod_estado %} e a <a href="{{ u('estados/' ~ prod_estado ~ '/') }}">produção de petróleo e gás {{ m.estado_de }}</a>{% endif %}.</p>
+</section>
+{% endblock %}

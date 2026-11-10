@@ -21,6 +21,7 @@ from robo.util import MESES, fmt, fmt_inteligente, fmt_pp, fmt_var, mes_extenso
 from .graficos import linha
 from .financeiro import carregar_financeiro, reais
 from .pocos import gerar_pocos
+from .royalties import dinheiro, escala, preparar as preparar_royalties, resumo_municipio
 
 AQUI = Path(__file__).resolve().parent
 ICONE = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"><path d="M15 2c4.5 5.6 8 10.2 8 14.6a8 8 0 0 1-16 0'
@@ -210,7 +211,9 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     paginas = []
 
     noticias, noticias_op, noticias_campo, fontes_noticias = carregar_noticias(dados, ag)
-    env.globals.update(fontes_noticias=fontes_noticias, reais=reais)
+    env.globals.update(fontes_noticias=fontes_noticias, reais=reais, dinheiro=dinheiro)
+    R = preparar_royalties(dados)
+    env.globals.update(ufs_royalties={e["uf"] for e in R["estados"]} if R else set())
     financeiro = carregar_financeiro(dados, ag)
     for o in ag["operadores"]:
         o["financeiro"] = financeiro.get(o["nome"])
@@ -329,6 +332,34 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                  descricao="Receita, EBITDA, lucro, dívida e capex por trimestre de Petrobras, PRIO, Brava e PetroRecôncavo, "
                            "a partir das demonstrações entregues à CVM, ao lado da produção operada pela ANP.",
                  empresas=ordem)
+    # ---------- royalties ----------
+    if R:
+        prod = {e["uf"]: e["slug"] for e in ag.get("estados", []) if e.get("slug")}
+        valores, unidade = escala(R["brasil"]["serie_total"])
+        R["brasil"]["grafico"] = {"valores": valores, "unidade": unidade}
+        ult = R["mes_extenso"]
+        escrever("royalties/", "royalties_brasil.html", secao="royalties", R=R, B=R["brasil"],
+                 titulo="Royalties de petróleo por município e estado",
+                 descricao=f"Quanto cada município e cada estado recebe de royalties de petróleo e participação especial, "
+                           f"mês a mês, com ranking e valor por habitante. Dados da ANP até {ult}.")
+        for e in R["estados"]:
+            valores, unidade = escala(e["serie_mun"])
+            e["grafico"] = {"valores": valores, "unidade": unidade}
+            escrever(f"royalties/{e['slug']}/", "royalties_estado.html", secao="royalties", R=R, e=e,
+                     prod_estado=prod.get(e["uf"]),
+                     titulo=f"Royalties de petróleo {e['de']}: municípios e estado",
+                     descricao=f"Royalties de petróleo e gás recebidos pelos municípios {e['de']}: "
+                               f"{dinheiro(e['mun_total12'], False)} em 12 meses. Ranking, mês a mês e por habitante. Dados da ANP.")
+        for m in R["municipios"]:
+            m["resumo"] = resumo_municipio(m, R)
+            valores, unidade = escala(m["r"])
+            m["grafico"] = {"valores": valores, "unidade": unidade}
+            escrever(f"royalties/{m['estado_slug']}/{m['slug']}/", "royalties_municipio.html", secao="royalties", R=R, m=m,
+                     prod_estado=prod.get(m["uf"]),
+                     titulo=f"Royalties de {m['nome']} ({m['uf']}): quanto o município recebe",
+                     descricao=f"{m['nome']} ({m['uf']}) recebeu {dinheiro(m['r12'], False)} em royalties de petróleo nos "
+                               f"últimos 12 meses. Valores mês a mês desde 2018, participação especial e ranking. Dados da ANP.")
+
     escrever("noticias/", "noticias.html", secao="noticias", titulo="Notícias do setor de petróleo e gás",
              descricao="Manchetes diárias de petróleo e gás, com links para os números de cada empresa e campo.",
              noticias=noticias[:200], noindex=True)
