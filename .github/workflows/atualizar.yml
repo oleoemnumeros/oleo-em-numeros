@@ -64,6 +64,10 @@ jobs:
         run: python -m robo.executar ${{ steps.modo.outputs.baixar == 'nao' && '--sem-baixar' || '' }}
 
       # guarda os downloads mesmo se a conferência falhar: a próxima execução não baixa tudo de novo
+      # resultados trimestrais da CVM: se falhar, o site sai sem a seção, nunca deixa de publicar
+      - name: Resultados das listadas (CVM)
+        run: python -m robo.cvm || echo "::warning::Leitura da CVM falhou; o site sai sem os resultados trimestrais."
+
       - name: Guarda os arquivos baixados
         if: always() && steps.modo.outputs.baixar == 'sim'
         uses: actions/cache/save@v4
@@ -85,10 +89,6 @@ jobs:
       # notícia nunca trava o site: se as fontes falharem, publica com as manchetes que já tinha
       - name: Notícias do setor
         run: python -m robo.noticias || echo "::warning::Coleta de notícias falhou; o site sai com as manchetes anteriores."
-
-      # resultados trimestrais da CVM: se falhar, o site sai sem a seção, nunca deixa de publicar
-      - name: Resultados das listadas (CVM)
-        run: python -m robo.cvm || echo "::warning::Leitura da CVM falhou; o site sai sem os resultados trimestrais."
 
       - name: Guarda o histórico de notícias
         if: always()
