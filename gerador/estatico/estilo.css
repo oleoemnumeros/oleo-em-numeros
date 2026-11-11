@@ -119,6 +119,15 @@ h2.bloco { margin: 48px 0 0; font-size: 26px; }
 .rodape nav { display: flex; flex-wrap: wrap; gap: 12px 28px; font-size: 14px; align-content: flex-start; }
 .rodape a { color: #D1D5DB; text-decoration: none; }
 .rodape a:hover { color: #FFFFFF; }
+/* Família em Números */
+.rodape .familia { display: block; border-top: 1px solid #2A2E35; padding-top: 24px; padding-bottom: 32px; margin-top: -16px; }
+.rodape .familia-titulo { margin: 0 0 12px; font-size: 13px; color: #9CA3AF; max-width: none; }
+.rodape .familia-titulo b { color: #FFFFFF; font-family: var(--titulo); font-size: 14px; }
+.rodape .familia ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 32px; font-size: 14px; }
+.rodape .familia li, .rodape .familia li a { display: flex; align-items: center; gap: 8px; }
+.rodape .familia li b { color: #FFFFFF; font-weight: 600; margin-right: 4px; }
+.rodape .familia .ponto { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.rodape .familia em { font-style: normal; white-space: nowrap; font-size: 12px; color: #9CA3AF; border: 1px solid #3D424A; border-radius: 99px; padding: 1px 8px; }
 
 @media (max-width: 600px) {
   .miolo { padding: 0 16px; }
