@@ -286,9 +286,9 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
 
     mes = mes_extenso(ag["ultimo"])
     raiz_u = lambda alvo: alvo + ("" if limpos else "index.html") if (alvo == "" or alvo.endswith("/")) else alvo  # noqa: E731
-    escrever("", "inicio.html", secao="inicio", titulo="Óleo em Números",
-             descricao=f"Produção de petróleo e gás do Brasil por operadora, campo e bacia, com dados oficiais da "
-                       f"ANP. Dado mais recente: {mes}.",
+    escrever("", "inicio.html", secao="inicio", titulo=f"{site['nome']}: produção de petróleo e gás no Brasil",
+             descricao="Produção de petróleo e gás do Brasil por operadora, campo e poço, royalties por município e "
+                       "resultados das listadas. Dados oficiais da ANP e da CVM.",
              destaques=destaques(ag, raiz_u), noticias=noticias[:8])
 
     escrever("operadoras/", "listas.html", secao="operadoras", tipo="operadoras", itens=ag["operadores"],
