@@ -491,6 +491,29 @@ def test_nomes_compostos_e_valores_em_reais():
     assert dinheiro(1840.6) == "R$ 1.841" and dinheiro(532_000) == "R$ 532 mil" and dinheiro(3.2e9) == "R$ 3,20 bi"
 
 
+def test_campos_divididos_por_contrato_tem_nome_legivel_e_aviso():
+    from gerador.gerar import aviso_campo
+    from robo.util import nome_campo
+    assert nome_campo("BÚZIOS_ECO") == "Búzios ECO" and nome_campo("SÉPIA_ECO") == "Sépia ECO"
+    assert nome_campo("AnC_MERO") == "Mero AnC" and nome_campo("AnC_Jubarte_Sudoeste") == "Jubarte Sudoeste AnC"
+    assert nome_campo("AnC_NORTE_ATAPU") == "Norte Atapu AnC" and nome_campo("AnC_ARGONAUTA_ME1") == "Argonauta ME1 AnC"
+    assert nome_campo("PAPA-TERRA") == "Papa-Terra" and nome_campo("TUPI") == "Tupi" and nome_campo(None) == ""
+
+    def campo(chave, nome, boe):
+        return {"chave": chave, "nome": nome, "boe": boe}
+    buzios, eco, tupi = campo("BÚZIOS", "Búzios", 400_000), campo("BÚZIOS_ECO", "Búzios ECO", 1_100_000), campo("TUPI", "Tupi", 1_064_000)
+    todos = [eco, tupi, buzios]
+    for c in (buzios, eco):  # os dois lados explicam a divisão e somam as duas partes
+        aviso = aviso_campo(c, todos)
+        assert "Búzios (cessão onerosa)" in aviso and "Búzios ECO (excedente" in aviso
+        assert "1.500.000 boe/d" in aviso and "mais que qualquer outro campo do país" in aviso
+    # se a soma não é a maior, não afirma que é
+    assert "mais que qualquer" not in aviso_campo(buzios, todos + [campo("X", "X", 2_000_000)])
+    assert aviso_campo(tupi, todos) == ""  # campo comum não ganha aviso
+    assert "Área não Contratada" in aviso_campo(campo("AnC_MERO", "Mero AnC", 1), todos)
+    assert "Excedente da Cessão Onerosa" in aviso_campo(eco, [eco, tupi])  # ECO sem o campo-base na lista
+
+
 def test_operadora_nao_identificada_fica_fora_do_ranking_e_404_usa_a_raiz(base, tmp_path):
     import json
     from robo.executar import _leve

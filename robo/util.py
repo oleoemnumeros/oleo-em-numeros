@@ -56,6 +56,19 @@ def nome_bonito(texto) -> str:
     return " ".join(saida)
 
 
+def nome_campo(chave) -> str:
+    """Nome de campo para exibir. A ANP escreve 'BÚZIOS_ECO' e 'AnC_MERO'; o sublinhado vira espaço e a
+    sigla vai para o fim: 'Búzios ECO', 'Mero AnC'. Os demais seguem nome_bonito."""
+    s = "" if chave is None else str(chave).strip()
+    sigla = ""
+    if s.upper().endswith("_ECO"):
+        s, sigla = s[:-4], "ECO"
+    elif s.upper().startswith("ANC_"):
+        s, sigla = s[4:], "AnC"
+    nome = nome_bonito(s.replace("_", " ").strip())
+    return f"{nome} {sigla}" if sigla and nome else nome
+
+
 _MILHAR = re.compile(r"^-?\d{1,3}(\.\d{3})+$")
 
 

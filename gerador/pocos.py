@@ -11,7 +11,7 @@ import pandas as pd
 
 from robo import grupos
 from robo.ler import _chave_poco
-from robo.util import nome_bonito, slug
+from robo.util import nome_bonito, nome_campo, slug
 
 
 def _meses(ini: str, fim: str) -> list[str]:
@@ -74,7 +74,7 @@ def gerar_pocos(base_csv: Path, saida: Path, ag: dict) -> dict:
             indice.append([nome, cslug, 1 if ativo else 0, round(boe)])
         u = tc.iloc[-1]
         pag = paginas.get(cslug)
-        campos[cslug] = {"n": pag["nome"] if pag else nome_bonito(u["campo"]),
+        campos[cslug] = {"n": pag["nome"] if pag else nome_campo(u["campo"]),
                          "uf": pag["estado"]["uf"] if pag else str(u["estado"]),
                          "g": pag["grupo"] if pag else ng(u["operador"]), "pg": 1 if pag else 0}
         (pasta / f"{cslug}.json").write_text(

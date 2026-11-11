@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from . import config, grupos
-from .util import mes_anterior, nome_bonito, sem_acento, slug, variacao
+from .util import mes_anterior, nome_bonito, nome_campo, sem_acento, slug, variacao
 
 UFS = {
     "AC": ("do", "Acre"), "AL": ("de", "Alagoas"), "AM": ("do", "Amazonas"), "AP": ("do", "Amapá"),
@@ -175,7 +175,7 @@ def agregar(base: pd.DataFrame, regras_grupo: list | None = None) -> dict:
             })
         info = estado_info(meta["estado"])
         campos.append({
-            "nome": nome_bonito(campo), "chave": campo, "slug": slug(campo),
+            "nome": nome_campo(campo), "chave": campo, "slug": slug(campo),
             "bacia": nome_bonito(meta["bacia"]), "bacia_slug": slug(meta["bacia"]),
             "estado": info, "ambiente": amb_campo[campo],
             "operador": nome_bonito(meta["operador"]),            # empresa registrada na ANP

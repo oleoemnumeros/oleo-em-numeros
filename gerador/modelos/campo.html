@@ -11,6 +11,7 @@
 <a class="chip" href="{{ u('operadoras/' ~ c.operador_slug ~ '/') }}">{{ c.grupo }}</a>
 </div>
 {% if c.operador != c.grupo %}<p class="nota">Operadora registrada na ANP: {{ c.operador }}, do grupo {{ c.grupo }}.</p>{% endif %}
+{% if c.aviso %}<p class="nota">{{ c.aviso }}</p>{% endif %}
 <div class="kpis kpis-6">
 {{ kpi('Produção total', fmt(c.boe), 'boe/d', fmt_var(c.var12) ~ ' em 12 meses', var_classe(c.var12), principal=True) }}
 {{ kpi('Petróleo', fmt(c.petroleo), 'bbl/d', fmt_var(c.var12_petroleo) ~ ' em 12 meses', var_classe(c.var12_petroleo)) }}

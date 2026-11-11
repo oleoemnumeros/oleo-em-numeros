@@ -86,6 +86,33 @@ def resumo_campo(c, ag):
     return " ".join(partes)
 
 
+def aviso_campo(c, campos) -> str:
+    """Explica os campos que a ANP divide por contrato (Búzios e Búzios ECO são a mesma área, com os mesmos
+    poços) e o sufixo AnC. Devolve '' para os demais."""
+    chave = c["chave"].upper()
+    por_chave = {x["chave"].upper(): x for x in campos}
+    if chave.startswith("ANC_"):
+        return ("AnC é a sigla de Área não Contratada: área da União, sem contrato próprio, "
+                "cuja produção a ANP informa como um campo à parte.")
+    if chave.endswith("_ECO"):
+        eco, base = c, por_chave.get(chave[:-4])
+    else:
+        eco, base = por_chave.get(chave + "_ECO"), c
+    if eco is None:
+        return ""
+    if base is None:
+        return (f"ECO é a sigla de Excedente da Cessão Onerosa, contrato de partilha da produção. "
+                f"A ANP informa a produção do {eco['nome']} como um campo à parte.")
+    texto = (f"ECO é a sigla de Excedente da Cessão Onerosa. A ANP informa a área de {base['nome']} em dois campos, "
+             f"um para cada contrato: {base['nome']} (cessão onerosa) e {eco['nome']} (excedente, em partilha da "
+             f"produção). Os poços são os mesmos nos dois e a produção de cada poço é dividida entre os contratos.")
+    soma = base["boe"] + eco["boe"]
+    texto += f" Somados, os dois produziram {fmt(soma)} boe/d no mês"
+    if all(soma > x["boe"] for x in campos if x is not base and x is not eco):
+        texto += ", mais que qualquer outro campo do país"
+    return texto + "."
+
+
 def _volume(mil, unidade_mil: str, unidade: str) -> str:
     """Abaixo de 1 mil, escreve em unidades: '870 barris' em vez de '0,87 mil barris'."""
     return f"{fmt(mil * 1000)} {unidade}" if mil is not None and 0 < mil < 1 else f"{fmt_inteligente(mil)} {unidade_mil}"
@@ -306,11 +333,14 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
 
     escrever("campos/", "listas.html", secao="campos", tipo="campos", itens=ag["campos"],
              titulo="Campos de petróleo e gás do Brasil", h1="Campos produtores",
-             sub=f"Todos os {len(ag['campos'])} campos com produção em {mes}, do maior para o menor.",
+             sub=f"Todos os {len(ag['campos'])} campos com produção em {mes}, do maior para o menor. "
+                 "A ANP divide alguns por contrato: Búzios, por exemplo, aparece como Búzios e Búzios ECO "
+                 "(excedente da cessão onerosa).",
              descricao=f"Lista dos campos de petróleo e gás em produção no Brasil, com operadora, bacia e "
                        f"produção de {mes}. Dados da ANP.")
     for c in ag["campos"]:
         c["resumo"] = resumo_campo(c, ag)
+        c["aviso"] = aviso_campo(c, ag["campos"])
         lugar = "terra" if c["ambiente"] == "terra" else "mar"
         escrever(f"campos/{c['slug']}/", "campo.html", secao="campos", c=c,
                  noticias=noticias_campo.get(c["slug"], [])[:5],
