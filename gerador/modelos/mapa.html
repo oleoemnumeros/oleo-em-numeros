@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block conteudo %}
-<link rel="stylesheet" href="{{ raiz }}leaflet/leaflet.css">
+<link rel="stylesheet" href="{{ raiz }}leaflet/leaflet.css?v=1.9.4">
 <section class="miolo cabeca">
 <nav class="trilha" aria-label="Você está em"><a href="{{ u('campos/') }}">Campos</a><span aria-hidden="true"> / </span><span aria-current="page">Mapa</span></nav>
 <h1>Mapa dos campos e poços</h1>
@@ -18,7 +18,7 @@
 </section>
 
 <section class="miolo secao">
-<div id="mapa" role="region" aria-label="Mapa dos campos de petróleo e gás do Brasil. Use as setas do teclado para mover e as teclas + e − para ampliar."></div>
+<div id="mapa" style="min-height:420px" role="region" aria-label="Mapa dos campos de petróleo e gás do Brasil. Use as setas do teclado para mover e as teclas + e − para ampliar."></div>
 <ul class="legenda-mapa" aria-label="Legenda do mapa">
 <li><span class="amostra amostra-prod" aria-hidden="true"></span>Campo com produção</li>
 <li><span class="amostra amostra-sem" aria-hidden="true"></span>Área sem produção no último mês</li>
@@ -30,7 +30,7 @@
 
 <noscript><section class="miolo secao"><p>Esta página precisa de JavaScript para mostrar o mapa. A lista de <a href="{{ u('campos/') }}">campos</a> e a <a href="{{ u('pocos/') }}">busca de poços</a> funcionam sem ele.</p></section></noscript>
 
-<script src="{{ raiz }}leaflet/leaflet.js"></script>
+<script src="{{ raiz }}leaflet/leaflet.js?v=1.9.4"></script>
 <script>
 (function () {
   "use strict";

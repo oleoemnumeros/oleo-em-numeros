@@ -529,7 +529,7 @@ def test_operadora_nao_identificada_fica_fora_do_ranking_e_404_usa_a_raiz(base, 
     lista = (tmp_path / "site" / "operadoras" / "index.html").read_text("utf-8")
     assert lista.index("nao-identificado") > lista.index("<td>1</td>")
     erro = (tmp_path / "site" / "404.html").read_text("utf-8")
-    assert 'href="/estilo.css"' in erro and 'rel="canonical"' not in erro and "noindex" in erro
+    assert 'href="/estilo.css?v=' in erro and 'rel="canonical"' not in erro and "noindex" in erro
 
 
 def _zip_shape(pasta, nome, tipo, campos, registros, formas):

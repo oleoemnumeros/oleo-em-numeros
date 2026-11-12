@@ -6,6 +6,7 @@ Uso:
     python -m gerador.gerar --links-limpos         # links sem 'index.html' (servidor web)
 """
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -282,6 +283,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                        mes_extenso=mes_extenso, linha=linha, titulo_tendencia=titulo_tendencia,
                        titulo_bacia=titulo_bacia, pct=pct, DESCONHECIDO=DESCONHECIDO)
 
+    # o endereço do CSS leva o hash do conteúdo: quem abriu o site pouco antes de uma atualização não fica com o estilo antigo
+    env.globals["v_css"] = hashlib.md5((AQUI / "estatico" / "estilo.css").read_bytes()).hexdigest()[:8]
     env.globals["tem_mapa"] = (dados / "geo.json").exists() and (dados / "base_pocos.csv.gz").exists()
 
     if saida.exists():
