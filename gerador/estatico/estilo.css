@@ -211,3 +211,4 @@ tr.eu th { font-weight: 600; }
 .amostra-poco { width: 13px; border-radius: 50%; background: #FBBF24; border-color: #14161A; }
 .filtro select { min-height: 44px; padding: 0 12px; border: 1px solid #CDD1D6; border-radius: 8px; font: inherit; background: var(--cartao); color: var(--tinta); }
 @media (max-width: 700px) { #mapa { height: 62vh; min-height: 380px; } }
+.rotulo-campo { font-weight: 600; font-size: 13px; color: var(--tinta); }

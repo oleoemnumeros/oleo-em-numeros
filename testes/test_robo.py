@@ -617,7 +617,7 @@ def test_mapa_junta_limites_empresas_e_pocos_e_so_aparece_com_dados(base, tmp_pa
     gerar(proc, tmp_path / "s2", limpos=True)
     site = tmp_path / "s2"
     pagina = (site / "mapa" / "index.html").read_text("utf-8")
-    assert "leaflet.js" in pagina and 'id="empresa"' in pagina and (site / "leaflet" / "leaflet.js").exists()
+    assert "leaflet.js" in pagina and 'id="empresa"' in pagina and 'id="campo"' in pagina and (site / "leaflet" / "leaflet.js").exists()
     assert 'href="mapa/"' in (site / "index.html").read_text("utf-8")
     assert "/mapa/" in (site / "sitemap.xml").read_text("utf-8")
     dados = json.loads((site / "dados" / "mapa" / "campos.json").read_text("utf-8"))

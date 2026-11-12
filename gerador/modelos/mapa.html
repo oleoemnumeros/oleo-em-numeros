@@ -4,7 +4,7 @@
 <section class="miolo cabeca">
 <nav class="trilha" aria-label="Você está em"><a href="{{ u('campos/') }}">Campos</a><span aria-hidden="true"> / </span><span aria-current="page">Mapa</span></nav>
 <h1>Mapa dos campos e poços</h1>
-<p class="sub">Limites oficiais de {{ fmt(M.n_areas) }} áreas de produção e {{ fmt(M.pocos_no_mapa) }} poços em produção. Filtre por empresa, aproxime o mapa para ver os poços e clique num poço para ver a produção do mês.</p>
+<p class="sub">Limites oficiais de {{ fmt(M.n_areas) }} áreas de produção e {{ fmt(M.pocos_no_mapa) }} poços em produção. Filtre por empresa ou por campo, aproxime o mapa para ver os poços e clique num campo ou num poço para ver a produção do mês.</p>
 <div class="filtro">
 <label for="empresa">Empresa</label>
 <select id="empresa" disabled>
@@ -12,6 +12,10 @@
 {% for g in M.grupos %}
 <option value="{{ g.i }}">{{ g.n }}{% if g.c %} · {{ g.c }} {{ 'campo' if g.c == 1 else 'campos' }}{% endif %}</option>
 {% endfor %}
+</select>
+<label for="campo">Campo</label>
+<select id="campo" disabled>
+<option value="">Todos os campos</option>
 </select>
 </div>
 <p class="nota" id="estado-mapa" role="status">Carregando o mapa…</p>
@@ -52,7 +56,7 @@
     return {maxWidth: Math.max(180, Math.min(300, w - 124)), autoPanPaddingTopLeft: [60, 16], autoPanPaddingBottomRight: [16, 16]};
   }
   var $ = function (id) { return document.getElementById(id); };
-  var D = null, PONTOS = [], GI = null, CACHE = {}, NOMES = {};
+  var D = null, PONTOS = [], GI = null, CAMPO = null, CACHE = {}, NOMES = {}, CAMPOS = {};
 
   function norm(s) {
     return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -154,18 +158,32 @@
     textoAnterior = html;
     $("estado-mapa").innerHTML = html;
   }
+  function filtrado() { return GI !== null || CAMPO !== null; }
+  function doCampo(p) {
+    var slug = CAMPOS[CAMPO].s;
+    return slug && [].concat(p[4]).some(function (i) { return D.slugs[i][0] === slug; });
+  }
   function atualizarPocos() {
     camadaPocos.clearLayers();
-    if (GI === null && mapa.getZoom() < ZOOM_POCOS) return 0;
-    var lim = GI === null ? mapa.getBounds().pad(0.15) : null, n = 0;
+    if (!filtrado() && mapa.getZoom() < ZOOM_POCOS) return 0;
+    var lim = filtrado() ? null : mapa.getBounds().pad(0.15), n = 0;
     PONTOS.forEach(function (p) {
       if (GI !== null && p[3] !== GI) return;
+      if (CAMPO !== null && !doCampo(p)) return;
       if (lim && !lim.contains([p[2], p[1]])) return;
       camadaPocos.addLayer(marcador(p)); n++;
     });
     return n;
   }
   function textoEstado() {
+    if (CAMPO !== null) {
+      var f = CAMPOS[CAMPO], c = f.c;
+      if (!c.s) return esc(c.n) + ": sem produção em " + mesExtenso(D.ultimo) + (c.op ? ". Operadora no contrato: " + esc(c.op) : "") + ".";
+      var ps = PONTOS.filter(function (p) { return doCampo(p); }).length, gg = D.grupos[c.gi];
+      return esc(c.n) + (gg ? " (" + esc(gg.n) + ")" : "") + ": " + fmt(c.b) + " boe/d em " + mesExtenso(D.ultimo) + ", " + fmt(c.w) +
+        (c.w === 1 ? " poço" : " poços") + " em produção" + (ps < c.w ? "; " + fmt(ps) + " no mapa (os demais ainda não têm coordenada nos dados da ANP)" : "") +
+        '. <a href="' + urlCampo(c.s) + '">Página do campo</a>';
+    }
     if (GI === null) {
       var sem = camadaCampos.filter(function (l) { return !l._c.s; }).length;
       return "Todas as empresas: " + fmt(camadaCampos.length - sem) + " campos com produção e " + fmt(sem) +
@@ -181,18 +199,27 @@
   function ajustar() {
     var vis = camadaCampos.filter(function (l) { return mapa.hasLayer(l); });
     if (!vis.length) return;
-    mapa.fitBounds(L.featureGroup(vis).getBounds(), {padding: [24, 24], maxZoom: 11});
+    mapa.fitBounds(L.featureGroup(vis).getBounds(), {padding: [24, 24], maxZoom: 11, animate: CAMPO === null});
   }
-  function aplicar(gi) {
-    GI = gi;
+  function opcoesCampo(gi) {
+    var sel = $("campo"), lista = Object.keys(CAMPOS).map(function (k) { return CAMPOS[k]; })
+      .filter(function (f) { return gi === null || f.c.gi === gi; })
+      .sort(function (a, b) { return a.c.n.localeCompare(b.c.n, "pt"); });
+    sel.innerHTML = '<option value="">Todos os campos' + (gi === null ? "" : " da empresa") + '</option>' + lista.map(function (f) {
+      return '<option value="' + esc(f.k) + '">' + esc(f.c.n) + (f.c.s ? "" : " (sem produção)") + '</option>';
+    }).join("");
+  }
+  function aplicar(gi, campo) {
+    GI = gi; CAMPO = campo || null;
     camadaCampos.forEach(function (l) {
-      var ver = gi === null || l._c.gi === gi;
+      var ver = (gi === null || l._c.gi === gi) && (CAMPO === null || l._k === CAMPO);
       if (ver && !mapa.hasLayer(l)) l.addTo(mapa);
       else if (!ver && mapa.hasLayer(l)) mapa.removeLayer(l);
     });
     ajustar();
     atualizarPocos();
     dizer(textoEstado());
+    if (CAMPO !== null) { var l = CAMPOS[CAMPO].layers[0]; l.openPopup(l.getBounds().getCenter()); }   // balão do campo escolhido
   }
 
   Promise.all([fetch(CFG.campos).then(function (r) { return r.json(); }), fetch(CFG.pocos).then(function (r) { return r.json(); })])
@@ -201,17 +228,29 @@
       D.campos.forEach(function (c) {
         var l = L.polygon(c.r.map(function (anel) { return [anel.map(function (q) { return [q[1], q[0]]; })]; }), c.s ? ESTILO.prod : ESTILO.sem);
         l._c = c;
+        l._k = c.s || ("x" + D.campos.indexOf(c));
+        (CAMPOS[l._k] = CAMPOS[l._k] || {k: l._k, c: c, s: c.s, layers: []}).layers.push(l);
+        l.bindTooltip(esc(c.n), {sticky: true, direction: "top", className: "rotulo-campo"});
         l.bindPopup(function () { return popupCampo(c); }, opcoesPopup());
         camadaCampos.push(l);
         l.addTo(mapa);
       });
       ajustar();
       $("empresa").disabled = false;
-      $("empresa").addEventListener("change", function () { aplicar(this.value === "" ? null : +this.value); });
+      $("campo").disabled = false;
+      opcoesCampo(null);
+      $("empresa").addEventListener("change", function () {
+        var gi = this.value === "" ? null : +this.value;
+        opcoesCampo(gi);
+        aplicar(gi, null);
+      });
+      $("campo").addEventListener("change", function () { aplicar(GI, this.value === "" ? null : this.value); });
       mapa.on("moveend", function () {
-        if (GI === null) { atualizarPocos(); dizer(textoEstado()); }
+        if (!filtrado()) { atualizarPocos(); dizer(textoEstado()); }
       });
       dizer(textoEstado());
+      var q = new URLSearchParams(location.search).get("campo");   // link direto: /mapa/?campo=frade
+      if (q && CAMPOS[q]) { $("campo").value = q; aplicar(null, q); }
     })
     .catch(function () { dizer("Não foi possível carregar o mapa agora. Tente de novo em instantes."); });
 })();
