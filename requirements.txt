@@ -5,3 +5,4 @@ requests>=2.31
 pytest>=8.0
 xlrd>=2.0
 openpyxl>=3.1
+pyshp>=2.3
