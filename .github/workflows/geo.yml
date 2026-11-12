@@ -1,0 +1,35 @@
+# Ferramenta de manutenção: confere o que a ANP oferece de dados geográficos (campos e poços)
+# e se os nomes batem com os da nossa base. Não mexe no site.
+name: Explorar dados geográficos
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  geo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt pyshp
+
+      - name: Recupera os arquivos já baixados da ANP
+        uses: actions/cache/restore@v4
+        with:
+          path: dados/brutos
+          key: brutos-geo-${{ github.run_id }}
+          restore-keys: brutos-
+
+      - name: Diagnóstico
+        env:
+          ANO_INICIAL: "2023"
+        run: python -m robo.geo_diag | tee -a "$GITHUB_STEP_SUMMARY"
