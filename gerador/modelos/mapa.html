@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<link rel="stylesheet" href="{{ raiz }}leaflet/leaflet.css">
+<section class="miolo cabeca">
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('campos/') }}">Campos</a><span aria-hidden="true"> / </span><span aria-current="page">Mapa</span></nav>
+<h1>Mapa dos campos e poços</h1>
+<p class="sub">Limites oficiais de {{ fmt(M.n_areas) }} áreas de produção e {{ fmt(M.pocos_no_mapa) }} poços em produção. Filtre por empresa, aproxime o mapa para ver os poços e clique num poço para ver a produção do mês.</p>
+<div class="filtro">
+<label for="empresa">Empresa</label>
+<select id="empresa" disabled>
+<option value="">Todas as empresas</option>
+{% for g in M.grupos %}
+<option value="{{ g.i }}">{{ g.n }}{% if g.c %} · {{ g.c }} {{ 'campo' if g.c == 1 else 'campos' }}{% endif %}</option>
+{% endfor %}
+</select>
+</div>
+<p class="nota" id="estado-mapa" role="status">Carregando o mapa…</p>
+</section>
+
+<section class="miolo secao">
+<div id="mapa" role="region" aria-label="Mapa dos campos de petróleo e gás do Brasil. Use as setas do teclado para mover e as teclas + e − para ampliar."></div>
+<ul class="legenda-mapa" aria-label="Legenda do mapa">
+<li><span class="amostra amostra-prod" aria-hidden="true"></span>Campo com produção</li>
+<li><span class="amostra amostra-sem" aria-hidden="true"></span>Área sem produção no último mês</li>
+<li><span class="amostra amostra-poco" aria-hidden="true"></span>Poço em produção (quanto maior o ponto, maior a produção)</li>
+</ul>
+<p class="nota">Limites dos campos e posição dos poços: ANP, dados georreferenciados. Os arquivos de poços da ANP nem sempre estão atualizados: poços perfurados recentemente podem não aparecer. Mapa de fundo: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (abre em nova aba).</p>
+<p class="nota">Prefere uma lista? <a href="{{ u('campos/') }}">Todos os campos</a> · <a href="{{ u('pocos/') }}">Buscar um poço pelo nome</a></p>
+</section>
+
+<noscript><section class="miolo secao"><p>Esta página precisa de JavaScript para mostrar o mapa. A lista de <a href="{{ u('campos/') }}">campos</a> e a <a href="{{ u('pocos/') }}">busca de poços</a> funcionam sem ele.</p></section></noscript>
+
+<script src="{{ raiz }}leaflet/leaflet.js"></script>
+<script>
+(function () {
+  "use strict";
+  var CFG = {
+    campos: "{{ raiz }}dados/mapa/campos.json",
+    pocos: "{{ raiz }}dados/mapa/pocos.json",
+    pasta: "{{ raiz }}dados/pocos/",
+    paginaCampos: "{{ u('campos/') }}".replace(/index\.html$/, ""),
+    paginaEmpresas: "{{ u('operadoras/') }}".replace(/index\.html$/, ""),
+    paginaPocos: "{{ u('pocos/') }}",
+    limpos: {{ 'true' if u('campos/').endswith('/') else 'false' }}
+  };
+  var MESES_LONGOS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro",
+                      "outubro", "novembro", "dezembro"];
+  var BOE = 6.289811, ZOOM_POCOS = 8;
+  // o popup nunca é mais largo que o mapa menos o respiro do botão de zoom e a margem do balão (no celular o mapa tem ~330 px)
+  function opcoesPopup() {
+    var w = document.getElementById("mapa").clientWidth || 360;
+    return {maxWidth: Math.max(180, Math.min(300, w - 124)), autoPanPaddingTopLeft: [60, 16], autoPanPaddingBottomRight: [16, 16]};
+  }
+  var $ = function (id) { return document.getElementById(id); };
+  var D = null, PONTOS = [], GI = null, CACHE = {}, NOMES = {};
+
+  function norm(s) {
+    return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; });
+  }
+  function fmt(v, casas) {
+    if (v === null || v === undefined || isNaN(v)) return "—";
+    return Number(v).toLocaleString("pt-BR", {minimumFractionDigits: casas || 0, maximumFractionDigits: casas || 0});
+  }
+  function fmtI(v) {
+    if (v === null || v === undefined || isNaN(v)) return "—";
+    var a = Math.abs(v);
+    return fmt(v, a >= 100 ? 0 : a >= 10 ? 1 : a > 0 ? 2 : 0);
+  }
+  function addMes(per, n) {
+    var a = +per.slice(0, 4), m = +per.slice(5, 7) - 1 + n;
+    a += Math.floor(m / 12); m = ((m % 12) + 12) % 12;
+    return a + "-" + String(m + 1).padStart(2, "0");
+  }
+  function mesExtenso(per) { return MESES_LONGOS[+per.slice(5, 7) - 1] + " de " + per.slice(0, 4); }
+  function urlCampo(slug) { return CFG.paginaCampos + slug + "/" + (CFG.limpos ? "" : "index.html"); }
+  function urlEmpresa(slug) { return CFG.paginaEmpresas + slug + "/" + (CFG.limpos ? "" : "index.html"); }
+
+  var mapa = L.map("mapa", {preferCanvas: true, zoomControl: false, minZoom: 3, maxZoom: 17, zoomSnap: 0.5});
+  L.control.zoom({zoomInTitle: "Ampliar", zoomOutTitle: "Reduzir"}).addTo(mapa);
+  mapa.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+  }).addTo(mapa);
+  mapa.setView([-14, -48], 4);
+  window.mapaOleo = {mapa: mapa};   // para testes no navegador
+
+  var ESTILO = {
+    prod: {color: "#92400E", weight: 1.3, fillColor: "#B45309", fillOpacity: 0.3},
+    sem: {color: "#8A9099", weight: 1, fillColor: "#8A9099", fillOpacity: 0.12, dashArray: "3 3"}
+  };
+  var camadaCampos = [], camadaPocos = L.layerGroup().addTo(mapa), canvasPocos = L.canvas({padding: 0.4});
+
+  function popupCampo(c) {
+    if (!c.s) {
+      return '<div class="pop"><strong>' + esc(c.n) + '</strong><span>Sem produção em ' + mesExtenso(D.ultimo) + '.</span>' +
+             (c.op ? '<span>Operadora no contrato: ' + esc(c.op) + '</span>' : "") +
+             (c.et ? '<span>Etapa: ' + esc(c.et) + '</span>' : "") + '</div>';
+    }
+    var g = D.grupos[c.gi];
+    return '<div class="pop"><strong>' + esc(c.n) + '</strong><span>' + esc(g ? g.n : "") + '</span>' +
+           '<dl><dt>Produção em ' + mesExtenso(D.ultimo) + '</dt><dd>' + fmt(c.b) + ' boe/d</dd>' +
+           '<dt>Poços ativos</dt><dd>' + fmt(c.w) + '</dd></dl>' +
+           '<a href="' + urlCampo(c.s) + '">Abrir a página do campo</a></div>';
+  }
+
+  function carregarCampo(slug) {
+    if (!CACHE[slug]) CACHE[slug] = fetch(CFG.pasta + slug + ".json").then(function (r) { return r.json(); });
+    return CACHE[slug];
+  }
+  function detalhePoco(p) {
+    var idx = [].concat(p[4]), k = norm(p[0]);
+    return Promise.all(idx.map(function (i) { return carregarCampo(D.slugs[i][0]); })).then(function (dados) {
+      var tot = {p: 0, g: 0, a: 0}, mes = "";
+      dados.forEach(function (d) {
+        var w = d.pocos.filter(function (x) { return norm(x.n) === k; })[0];
+        if (!w) return;
+        var n = w.p.length, m = addMes(d.inicio, w.i + n - 1);
+        if (m > mes) mes = m;
+        tot.p += w.p[n - 1] || 0; tot.g += w.g[n - 1] || 0; tot.a += w.a[n - 1] || 0;
+      });
+      var campos = idx.map(function (i) { return D.slugs[i][1]; }).join(" e ");
+      var uf = D.slugs[idx[0]][2], g = D.grupos[p[3]];
+      var boe = tot.p + tot.g * BOE, bsw = tot.p + tot.a > 0 ? tot.a / (tot.p + tot.a) * 100 : null;
+      return '<div class="pop"><strong>' + esc(p[0]) + '</strong>' +
+        '<span>' + esc(campos) + ' (' + esc(uf) + ')' + (g ? ' · ' + esc(g.n) : "") + '</span>' +
+        (mes ? '<dl><dt>Produção em ' + mesExtenso(mes) + '</dt><dd></dd>' +
+          '<dt>Total</dt><dd>' + fmtI(boe) + ' boe/d</dd>' +
+          '<dt>Petróleo</dt><dd>' + fmtI(tot.p) + ' bbl/d</dd>' +
+          '<dt>Gás natural</dt><dd>' + fmtI(tot.g) + ' mil m³/d</dd>' +
+          '<dt>Água</dt><dd>' + fmtI(tot.a) + ' bbl/d</dd>' +
+          '<dt>BSW</dt><dd>' + (bsw === null ? "—" : fmt(bsw, 1) + "%") + '</dd></dl>' : "") +
+        '<a href="' + CFG.paginaPocos + '?p=' + encodeURIComponent(p[0]) + '">Ver o histórico e o gráfico do poço</a></div>';
+    });
+  }
+  function marcador(p) {
+    if (p.m) return p.m;
+    var r = Math.max(3, Math.min(8, 1.2 + Math.log10(Math.max(p[5], 1)) * 1.25));
+    var m = L.circleMarker([p[2], p[1]], {renderer: canvasPocos, radius: r, weight: 1, color: "#14161A", fillColor: "#FBBF24", fillOpacity: 0.9});
+    m.bindPopup("<p>Carregando…</p>", opcoesPopup());
+    m.on("popupopen", function () {
+      detalhePoco(p).then(function (h) { m.setPopupContent(h); })
+        .catch(function () { m.setPopupContent("<p>Não foi possível carregar a produção deste poço.</p>"); });
+    });
+    p.m = m;
+    return m;
+  }
+
+  var textoAnterior = "";
+  function dizer(html) {
+    if (html === textoAnterior) return;
+    textoAnterior = html;
+    $("estado-mapa").innerHTML = html;
+  }
+  function atualizarPocos() {
+    camadaPocos.clearLayers();
+    if (GI === null && mapa.getZoom() < ZOOM_POCOS) return 0;
+    var lim = GI === null ? mapa.getBounds().pad(0.15) : null, n = 0;
+    PONTOS.forEach(function (p) {
+      if (GI !== null && p[3] !== GI) return;
+      if (lim && !lim.contains([p[2], p[1]])) return;
+      camadaPocos.addLayer(marcador(p)); n++;
+    });
+    return n;
+  }
+  function textoEstado() {
+    if (GI === null) {
+      var sem = camadaCampos.filter(function (l) { return !l._c.s; }).length;
+      return "Todas as empresas: " + fmt(camadaCampos.length - sem) + " campos com produção e " + fmt(sem) +
+        " áreas sem produção em " + mesExtenso(D.ultimo) + ". " +
+        (mapa.getZoom() < ZOOM_POCOS ? "Aproxime o mapa para ver os poços em produção." : "Clique num poço para ver a produção do mês.");
+    }
+    var g = D.grupos[GI], no = PONTOS.filter(function (p) { return p[3] === GI; }).length;
+    var t = esc(g.n) + ": " + fmt(g.c) + (g.c === 1 ? " campo" : " campos") + " e " + fmt(g.pt) + (g.pt === 1 ? " poço" : " poços") +
+      " em produção" + (no < g.pt ? "; " + fmt(no) + " no mapa (os demais ainda não têm coordenada nos dados da ANP)" : "") + ".";
+    if (g.s) t += ' <a href="' + urlEmpresa(g.s) + '">Página da empresa</a>';
+    return t;
+  }
+  function ajustar() {
+    var vis = camadaCampos.filter(function (l) { return mapa.hasLayer(l); });
+    if (!vis.length) return;
+    mapa.fitBounds(L.featureGroup(vis).getBounds(), {padding: [24, 24], maxZoom: 11});
+  }
+  function aplicar(gi) {
+    GI = gi;
+    camadaCampos.forEach(function (l) {
+      var ver = gi === null || l._c.gi === gi;
+      if (ver && !mapa.hasLayer(l)) l.addTo(mapa);
+      else if (!ver && mapa.hasLayer(l)) mapa.removeLayer(l);
+    });
+    ajustar();
+    atualizarPocos();
+    dizer(textoEstado());
+  }
+
+  Promise.all([fetch(CFG.campos).then(function (r) { return r.json(); }), fetch(CFG.pocos).then(function (r) { return r.json(); })])
+    .then(function (res) {
+      D = res[0]; PONTOS = res[1].pocos;
+      D.campos.forEach(function (c) {
+        var l = L.polygon(c.r.map(function (anel) { return [anel.map(function (q) { return [q[1], q[0]]; })]; }), c.s ? ESTILO.prod : ESTILO.sem);
+        l._c = c;
+        l.bindPopup(function () { return popupCampo(c); }, opcoesPopup());
+        camadaCampos.push(l);
+        l.addTo(mapa);
+      });
+      ajustar();
+      $("empresa").disabled = false;
+      $("empresa").addEventListener("change", function () { aplicar(this.value === "" ? null : +this.value); });
+      mapa.on("moveend", function () {
+        if (GI === null) { atualizarPocos(); dizer(textoEstado()); }
+      });
+      dizer(textoEstado());
+    })
+    .catch(function () { dizer("Não foi possível carregar o mapa agora. Tente de novo em instantes."); });
+})();
+</script>
+{% endblock %}

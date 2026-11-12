@@ -34,7 +34,8 @@
 <a href="{{ u('operadoras/') }}"{% if secao == 'operadoras' %} aria-current="page"{% endif %}>Operadoras</a>
 <a href="{{ u('campos/') }}"{% if secao == 'campos' %} aria-current="page"{% endif %}>Campos</a>
 <a href="{{ u('pocos/') }}"{% if secao == 'pocos' %} aria-current="page"{% endif %}>Poços</a>
-<a href="{{ u('estados/') }}"{% if secao == 'estados' %} aria-current="page"{% endif %}>Estados</a>
+{% if tem_mapa %}<a href="{{ u('mapa/') }}"{% if secao == 'mapa' %} aria-current="page"{% endif %}>Mapa</a>
+{% endif %}<a href="{{ u('estados/') }}"{% if secao == 'estados' %} aria-current="page"{% endif %}>Estados</a>
 <a href="{{ u('royalties/') }}"{% if secao == 'royalties' %} aria-current="page"{% endif %}>Royalties</a>
 <a href="{{ u('bacias/') }}"{% if secao == 'bacias' %} aria-current="page"{% endif %}>Bacias</a>
 <a href="{{ u('rankings/') }}"{% if secao == 'rankings' %} aria-current="page"{% endif %}>Rankings</a>

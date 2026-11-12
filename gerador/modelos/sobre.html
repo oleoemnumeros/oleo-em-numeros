@@ -16,7 +16,8 @@
 <tr><td><strong>Participação especial</strong></td><td>ANP</td><td>Trimestral</td><td>Paga cerca de 45 dias depois do fim do trimestre</td></tr>
 <tr><td><strong>Resultados das listadas</strong></td><td>CVM, dados abertos (ITR e DFP)</td><td>Trimestral</td><td>Alguns dias depois da entrega à CVM</td></tr>
 <tr><td><strong>População dos municípios</strong></td><td>IBGE, estimativas da população</td><td>Anual</td><td>Estimativa mais recente publicada</td></tr>
-<tr><td><strong>Notícias</strong></td><td>{{ fontes_noticias or 'Veículos do setor' }}</td><td>Diária</td><td>Mesmo dia</td></tr>
+{% if tem_mapa %}<tr><td><strong>Mapa: limites dos campos e posição dos poços</strong></td><td>ANP, dados georreferenciados</td><td>Mensal, mas o arquivo nem sempre muda</td><td>Poços perfurados depois da última versão do arquivo da ANP não aparecem no mapa</td></tr>
+{% endif %}<tr><td><strong>Notícias</strong></td><td>{{ fontes_noticias or 'Veículos do setor' }}</td><td>Diária</td><td>Mesmo dia</td></tr>
 </tbody>
 </table>
 </div>
@@ -77,6 +78,6 @@
 <p>Conteúdo informativo, baseado em dados públicos. Nada neste site é recomendação de compra ou venda de valores mobiliários. Confira sempre a fonte oficial antes de tomar decisões.</p>
 
 <h2 id="privacidade">Privacidade</h2>
-<p>Este site não pede cadastro nem usa cookies de rastreamento. As visitas são contadas de forma agregada e anônima pelo GoatCounter, sem identificar quem visita.</p>
+<p>Este site não pede cadastro nem usa cookies de rastreamento. As visitas são contadas de forma agregada e anônima pelo GoatCounter, sem identificar quem visita.{% if tem_mapa %} Na página do mapa, as imagens do mapa de fundo vêm do OpenStreetMap, que recebe o endereço de rede de quem abre a página.{% endif %}</p>
 </section>
 {% endblock %}

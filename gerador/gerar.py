@@ -21,6 +21,7 @@ from robo.util import MESES, fmt, fmt_inteligente, fmt_pp, fmt_var, mes_extenso,
 
 from .graficos import linha
 from .financeiro import carregar_financeiro, reais
+from .mapa import gerar_mapa
 from .pocos import gerar_pocos
 from .royalties import dinheiro, escala, preparar as preparar_royalties, resumo_municipio
 
@@ -281,6 +282,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                        mes_extenso=mes_extenso, linha=linha, titulo_tendencia=titulo_tendencia,
                        titulo_bacia=titulo_bacia, pct=pct, DESCONHECIDO=DESCONHECIDO)
 
+    env.globals["tem_mapa"] = (dados / "geo.json").exists() and (dados / "base_pocos.csv.gz").exists()
+
     if saida.exists():
         shutil.rmtree(saida)
     saida.mkdir(parents=True)
@@ -408,6 +411,15 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         r = gerar_pocos(base_csv, saida, ag)
         print(f"Busca de poços: {r['pocos']} poços ({r['ativos']} ativos) em {r['campos']} campos, {r['mb']} MB; "
               f"índice {r['indice_mb']} MB; maior campo {r['maior']}")
+    M = gerar_mapa(dados, saida, ag) if env.globals["tem_mapa"] else None
+    if M:
+        print(f"Mapa: {M['n_areas']} áreas ({M['n_sem_producao']} sem produção), {M['pocos_no_mapa']} de "
+              f"{M['pocos_ativos']} poços ativos com coordenada, {len(M['grupos'])} empresas, {M['kb']} KB")
+        escrever("mapa/", "mapa.html", secao="mapa", M=M,
+                 titulo="Mapa dos campos e poços de petróleo e gás do Brasil",
+                 descricao=f"Mapa com os limites oficiais de {M['n_campos']} campos produtores e a posição de "
+                           f"{fmt(M['pocos_no_mapa'])} poços em produção, com filtro por empresa e a produção de cada poço. "
+                           "Dados da ANP.")
     if financeiro:
         ordem = sorted(financeiro.values(), key=lambda e: -(e["ultimo"].get("receita") or 0))
         escrever("resultados/", "resultados.html", secao="resultados",
@@ -452,6 +464,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
              descricao="Página não encontrada.", noindex=True, erro=True)
 
     shutil.copy(AQUI / "estatico" / "estilo.css", saida / "estilo.css")
+    if M:
+        shutil.copytree(AQUI / "estatico" / "leaflet", saida / "leaflet")
     (saida / "icone.svg").write_text(ICONE, "utf-8")
     data = datetime.fromisoformat(ag["gerado_em"]).date().isoformat()
     urls = "".join(f"<url><loc>{site['url']}/{p}</loc><lastmod>{data}</lastmod></url>" for p in paginas)

@@ -530,3 +530,101 @@ def test_operadora_nao_identificada_fica_fora_do_ranking_e_404_usa_a_raiz(base, 
     assert lista.index("nao-identificado") > lista.index("<td>1</td>")
     erro = (tmp_path / "site" / "404.html").read_text("utf-8")
     assert 'href="/estilo.css"' in erro and 'rel="canonical"' not in erro and "noindex" in erro
+
+
+def _zip_shape(pasta, nome, tipo, campos, registros, formas):
+    """Cria um shapefile minúsculo e o compacta como a ANP entrega."""
+    import shapefile
+    w = shapefile.Writer(str(pasta / nome), shapeType=tipo, encoding="utf-8")
+    for c in campos:
+        w.field(c, "C", size=60)
+    for forma, rec in zip(formas, registros):
+        w.poly(forma) if tipo == shapefile.POLYGON else w.point(*forma)
+        w.record(*rec)
+    w.close()
+    destino = pasta / f"{nome}.zip"
+    with zipfile.ZipFile(destino, "w") as z:
+        for ext in ("shp", "shx", "dbf"):
+            z.write(pasta / f"{nome}.{ext}", f"{nome}.{ext}")
+    return destino
+
+
+def test_mapa_simplifica_limites_e_casa_pocos_pelos_dois_nomes(tmp_path):
+    import json
+    import shapefile
+    from robo.mapa import processar, simplificar
+    # linha quase reta perde o ponto do meio; curva de verdade mantém
+    assert simplificar([(0, 0), (1, 0.00001), (2, 0)], 0.0004) == [(0, 0), (2, 0)]
+    assert len(simplificar([(0, 0), (1, 1), (2, 0)], 0.0004)) == 3
+
+    externo = [[-40.0, -10.0], [-40.0, -9.0], [-39.5, -8.99999], [-39.0, -9.0], [-39.0, -10.0], [-40.0, -10.0]]   # sentido horário
+    buraco = [[-39.8, -9.8], [-39.2, -9.8], [-39.2, -9.2], [-39.8, -9.2], [-39.8, -9.8]]                          # anti-horário
+    campos = ["NOM_CAMPO", "OPERADOR_C", "ETAPA", "Localizaca", "NOM_BACIA"]
+    _zip_shape(tmp_path, "campos", shapefile.POLYGON, campos,
+               [("BÚZIOS_ECO", "Petróleo Brasileiro S.A.", "Produção", "Mar", "Santos")], [[externo, buraco]])
+    pocos = ["POCO", "POCO_OPERA", "LAT_DD", "LONG_DD"]
+    _zip_shape(tmp_path, "pocos", shapefile.POINT, pocos,
+               [("7-AAA-1-BA", "7AAA1BA", "-9.5", "-39.5"),         # casa pelo nome da ANP
+                ("9-XXX-9-BA", "3MG0002BA", "-9.6", "-39.6"),       # casa pelo nome da operadora
+                ("7-FORA-1-BA", "7FORA1BA", "-9.5", "-39.5"),       # não está na nossa base
+                ("7-ZERO-1-BA", "7ZERO1BA", "0", "0"),              # coordenada vazia
+                ("7-LONGE-1-BA", "7LONGE1BA", "40", "10")],         # fora do Brasil
+               [(-39.5, -9.5), (-39.6, -9.6), (-39.5, -9.5), (0, 0), (10, 40)])
+    zips = tmp_path / "zips"
+    zips.mkdir()
+    for n in ("campos", "pocos"):
+        (zips / f"{n}.zip").write_bytes((tmp_path / f"{n}.zip").read_bytes())
+    base_csv = tmp_path / "base.csv"
+    pd_ = __import__("pandas")
+    pd_.DataFrame({"poco": ["7-AAA-1-BA", "3MG0002BA", "7-ZERO-1-BA", "7-LONGE-1-BA"]}).to_csv(base_csv, index=False)
+    saida = tmp_path / "geo.json"
+    r = processar(zips, base_csv, saida)
+    geo = json.loads(saida.read_text("utf-8"))
+    assert r["campos"] == 1 and set(geo["pocos"]) == {"7aaa1ba", "3mg0002ba"}
+    c = geo["campos"][0]
+    assert c["k"] == "buzioseco" and c["et"] == "Produção" and c["loc"] == "Mar"
+    assert len(c["g"]) == 1, "o buraco não vira polígono à parte"
+    anel = c["g"][0]
+    assert len(anel) == 4 and [-39.5, -9.0] not in anel, "o ponto quase alinhado some, os 4 cantos ficam (sem repetir o primeiro)"
+
+
+def test_mapa_junta_limites_empresas_e_pocos_e_so_aparece_com_dados(base, tmp_path):
+    import json
+    from robo.executar import _leve
+    from robo.ler import _chave_poco
+    from robo.mapa import chave_campo
+    ag = _leve(agregar(base))
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "agregados.json").write_text(json.dumps(ag, ensure_ascii=False, default=str), "utf-8")
+    gerar(proc, tmp_path / "s1", limpos=True)    # sem dados geográficos: sem página e sem item de menu
+    assert not (tmp_path / "s1" / "mapa").exists()
+    assert 'href="mapa/"' not in (tmp_path / "s1" / "index.html").read_text("utf-8")
+
+    base.to_csv(proc / "base_pocos.csv.gz", index=False, compression="gzip")
+    c0 = ag["campos"][0]
+    ult = base["periodo"].max()
+    ativos = base[(base["campo"] == c0["chave"]) & (base["periodo"] == ult) &
+                  (base["petroleo_bbl_d"].fillna(0) + base["gas_mil_m3_d"].fillna(0) > 0)]["poco"].tolist()
+    assert ativos
+    quadrado = [[[-40.0, -10.0], [-40.0, -9.0], [-39.0, -9.0], [-39.0, -10.0]]]
+    geo = {"campos": [{"k": chave_campo(c0["chave"]), "n": c0["chave"], "op": "X S.A.", "et": "Produção", "loc": "Terra",
+                       "bacia": "", "g": quadrado},
+                      {"k": "antigo", "n": "ANTIGO", "op": "Y Ltda.", "et": "Desenvolvimento", "loc": "Mar", "bacia": "",
+                       "g": quadrado}],
+           "pocos": {_chave_poco(ativos[0]): [-39.5, -9.5]}}
+    (proc / "geo.json").write_text(json.dumps(geo), "utf-8")
+    gerar(proc, tmp_path / "s2", limpos=True)
+    site = tmp_path / "s2"
+    pagina = (site / "mapa" / "index.html").read_text("utf-8")
+    assert "leaflet.js" in pagina and 'id="empresa"' in pagina and (site / "leaflet" / "leaflet.js").exists()
+    assert 'href="mapa/"' in (site / "index.html").read_text("utf-8")
+    assert "/mapa/" in (site / "sitemap.xml").read_text("utf-8")
+    dados = json.loads((site / "dados" / "mapa" / "campos.json").read_text("utf-8"))
+    com, sem = dados["campos"]
+    assert com["s"] == c0["slug"] and com["gi"] >= 0 and com["b"] == round(c0["boe"])
+    assert sem["s"] is None and sem["gi"] == -1 and sem["op"] == "Y Ltda."
+    assert dados["grupos"][com["gi"]]["n"] == c0["grupo"]
+    pocos = json.loads((site / "dados" / "mapa" / "pocos.json").read_text("utf-8"))["pocos"]
+    assert len(pocos) == 1 and pocos[0][0] == ativos[0] and pocos[0][1:3] == [-39.5, -9.5]
+    assert dados["slugs"][pocos[0][4] if isinstance(pocos[0][4], int) else pocos[0][4][0]][0] == c0["slug"]

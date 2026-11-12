@@ -72,6 +72,30 @@ jobs:
       - name: Royalties (ANP)
         run: python -m robo.royalties || echo "::warning::Leitura dos royalties falhou; o site sai sem a seção de royalties."
 
+      # limites dos campos e posição dos poços (mapa): se o download falhar, usa a última cópia;
+      # sem cópia nenhuma, o site sai sem a aba Mapa, nunca deixa de publicar
+      - name: Recupera os shapefiles do mapa
+        uses: actions/cache/restore@v4
+        with:
+          path: dados/geo
+          key: geo-${{ github.run_id }}
+          restore-keys: geo-
+
+      - name: Mapa (ANP)
+        run: |
+          if [ "${{ steps.modo.outputs.baixar }}" = "sim" ]; then
+            python -m robo.mapa || { echo "::warning::Download do mapa falhou; usando a última cópia."; python -m robo.mapa --sem-baixar || echo "::warning::O site sai sem o mapa."; }
+          else
+            python -m robo.mapa --sem-baixar || python -m robo.mapa || echo "::warning::O site sai sem o mapa."
+          fi
+
+      - name: Guarda os shapefiles do mapa
+        if: always() && hashFiles('dados/geo/*.zip') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: dados/geo
+          key: geo-${{ github.run_id }}
+
       - name: Guarda os arquivos baixados
         if: always() && steps.modo.outputs.baixar == 'sim'
         uses: actions/cache/save@v4
