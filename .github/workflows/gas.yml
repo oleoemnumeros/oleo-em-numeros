@@ -2,6 +2,8 @@
 name: Explorar dados de gás
 on:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   gas:
     runs-on: ubuntu-latest
@@ -13,5 +15,19 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt pdfplumber
-      - name: Diagnóstico
-        run: python -m robo.gas_diag 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Baixa os arquivos de gás e guarda no ramo exportacao-gas
+        run: |
+          python -m robo.gas --so-baixar
+          python - <<'PY'
+          import json, pathlib
+          from robo.gas import texto_paginas
+          pdfs = sorted(pathlib.Path("dados/gas/boletins").glob("*.pdf"))
+          out = {p.stem: texto_paginas(p) for p in pdfs}
+          pathlib.Path("dados/gas/boletins.json").write_text(json.dumps(out, ensure_ascii=False), "utf-8")
+          print({k: len(v) for k, v in out.items()})
+          PY
+          mkdir -p /tmp/exp/gas && cp dados/gas/*.csv dados/gas/boletins.json /tmp/exp/gas/ && cp "${PDF:-$(ls dados/gas/boletins/*.pdf | tail -1)}" /tmp/exp/gas/ultimo.pdf
+          cd /tmp/exp && tar czf gas.tgz gas && rm -rf gas && git init -q -b exportacao-gas
+          git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" add gas.tgz
+          git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" commit -qm "Arquivos de gás da ANP para desenvolvimento"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" exportacao-gas
