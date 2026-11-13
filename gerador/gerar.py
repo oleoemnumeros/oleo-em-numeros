@@ -475,7 +475,10 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     (saida / "sitemap.xml").write_text(
         f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>',
         "utf-8")
-    robots = "User-agent: *\nDisallow: /\n" if (teste or site["previa"]) else f"User-agent: *\nAllow: /\nSitemap: {site['url']}/sitemap.xml\n"
+    # /dados/pocos/ é só a pasta dos JSON da busca de poços (não é página): o "$" bloqueia apenas esse endereço,
+    # sem impedir o acesso aos arquivos dentro dela.
+    robots = ("User-agent: *\nDisallow: /\n" if (teste or site["previa"]) else
+              f"User-agent: *\nAllow: /\nDisallow: /dados/pocos/$\nSitemap: {site['url']}/sitemap.xml\n")
     (saida / "robots.txt").write_text(robots, "utf-8")
     return paginas
 
