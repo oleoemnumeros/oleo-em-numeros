@@ -1,0 +1,17 @@
+# Ferramenta de manutenção: confere onde a ANP publica o gás por destino (queima, reinjeção, consumo). Não mexe no site.
+name: Explorar dados de gás
+on:
+  workflow_dispatch:
+jobs:
+  gas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt pdfplumber
+      - name: Diagnóstico
+        run: python -m robo.gas_diag 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
