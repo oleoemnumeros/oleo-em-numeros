@@ -640,3 +640,106 @@ def test_mapa_junta_limites_empresas_e_pocos_e_so_aparece_com_dados(base, tmp_pa
     pocos = json.loads((site / "dados" / "mapa" / "pocos.json").read_text("utf-8"))["pocos"]
     assert len(pocos) == 1 and pocos[0][0] == ativos[0] and pocos[0][1:3] == [-39.5, -9.5]
     assert dados["slugs"][pocos[0][4] if isinstance(pocos[0][4], int) else pocos[0][4][0]][0] == c0["slug"]
+
+
+_PAG_QUEIMA = """Boletim da Produção de Petróleo e Gás Natural
+Queima de gás natural por campo
+Ano Mês
+2026 02 - Fevereiro
+20 campos com maior queima de gás
+Campo Bacia Localização Operador Queima de Gás (Mm³/d)
+
+{c1} Santos Mar PETROBRAS 745,30
+Albacora Leste Campos Mar PRIO FORTE S.A 271,48
+Rio Urucu Solimões Terra PETROBRAS 31,32
+Campo Qualquer Espírito Santo Mar OUTRA EMPRESA S.A. 1.234
+Total 3.591,58
+"""
+_PAG_NAC = """Histórico da movimentação de gás natural (Mm³/d)
+Mês/Ano Consumo Queima Injeção Disponível Produção Aproveitamento
+02/2026 20,00 4,00 60,00 16,00 100,00 96,00%
+01/2026 19,00 5,00 60,00 16,00 100,00 95,00%
+"""
+
+
+import json  # noqa: E402
+
+
+def _csv_gas(pasta, valores):
+    """Um CSV por destino no formato da ANP: ; como separador, vírgula decimal, BOM e nomes em maiúsculas."""
+    colunas = {"producao": "PRODUÇÃO", "queima": "QUEIMADO", "reinjecao": "REINJETADO", "consumo": "CONSUMO", "disponivel": "DISPONÍVEL"}
+    for dest, col in colunas.items():
+        linhas = ["ANO;MÊS;GRANDE REGIÃO;UNIDADE DA FEDERAÇÃO;PRODUTO;LOCALIZAÇÃO;" + col]
+        for ano, mes, uf, loc, v in valores[dest]:
+            linhas.append(f"{ano};{mes};REGIÃO X;{uf};GÁS NATURAL;{loc};{str(v).replace('.', ',')}")
+        (pasta / f"{dest}.csv").write_text("\n".join(linhas), "utf-8-sig")
+
+
+def _gas_sintetico(pasta, campo1="Búzios"):
+    # 2026-01 (31 dias) e 2026-02 (28 dias): o RJ no mar e o Amazonas em terra
+    v = {"producao": [(2026, "JAN", "RIO DE JANEIRO", "MAR", 3100), (2026, "FEV", "RIO DE JANEIRO", "MAR", 2800),
+                      (2026, "JAN", "AMAZONAS", "TERRA", 310), (2026, "FEV", "AMAZONAS", "TERRA", 280)],
+         "queima": [(2026, "JAN", "RIO DE JANEIRO", "MAR", 124), (2026, "FEV", "RIO DE JANEIRO", "MAR", 112),
+                    (2026, "JAN", "AMAZONAS", "TERRA", 31), (2026, "FEV", "AMAZONAS", "TERRA", 28)],
+         "reinjecao": [(2026, "JAN", "RIO DE JANEIRO", "MAR", 1550), (2026, "FEV", "RIO DE JANEIRO", "MAR", 1400)],
+         "consumo": [(2026, "JAN", "RIO DE JANEIRO", "MAR", 310), (2026, "FEV", "RIO DE JANEIRO", "MAR", 280),
+                     (2026, "JAN", "AMAZONAS", "TERRA", 31), (2026, "FEV", "AMAZONAS", "TERRA", 28)],
+         "disponivel": [(2026, "JAN", "RIO DE JANEIRO", "MAR", 9999), (2026, "FEV", "RIO DE JANEIRO", "MAR", 9999)]}
+    _csv_gas(pasta, v)
+    boletins = {"2026-02": [_PAG_QUEIMA.format(c1=campo1), _PAG_NAC], "2026-01": ["capa sem a tabela"]}
+    (pasta / "boletins.json").write_text(json.dumps(boletins, ensure_ascii=False), "utf-8")
+
+
+def test_gas_balanco_fecha_e_boletim_e_lido(tmp_path):
+    from robo.gas import ler_queima_boletim, processar
+    _gas_sintetico(tmp_path)
+    r = processar(tmp_path, tmp_path / "gas.json")
+    assert r["meses"] == ["2026-01", "2026-02"] and r["ultimo"] == "2026-02"
+    b = r["brasil"]
+    # média diária: fevereiro tem 28 dias, janeiro 31
+    assert b["producao"] == [round(3410 / 31, 2), round(3080 / 28, 2)]
+    assert b["queima"][1] == round(140 / 28, 2) and b["reinjecao"][1] == round(1400 / 28, 2)
+    # o gás disponível é o resto do balanço (a coluna 'disponível' do CSV, 9999, é ignorada)
+    assert b["disponivel"][1] == round((3080 - 140 - 1400 - 308) / 28, 2)
+    soma = sum(b[k][1] for k in ("queima", "reinjecao", "consumo", "disponivel"))
+    assert abs(soma - b["producao"][1]) < 0.05
+    assert [e["uf"] for e in r["estados"]] == ["RJ", "AM"] and r["estados"][0]["nome"] == "Rio de Janeiro"
+    assert set(r["ambientes"]) == {"MAR", "TERRA"}
+    # ranking: nomes de duas palavras, bacia de duas palavras, terra, número com milhar, linha de total ignorada
+    q = r["queima"]["meses"]["2026-02"]
+    assert [x["campo"] for x in q] == ["Campo Qualquer", "Búzios", "Albacora Leste", "Rio Urucu"]
+    por = {x["campo"]: x for x in q}
+    assert por["Campo Qualquer"]["bacia"] == "Espírito Santo" and por["Campo Qualquer"]["queima"] == 1234
+    assert por["Albacora Leste"]["bacia"] == "Campos" and por["Rio Urucu"]["ambiente"] == "TERRA"
+    assert q[0]["posicao"] == 1 and q[0]["queima"] == 1234
+    assert "2026-01" not in r["queima"]["meses"]            # boletim sem a tabela é pulado sem erro
+    assert r["queima"]["nacional"]["2026-02"]["queima"] == 4.0 and r["queima"]["nacional"]["2026-02"]["producao"] == 100.0
+    assert ler_queima_boletim(["texto qualquer"]) == []
+
+
+def test_gas_paginas_so_com_dados_e_com_ranking_e_cartao_no_campo(base, tmp_path):
+    from robo.executar import _leve
+    from robo.gas import processar
+    ag = _leve(agregar(base))
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "agregados.json").write_text(json.dumps(ag, ensure_ascii=False, default=str), "utf-8")
+    gerar(proc, tmp_path / "s1", limpos=True)    # sem dados de gás: sem páginas e sem item de menu
+    assert not (tmp_path / "s1" / "gas").exists()
+    assert 'href="gas/"' not in (tmp_path / "s1" / "index.html").read_text("utf-8")
+
+    c0 = ag["campos"][0]
+    brutos = tmp_path / "gas"
+    brutos.mkdir()
+    _gas_sintetico(brutos, campo1=c0["chave"].replace("_", " "))
+    processar(brutos, proc / "gas.json")
+    gerar(proc, tmp_path / "s2", limpos=True)
+    site = tmp_path / "s2"
+    pagina = (site / "gas" / "index.html").read_text("utf-8")
+    assert "Aproveitamento" in pagina and "Rio de Janeiro" in pagina and "queima" in pagina.lower()
+    assert 'href="gas/"' in (site / "index.html").read_text("utf-8") and "/gas/" in (site / "sitemap.xml").read_text("utf-8")
+    rank = (site / "gas" / "queima" / "index.html").read_text("utf-8")
+    assert "Campo Qualquer" in rank and f'href="../../campos/{c0["slug"]}/"' in rank
+    assert "Boletim Mensal" in rank and "1.234" in rank
+    campo = (site / "campos" / c0["slug"] / "index.html").read_text("utf-8")
+    assert "Queima de gás no" in campo and "745" in campo

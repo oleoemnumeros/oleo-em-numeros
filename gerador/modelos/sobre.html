@@ -16,7 +16,9 @@
 <tr><td><strong>Participação especial</strong></td><td>ANP</td><td>Trimestral</td><td>Paga cerca de 45 dias depois do fim do trimestre</td></tr>
 <tr><td><strong>Resultados das listadas</strong></td><td>CVM, dados abertos (ITR e DFP)</td><td>Trimestral</td><td>Alguns dias depois da entrega à CVM</td></tr>
 <tr><td><strong>População dos municípios</strong></td><td>IBGE, estimativas da população</td><td>Anual</td><td>Estimativa mais recente publicada</td></tr>
-{% if tem_mapa %}<tr><td><strong>Mapa: limites dos campos e posição dos poços</strong></td><td>ANP, dados georreferenciados</td><td>Mensal, mas o arquivo nem sempre muda</td><td>Poços perfurados depois da última versão do arquivo da ANP não aparecem no mapa</td></tr>
+{% if tem_gas %}<tr><td><strong>Gás natural: produção, queima, reinjeção e consumo próprio por estado</strong></td><td>ANP, dados abertos (produção de petróleo e gás por estado e localização)</td><td>Mensal</td><td>O último mês pode ser revisado; a ANP não divulga esses dados por empresa nem por campo</td></tr>
+<tr><td><strong>Gás natural: campos com maior queima</strong></td><td>ANP, Boletim Mensal da Produção de Petróleo e Gás Natural</td><td>Mensal</td><td>Só os campos maiores aparecem em cada boletim</td></tr>
+{% endif %}{% if tem_mapa %}<tr><td><strong>Mapa: limites dos campos e posição dos poços</strong></td><td>ANP, dados georreferenciados</td><td>Mensal, mas o arquivo nem sempre muda</td><td>Poços perfurados depois da última versão do arquivo da ANP não aparecem no mapa</td></tr>
 {% endif %}<tr><td><strong>Notícias</strong></td><td>{{ fontes_noticias or 'Veículos do setor' }}</td><td>Diária</td><td>Mesmo dia</td></tr>
 </tbody>
 </table>
@@ -45,6 +47,9 @@
 <h2 id="pocos">Produção por poço</h2>
 <p>A <a href="{{ u('pocos/') }}">busca de poços</a> mostra a série mensal de cada poço que produziu desde 2018, como a ANP publica: petróleo, gás natural e água em volume por dia, e o BSW calculado a partir deles. Mês em que a ANP não publicou dados para aquele ambiente (terra ou mar) aparece como lacuna; mês com o poço parado aparece como zero.</p>
 
+{% if tem_gas %}<h2 id="gas">Gás natural: queima, reinjeção e aproveitamento</h2>
+<p>As séries por estado vêm dos arquivos abertos da ANP, que trazem em mil m³ por mês a produção, a queima (incluindo o gás perdido), a reinjeção e o consumo próprio. Dividimos pelo número de dias do mês para chegar à média diária. O gás disponível ao mercado é calculado como produção − queima − reinjeção − consumo próprio, que fecha o balanço do Boletim Mensal (a coluna "disponível" do arquivo difere cerca de 1%; conferimos os totais mensais com o boletim, e a produção, a queima, a reinjeção e o consumo batem). O aproveitamento é 1 − queima ÷ produção, a fórmula da ANP. A ANP escreve "Mm³" para mil metros cúbicos. O ranking de campos que mais queimam vem do texto do Boletim Mensal, lido automaticamente; como a ANP só publica os maiores, não calculamos a queima de campos fora do ranking, nem a reinjeção ou o aproveitamento por campo e por empresa. A soma por empresa na página de queima cobre apenas os campos do ranking.</p>
+{% endif %}
 <h2 id="royalties">Royalties e participação especial</h2>
 <p>Os valores recebidos por estados e municípios vêm da ANP: os dados abertos de participações governamentais (um arquivo por ano, de 2018 em diante) e, para o ano corrente, a planilha mensal de royalties por beneficiário. Somamos os royalties de contratos de concessão e de partilha, tanto a parcela de até 5% quanto a excedente.</p>
 <ul>

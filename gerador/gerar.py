@@ -22,6 +22,7 @@ from robo.util import MESES, fmt, fmt_inteligente, fmt_pp, fmt_var, mes_extenso,
 
 from .graficos import linha
 from .financeiro import carregar_financeiro, reais
+from .gas import preparar as preparar_gas
 from .mapa import gerar_mapa
 from .pocos import gerar_pocos
 from .royalties import dinheiro, escala, preparar as preparar_royalties, resumo_municipio
@@ -295,6 +296,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     noticias, noticias_op, noticias_campo, fontes_noticias = carregar_noticias(dados, ag)
     env.globals.update(fontes_noticias=fontes_noticias, reais=reais, dinheiro=dinheiro)
     R = preparar_royalties(dados)
+    G = preparar_gas(dados, ag)
+    env.globals.update(tem_gas=bool(G))
     env.globals.update(ufs_royalties={e["uf"] for e in R["estados"]} if R else set())
     financeiro = carregar_financeiro(dados, ag)
     for o in ag["operadores"]:
@@ -350,6 +353,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         lugar = "terra" if c["ambiente"] == "terra" else "mar"
         escrever(f"campos/{c['slug']}/", "campo.html", secao="campos", c=c,
                  noticias=noticias_campo.get(c["slug"], [])[:5],
+                 queima=(G["historico_campo"].get(c["slug"]) if G else None),
                  titulo=f"{c['nome']} ({c['bacia']}, {c['estado']['uf']}): produção de petróleo e gás",
                  descricao=f"Produção mensal de petróleo, gás e água do {c['nome']}, campo em {lugar} na "
                            f"{titulo_bacia(c['bacia'])}"
@@ -430,6 +434,17 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                  descricao="Receita, EBITDA, lucro, dívida e capex por trimestre de Petrobras, PRIO, Brava e PetroRecôncavo, "
                            "a partir das demonstrações entregues à CVM, ao lado da produção operada pela ANP.",
                  empresas=ordem)
+    # ---------- gás por destino ----------
+    if G:
+        escrever("gas/", "gas.html", secao="gas", G=G, titulo="Gás natural no Brasil: queima, reinjeção e aproveitamento",
+                 descricao=f"Quanto gás natural o Brasil queima, reinjeta, consome nas plataformas e envia ao mercado, por mês "
+                           f"desde 2000 e por estado. Aproveitamento de {fmt(G['aprov'], 1)}% em {mes_extenso(G['ultimo'])}. Dados da ANP.")
+        if G["queima"]:
+            Q = G["queima"]
+            escrever("gas/queima/", "gas_queima.html", secao="gas", G=G,
+                     titulo="Campos que mais queimam gás natural no Brasil",
+                     descricao=f"Ranking mensal dos {Q['n']} campos com maior queima de gás natural, com operadora e variação: "
+                               f"{Q['linhas'][0]['campo']} lidera em {mes_extenso(Q['mes'])}. Dados da ANP.")
     # ---------- royalties ----------
     if R:
         prod = {e["uf"]: e["slug"] for e in ag.get("estados", []) if e.get("slug")}

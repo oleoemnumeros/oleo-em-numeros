@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+{% set Q = G.queima %}
+<section class="miolo cabeca">
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('gas/') }}">Gás</a><span aria-hidden="true"> / </span><span aria-current="page">Queima por campo</span></nav>
+<h1>Campos que mais queimam gás natural</h1>
+<p class="sub">Os {{ Q.n }} campos com maior queima em {{ mes_extenso(Q.mes) }} · Boletim Mensal da Produção, ANP</p>
+<div class="kpis kpis-4">
+{{ kpi('Queima nacional', fmt(Q.total_pais / 1000, 2), 'milhões m³/d', None, principal=True) }}
+{{ kpi('Os ' ~ Q.n ~ ' maiores', fmt(Q.soma / 1000, 2), 'milhões m³/d', (fmt(Q.pct_soma, 0) ~ '% do total') if Q.pct_soma is not none else None) }}
+{{ kpi('Maior queimador', Q.linhas[0].campo, '', (fmt(Q.linhas[0].queima, 0) ~ ' mil m³/d') ) }}
+{{ kpi('Aproveitamento', fmt(G.aprov, 1) ~ '%', 'do gás produzido', None) }}
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Ranking de {{ mes_extenso(Q.mes) }}</h2>
+<p class="legenda">queima em mil m³ por dia · variação sobre o mês anterior e sobre o mesmo mês de {{ (Q.mes[:4]|int - 1) }}, quando o campo estava no ranking</p>
+<div class="tabela">
+<table>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Campo</th><th>Operadora</th><th>Bacia</th><th class="n">Queima (mil m³/d)</th><th class="n">% do país</th><th class="n">Mês anterior</th><th class="n">Ano anterior</th></tr></thead>
+<tbody>
+{% for r in Q.linhas %}
+<tr><td>{{ r.posicao }}</td><td>{% if r.slug %}<a href="{{ u('campos/' ~ r.slug ~ '/') }}">{{ r.campo }}</a>{% else %}{{ r.campo }}{% endif %} <span class="legenda">{{ r.ambiente }}</span></td><td>{% if r.operador_slug %}<a href="{{ u('operadoras/' ~ r.operador_slug ~ '/') }}">{{ r.operador }}</a>{% else %}{{ r.operador }}{% endif %}</td><td>{{ r.bacia }}</td><td class="n"><strong>{{ fmt(r.queima, 0) }}</strong></td><td class="n">{{ pct(r.pct_pais, 1) }}</td><td class="n {{ var_classe(r.var_mes, inverter=True) }}">{% if r.entrou %}entrou{% else %}{{ fmt_var(r.var_mes) }}{% endif %}</td><td class="n {{ var_classe(r.var_ano, inverter=True) }}">{{ fmt_var(r.var_ano) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">"Entrou" indica que o campo não estava entre os maiores no mês anterior. Nos campos que saíram do ranking ou ainda não entraram, a ANP não publica o valor.</p>
+</div>
+</section>
+
+<section class="miolo secao lado">
+<div class="cartao principal">
+<h2>Por empresa, entre os maiores</h2>
+<p class="legenda">Soma da queima dos campos de cada empresa que estão no ranking de {{ mes_extenso(Q.mes) }}</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Empresa</th><th>Campos no ranking</th><th class="n">Queima (mil m³/d)</th><th class="n">% do ranking</th></tr></thead>
+<tbody>
+{% for e in Q.empresas %}
+<tr><th scope="row">{% if e.slug %}<a href="{{ u('operadoras/' ~ e.slug ~ '/') }}">{{ e.nome }}</a>{% else %}{{ e.nome }}{% endif %}</th><td style="white-space: normal; min-width: 12em">{{ e.campos|join(', ') }}</td><td class="n">{{ fmt(e.queima, 0) }}</td><td class="n">{{ fmt(e.queima / Q.soma * 100, 0) }}%</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">A ANP não publica a queima de cada empresa. Esta soma cobre só os campos do ranking, que concentram {{ fmt(Q.pct_soma, 0) }}% da queima do país; a queima dos demais campos da empresa não aparece aqui.</p>
+</div>
+<div class="cartao aside">
+<h2>Os maiores, mês a mês</h2>
+<p class="legenda">Soma dos campos do ranking e queima do país · mil m³/d</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Mês</th><th class="n">Maiores</th><th class="n">País</th></tr></thead>
+<tbody>
+{% for m in Q.meses|reverse %}
+<tr><th scope="row">{{ mes_extenso(m.mes) }}</th><td class="n">{{ fmt(m.soma, 0) }}</td><td class="n">{{ fmt(m.total, 0) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="explica">
+<p class="explica-titulo">Como ler</p>
+<p>A queima (flare) é o gás natural queimado quando não há como reinjetá-lo, consumi-lo ou escoá-lo; em partidas de plataformas e paradas ela costuma subir. A ANP divulga todo mês os campos com maior queima, com a operadora e a bacia. "Mil m³/d" é a unidade que a ANP escreve como "Mm³/d". O número de campos do ranking pode variar de um boletim para outro, e a queima do país vem da tabela do mesmo boletim. <a href="{{ u('gas/') }}">Gás por estado e série histórica</a> · <a href="{{ u('sobre/') }}#gas">Como calculamos</a></p>
+</div>
+</section>
+{% endblock %}

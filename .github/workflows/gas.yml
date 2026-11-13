@@ -18,15 +18,7 @@ jobs:
       - name: Baixa os arquivos de gás e guarda no ramo exportacao-gas
         run: |
           python -m robo.gas --so-baixar
-          python - <<'PY'
-          import json, pathlib
-          from robo.gas import texto_paginas
-          pdfs = sorted(pathlib.Path("dados/gas/boletins").glob("*.pdf"))
-          out = {p.stem: texto_paginas(p) for p in pdfs}
-          pathlib.Path("dados/gas/boletins.json").write_text(json.dumps(out, ensure_ascii=False), "utf-8")
-          print({k: len(v) for k, v in out.items()})
-          PY
-          mkdir -p /tmp/exp/gas && cp dados/gas/*.csv dados/gas/boletins.json /tmp/exp/gas/ && cp "${PDF:-$(ls dados/gas/boletins/*.pdf | tail -1)}" /tmp/exp/gas/ultimo.pdf
+          mkdir -p /tmp/exp/gas && cp dados/gas/*.csv dados/gas/boletins.json /tmp/exp/gas/
           cd /tmp/exp && tar czf gas.tgz gas && rm -rf gas && git init -q -b exportacao-gas
           git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" add gas.tgz
           git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" commit -qm "Arquivos de gás da ANP para desenvolvimento"

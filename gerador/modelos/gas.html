@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<h1>Gás natural: queima, reinjeção e aproveitamento</h1>
+<p class="sub">Para onde vai o gás que o Brasil produz, mês a mês desde 2000 · dados da ANP até {{ mes_extenso(G.ultimo) }}</p>
+<div class="kpis kpis-6">
+{{ kpi('Aproveitamento', fmt(G.aprov, 1) ~ '%', 'do gás produzido', (fmt_pp(G.aprov - G.aprov12) ~ ' em 12 meses') if G.aprov12 is not none else None, var_classe(G.aprov - G.aprov12 if G.aprov12 is not none else None), principal=True) }}
+{{ kpi('Queima', fmt(G.k.queima.valor / 1000, 2), 'milhões m³/d', (fmt_var(G.k.queima.var12) ~ ' em 12 meses') if G.k.queima.var12 is not none else None, var_classe(G.k.queima.var12, inverter=True)) }}
+{{ kpi('Reinjeção', fmt(G.k.reinjecao.valor / 1000, 1), 'milhões m³/d', (fmt_var(G.k.reinjecao.var12) ~ ' em 12 meses') if G.k.reinjecao.var12 is not none else None, var_classe(G.k.reinjecao.var12)) }}
+{{ kpi('Disponível ao mercado', fmt(G.k.disponivel.valor / 1000, 1), 'milhões m³/d', (fmt_var(G.k.disponivel.var12) ~ ' em 12 meses') if G.k.disponivel.var12 is not none else None, var_classe(G.k.disponivel.var12)) }}
+{{ kpi('Consumo próprio', fmt(G.k.consumo.valor / 1000, 1), 'milhões m³/d', (fmt_var(G.k.consumo.var12) ~ ' em 12 meses') if G.k.consumo.var12 is not none else None) }}
+{{ kpi('Produção de gás', fmt(G.k.producao.valor / 1000, 1), 'milhões m³/d', (fmt_var(G.k.producao.var12) ~ ' em 12 meses') if G.k.producao.var12 is not none else None, var_classe(G.k.producao.var12)) }}
+</div>
+{% if G.queima %}<p class="nota"><a href="{{ u('gas/queima/') }}">Ver os campos que mais queimam gás</a></p>{% endif %}
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Aproveitamento do gás</h2>
+<p class="legenda">% do gás produzido que não foi queimado · desde 2000</p>
+{{ linha(G.serie_aprov, G.meses, 'Aproveitamento do gás natural, em porcentagem do produzido', sufixo='%', area=False, passo=60, teto=100) }}
+<p class="nota">Aproveitamento = 1 − queima ÷ produção, como a ANP calcula no Boletim Mensal.</p>
+</div>
+<div class="cartao">
+<h2>Queima de gás</h2>
+<p class="legenda">milhões de m³ por dia · média de cada mês</p>
+{{ linha(G.serie_queima, G.meses, 'Gás natural queimado, em milhões de metros cúbicos por dia', zero=True, passo=60) }}
+<p class="nota">Inclui o gás perdido, como na tabela da ANP.</p>
+</div>
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Reinjeção de gás</h2>
+<p class="legenda">milhões de m³ por dia · média de cada mês</p>
+{{ linha(G.serie_reinj, G.meses, 'Gás natural reinjetado, em milhões de metros cúbicos por dia', zero=True, passo=60) }}
+<p class="nota">O gás é devolvido ao reservatório, sobretudo no pré-sal, para manter a pressão e aumentar a recuperação de petróleo.</p>
+</div>
+<div class="cartao">
+<h2>Para onde foi o gás em {{ mes_extenso(G.ultimo) }}</h2>
+<p class="legenda">milhões de m³ por dia · % da produção</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Destino</th><th class="n">milhões m³/d</th><th class="n">% da produção</th></tr></thead>
+<tbody>
+{% set p = G.k.producao.valor %}
+<tr><th scope="row">Reinjetado</th><td class="n">{{ fmt(G.k.reinjecao.valor / 1000, 1) }}</td><td class="n">{{ fmt(G.k.reinjecao.valor / p * 100, 1) }}%</td></tr>
+<tr><th scope="row">Disponível ao mercado</th><td class="n">{{ fmt(G.k.disponivel.valor / 1000, 1) }}</td><td class="n">{{ fmt(G.k.disponivel.valor / p * 100, 1) }}%</td></tr>
+<tr><th scope="row">Consumo próprio</th><td class="n">{{ fmt(G.k.consumo.valor / 1000, 1) }}</td><td class="n">{{ fmt(G.k.consumo.valor / p * 100, 1) }}%</td></tr>
+<tr><th scope="row">Queimado</th><td class="n">{{ fmt(G.k.queima.valor / 1000, 2) }}</td><td class="n">{{ fmt(G.k.queima.valor / p * 100, 1) }}%</td></tr>
+<tr><th scope="row"><strong>Produção</strong></th><td class="n"><strong>{{ fmt(p / 1000, 1) }}</strong></td><td class="n"><strong>100%</strong></td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Gás por estado</h2>
+<p class="legenda">mil m³ por dia · {{ mes_extenso(G.ultimo) }}</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Estado</th><th class="n">Produção</th><th class="n">Queima</th><th class="n">Reinjeção</th><th class="n">Consumo próprio</th><th class="n">Disponível</th><th class="n">Aproveitamento</th></tr></thead>
+<tbody>
+{% for e in G.estados %}
+<tr><th scope="row">{% if e.slug %}<a href="{{ u('estados/' ~ e.slug ~ '/') }}">{{ e.nome }}</a>{% else %}{{ e.nome }}{% endif %}</th><td class="n">{{ fmt(e.producao) }}</td><td class="n">{{ fmt(e.queima) }}</td><td class="n">{{ fmt(e.reinjecao) }}</td><td class="n">{{ fmt(e.consumo) }}</td><td class="n">{{ fmt(e.disponivel) }}</td><td class="n">{{ pct(e.aprov, 1) }}</td></tr>
+{% endfor %}
+{% for a in G.ambientes %}
+{% if loop.first %}<tr><th scope="row" colspan="7"><span class="legenda">Por ambiente</span></th></tr>{% endif %}
+<tr><th scope="row">{{ a.nome }}</th><td class="n">{{ fmt(a.producao) }}</td><td class="n">{{ fmt(a.queima) }}</td><td class="n">{{ fmt(a.reinjecao) }}</td><td class="n">{{ fmt(a.consumo) }}</td><td class="n">{{ fmt(a.disponivel) }}</td><td class="n">{{ pct(a.aprov, 1) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">A ANP divulga a queima e a reinjeção por estado e por ambiente, não por empresa nem por campo (exceto o ranking dos campos que mais queimam, em <a href="{{ u('gas/queima/') }}">outra página</a>).</p>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="explica">
+<p class="explica-titulo">Como ler</p>
+<p><strong>Reinjeção</strong> é o gás devolvido ao reservatório. <strong>Consumo próprio</strong> é o que as plataformas e instalações usam para gerar energia. <strong>Queima</strong> é o gás queimado nos flares, somado ao gás perdido. <strong>Disponível ao mercado</strong> é o que segue para os gasodutos, calculado como produção − queima − reinjeção − consumo próprio (o fechamento do balanço do Boletim Mensal da ANP; a coluna "disponível" do arquivo aberto difere cerca de 1%). A ANP escreve "Mm³" para mil metros cúbicos: 1.000 mil m³/d = 1 milhão de m³/d. O último mês pode ser revisado pela ANP. <a href="{{ u('sobre/') }}#gas">Como calculamos</a></p>
+</div>
+</section>
+{% endblock %}

@@ -96,6 +96,30 @@ jobs:
           path: dados/geo
           key: geo-${{ github.run_id }}
 
+      # gás por destino (queima, reinjeção, consumo) e ranking de queima por campo: se falhar, usa a última cópia;
+      # sem cópia nenhuma, o site sai sem a seção de gás
+      - name: Recupera os arquivos de gás
+        uses: actions/cache/restore@v4
+        with:
+          path: dados/gas
+          key: gas-${{ github.run_id }}
+          restore-keys: gas-
+
+      - name: Gás (ANP)
+        run: |
+          if [ "${{ steps.modo.outputs.baixar }}" = "sim" ]; then
+            python -m robo.gas || { echo "::warning::Download do gás falhou; usando a última cópia."; python -m robo.gas --sem-baixar || echo "::warning::O site sai sem a seção de gás."; }
+          else
+            python -m robo.gas --sem-baixar || python -m robo.gas || echo "::warning::O site sai sem a seção de gás."
+          fi
+
+      - name: Guarda os arquivos de gás
+        if: always() && hashFiles('dados/gas/*.csv') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: dados/gas
+          key: gas-${{ github.run_id }}
+
       - name: Guarda os arquivos baixados
         if: always() && steps.modo.outputs.baixar == 'sim'
         uses: actions/cache/save@v4

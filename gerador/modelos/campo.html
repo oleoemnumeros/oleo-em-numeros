@@ -70,6 +70,25 @@
 <p class="nota">Por poço = produção total do campo (boe/d) ÷ poços ativos no mês.</p>
 </div>
 </section>
+{% if queima %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>Queima de gás no {{ c.nome }}</h2>
+<p class="legenda">Meses em que o campo ficou entre os que mais queimam gás no Brasil · mil m³/d</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Mês</th><th class="n">Queima (mil m³/d)</th><th class="n">Posição no país</th></tr></thead>
+<tbody>
+{% for q in queima|reverse %}
+<tr><th scope="row">{{ mes_extenso(q.mes) }}</th><td class="n">{{ fmt(q.queima, 0) }}</td><td class="n">{{ q.posicao }}º</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">Fonte: Boletim Mensal da Produção, ANP, que publica a queima só dos campos maiores: nos meses em que o campo não aparece, o valor não é divulgado. <a href="{{ u('gas/queima/') }}">Ver o ranking completo</a></p>
+</div>
+</section>
+{% endif %}
 {% if noticias %}
 <section class="miolo secao">
 <div class="cartao">

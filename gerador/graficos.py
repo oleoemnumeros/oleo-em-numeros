@@ -66,11 +66,14 @@ def _casas(ticks):
     return 3
 
 
-def _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero, fonte, classe, n_ticks, passo_x):
+def _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero, fonte, classe, n_ticks, passo_x, teto=None):
     vals = [v for _, v in pares]
     lo, hi = (0.0 if zero else min(vals)), max(vals)
     folga = (hi - lo) * 0.08 or abs(hi) * 0.05 or 1
-    ticks = _ticks(lo if zero else lo - folga, hi + folga, n_ticks)
+    piso = lo if zero else lo - folga
+    if lo >= 0:
+        piso = max(piso, 0.0)   # série que nunca fica negativa não ganha eixo abaixo de zero
+    ticks = _ticks(piso, hi + folga if teto is None else min(hi + folga, teto), n_ticks)
     y0, y1 = ticks[0], ticks[-1]
     casas = _casas(ticks)
     esq = 14 + fonte * 0.62 * max(len(fmt(t, casas) + sufixo) for t in ticks)
@@ -114,14 +117,16 @@ def _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero, font
 
 
 def linha(valores, periodos, rotulo: str, cor: str = "#B45309", largura: int = 800,
-          altura: int = 270, sufixo: str = "", area: bool = True, zero: bool = False) -> Markup:
+          altura: int = 270, sufixo: str = "", area: bool = True, zero: bool = False,
+          passo: int | None = None, teto: float | None = None) -> Markup:
     """Linha com grade, último ponto marcado e rótulos de mês no eixo x."""
     pares = [(i, v) for i, v in enumerate(valores) if v is not None]
     if len(pares) < 2:
         return Markup('<p class="nota">Série curta demais para o gráfico.</p>')
     n = len(periodos)
     larga = _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero,
-                 fonte=12 if largura >= 700 else 13, classe="larga", n_ticks=4, passo_x=6 if n <= 24 else 12)
+                 fonte=12 if largura >= 700 else 13, classe="larga", n_ticks=4, passo_x=passo or (6 if n <= 24 else 12),
+                 teto=teto)
     cel = _svg(pares, periodos, rotulo, cor, 380, 240, sufixo, area, zero,
-               fonte=13, classe="cel", n_ticks=3, passo_x=12 if n <= 24 else 24)
+               fonte=13, classe="cel", n_ticks=3, passo_x=passo or (12 if n <= 24 else 24), teto=teto)
     return Markup(larga + cel)
