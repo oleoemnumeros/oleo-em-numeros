@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="miolo cabeca texto">
+<h1>Sugestões e críticas</h1>
+<p class="sub" style="font-size: 19px; color: var(--tinta)">Viu um erro, sentiu falta de um dado ou tem uma ideia? Escreva aqui. Cada mensagem chega ao e-mail do portal e é lida por uma pessoa.</p>
+
+<div class="cartao" style="margin-top: 20px">
+<div class="sug-ok" id="enviado" tabindex="-1" role="status"><strong>Mensagem enviada. Obrigado!</strong>
+<p>Lemos todas. Se você deixou um e-mail, a resposta vai para ele.</p></div>
+<form class="sug" id="sug" method="post" action="https://formsubmit.co/{{ site.contato }}" data-ajax="https://formsubmit.co/ajax/{{ site.contato }}" data-email="{{ site.contato }}">
+<label>Tipo de mensagem<select name="tipo"><option>Sugestão</option><option>Crítica</option><option>Erro em um dado ou página</option><option>Outro assunto</option></select></label>
+<label>Sua mensagem<textarea name="mensagem" required minlength="10" maxlength="3000" rows="6" placeholder="Conte o que você viu, sentiu falta ou sugere. Se for um erro, diga a página e o número."></textarea></label>
+<label><span>Seu nome <span class="opc">(opcional)</span></span><input name="nome" maxlength="80" autocomplete="name"></label>
+<label><span>Seu e-mail, se quiser resposta <span class="opc">(opcional)</span></span><input type="email" name="email" maxlength="120" autocomplete="email"></label>
+<input type="hidden" name="_subject" value="[{{ site.nome }}] Sugestão ou crítica">
+<input type="hidden" name="_template" value="table">
+<input type="hidden" name="_next" value="{{ site.url }}/sugestoes/#enviado">
+<input type="hidden" name="site" value="{{ site.nome }}">
+<input type="hidden" name="pagina" value="">
+<input class="hp" type="text" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true">
+<button type="submit">Enviar mensagem</button>
+<p class="sug-msg" id="sug-msg" role="status" aria-live="polite"></p>
+</form>
+</div>
+<p class="legenda" style="font-size: 14px; color: var(--cinza)">O envio passa pelo serviço FormSubmit (formsubmit.co), que entrega a mensagem ao e-mail do portal. Não pedimos cadastro nem guardamos mais nada além do que você escrever.{% if site.contato %} Se preferir, escreva direto para <a href="mailto:{{ site.contato }}">{{ site.contato }}</a>.{% endif %}</p>
+</section>
+{% raw %}<script>
+(function () {
+  var f = document.getElementById("sug"); if (!f || !window.fetch) return;
+  var msg = document.getElementById("sug-msg"), ok = document.getElementById("enviado"), b = f.querySelector("button");
+  try { var r = document.referrer; if (r && new URL(r).host === location.host && r.indexOf("/sugestoes/") < 0) f.elements.pagina.value = r; } catch (e) {}
+  f.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    if (f.elements._honey.value) return;
+    b.disabled = true; msg.textContent = "Enviando…";
+    var d = {}; new FormData(f).forEach(function (v, k) { if (k !== "_next") d[k] = v; });
+    fetch(f.dataset.ajax, {method: "POST", headers: {"Content-Type": "application/json", "Accept": "application/json"}, body: JSON.stringify(d)})
+      .then(function (x) { return x.json(); })
+      .then(function (j) {
+        if (j && (j.success === true || j.success === "true")) { ok.className += " on"; f.hidden = true; ok.focus(); }
+        else throw new Error("falhou");
+      })
+      .catch(function () { b.disabled = false; msg.textContent = "Não foi possível enviar agora. Tente de novo em instantes ou escreva para " + f.dataset.email + "."; });
+  });
+})();
+</script>{% endraw %}
+{% endblock %}

@@ -212,3 +212,19 @@ tr.eu th { font-weight: 600; }
 .filtro select { min-height: 44px; padding: 0 12px; border: 1px solid #CDD1D6; border-radius: 8px; font: inherit; background: var(--cartao); color: var(--tinta); }
 @media (max-width: 700px) { #mapa { height: 62vh; min-height: 380px; } }
 .rotulo-campo { font-weight: 600; font-size: 13px; color: var(--tinta); }
+
+/* Sugestões e críticas */
+.sug{display:grid;gap:14px;max-width:640px;position:relative}
+.sug label{display:grid;gap:6px;font-weight:600;font-size:.92rem;color:var(--tinta)}
+.sug .opc{font-weight:400;color:var(--cinza)}
+.sug input,.sug select,.sug textarea{font:inherit;color:var(--tinta);background:var(--cartao);border:1px solid #CDD1D6;border-radius:8px;padding:10px 12px;width:100%;min-width:0;min-height:44px}
+.sug textarea{resize:vertical;min-height:150px}
+.sug input:focus-visible,.sug select:focus-visible,.sug textarea:focus-visible,.sug button:focus-visible{outline:2px solid var(--ambar);outline-offset:2px}
+.sug .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.sug button{font:inherit;font-weight:600;min-height:44px;padding:0 20px;border:0;border-radius:8px;background:var(--ambar);color:#fff;cursor:pointer;justify-self:start}
+.sug button:disabled{opacity:.6;cursor:default}
+.sug-msg{margin:0;font-size:.9rem;color:var(--cinza);min-height:1.2em}
+.sug-ok{display:none;border:1px solid var(--ambar);border-radius:10px;padding:14px 16px;background:var(--ambar-claro);max-width:640px}
+.sug-ok p{margin:4px 0 0}
+.sug-ok:target,.sug-ok.on{display:block}
+.sug-ok:target ~ .sug,.sug-ok.on ~ .sug{display:none}

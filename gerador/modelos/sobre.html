@@ -72,12 +72,12 @@
 <p>As <a href="{{ u('noticias/') }}">manchetes do setor</a> são coletadas automaticamente todo dia{% if fontes_noticias %} de {{ fontes_noticias }}{% endif %}. Guardamos só o título, a data e o link: o texto das matérias fica no site de origem. Quando a manchete cita uma empresa ou um campo, ela aparece também na página dele aqui.</p>
 
 <h2 id="erro">Encontrou um erro?</h2>
-<p>Envie a página e o número com problema{% if site.contato %} para <a href="mailto:{{ site.contato }}">{{ site.contato }}</a>{% endif %}. Corrigimos e registramos a correção na própria página.</p>
+<p>Envie a página e o número com problema pelo <a href="{{ u('sugestoes/') }}">formulário de sugestões e críticas</a>{% if site.contato %} ou para <a href="mailto:{{ site.contato }}">{{ site.contato }}</a>{% endif %}. Corrigimos e registramos a correção na própria página.</p>
 
 <h2 id="aviso">Aviso legal</h2>
 <p>Conteúdo informativo, baseado em dados públicos. Nada neste site é recomendação de compra ou venda de valores mobiliários. Confira sempre a fonte oficial antes de tomar decisões.</p>
 
 <h2 id="privacidade">Privacidade</h2>
-<p>Este site não pede cadastro nem usa cookies de rastreamento. As visitas são contadas de forma agregada e anônima pelo GoatCounter, sem identificar quem visita.{% if tem_mapa %} Na página do mapa, as imagens do mapa de fundo vêm do OpenStreetMap, que recebe o endereço de rede de quem abre a página.{% endif %}</p>
+<p>Este site não pede cadastro nem usa cookies de rastreamento. As visitas são contadas de forma agregada e anônima pelo GoatCounter, sem identificar quem visita. O formulário de sugestões envia só o que você escrever, pelo serviço FormSubmit, ao e-mail do portal.{% if tem_mapa %} Na página do mapa, as imagens do mapa de fundo vêm do OpenStreetMap, que recebe o endereço de rede de quem abre a página.{% endif %}</p>
 </section>
 {% endblock %}

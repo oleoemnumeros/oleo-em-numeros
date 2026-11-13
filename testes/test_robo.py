@@ -135,6 +135,13 @@ def test_gera_site(base, tmp_path):
         assert nome in html
     assert 'href="https://economiaemnumeros.com.br/"' in html
     assert html.count("você está aqui") == 1 and 'href="https://oleoemnumeros.com.br/"' not in html.split("Família em Números")[-1]
+    # página de sugestões e críticas, com o link no rodapé
+    sug = (tmp_path / "site" / "sugestoes" / "index.html").read_text("utf-8")
+    assert 'action="https://formsubmit.co/' in sug and 'name="mensagem"' in sug and 'name="_honey"' in sug
+    assert 'name="_next" value="' in sug and "/sugestoes/#enviado" in sug and 'id="enviado"' in sug
+    assert sug.count("<h1") == 1 and "[Óleo em Números] Sugestão ou crítica" in sug
+    assert "sugestoes/" in html and "Sugestões e críticas" in html
+    assert "sugestoes/" in (tmp_path / "site" / "sitemap.xml").read_text("utf-8")
 
 
 def test_cabecalho_em_duas_linhas():

@@ -463,6 +463,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
              noticias=noticias[:200], noindex=True)
     escrever("sobre/", "sobre.html", secao="sobre", titulo="Sobre e metodologia",
              descricao="De onde vêm os dados do Óleo em Números e como os números são calculados.")
+    escrever("sugestoes/", "sugestoes.html", secao="sugestoes", titulo="Sugestões e críticas",
+             descricao="Envie uma sugestão, crítica ou correção para o Óleo em Números. A mensagem chega por e-mail e é lida por uma pessoa.")
     escrever("404.html", "nao_encontrada.html", raiz="/", secao="", titulo="Página não encontrada",
              descricao="Página não encontrada.", noindex=True, erro=True)
 
