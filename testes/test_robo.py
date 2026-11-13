@@ -130,6 +130,11 @@ def test_gera_site(base, tmp_path):
     html = (tmp_path / "site" / "campos" / "campo-exemplo-3" / "index.html").read_text("utf-8")
     assert "Campo Exemplo 3" in html and "<svg" in html
     assert (tmp_path / "site" / "sitemap.xml").exists()
+    # rodapé da Família em Números: os quatro portais, e o próprio marcado como "você está aqui"
+    for nome in ("Óleo em Números", "Comex em Números", "Voo em Números", "Economia em Números"):
+        assert nome in html
+    assert 'href="https://economiaemnumeros.com.br/"' in html
+    assert html.count("você está aqui") == 1 and 'href="https://oleoemnumeros.com.br/"' not in html.split("Família em Números")[-1]
 
 
 def test_cabecalho_em_duas_linhas():
