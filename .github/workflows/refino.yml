@@ -1,0 +1,25 @@
+# Ferramenta de manutenção: baixa os arquivos de refino da ANP e guarda no ramo exportacao-refino. Não mexe no site.
+name: Explorar dados de refino
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  refino:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Baixa e guarda no ramo exportacao-refino
+        run: |
+          python -m robo.refino --so-baixar
+          mkdir -p /tmp/exp/refino && cp dados/refino/*.csv /tmp/exp/refino/
+          cd /tmp/exp && tar czf refino.tgz refino && rm -rf refino && git init -q -b exportacao-refino
+          git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" add refino.tgz
+          git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" commit -qm "Arquivos de refino da ANP para desenvolvimento"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" exportacao-refino
