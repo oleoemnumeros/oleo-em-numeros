@@ -4,6 +4,7 @@ e o Google consegue ler os rótulos.
 Cada gráfico sai em duas versões (larga e celular), para que as letras
 continuem legíveis na tela pequena; o CSS mostra uma ou outra.
 """
+import json
 import math
 from html import escape
 
@@ -66,7 +67,7 @@ def _casas(ticks):
     return 3
 
 
-def _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero, fonte, classe, n_ticks, passo_x, teto=None):
+def _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero, fonte, classe, n_ticks, passo_x, teto=None, i0=0):
     vals = [v for _, v in pares]
     lo, hi = (0.0 if zero else min(vals)), max(vals)
     folga = (hi - lo) * 0.08 or abs(hi) * 0.05 or 1
@@ -81,7 +82,9 @@ def _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero, font
     n = len(periodos)
     x = lambda i: esq + i * (dir_ - esq) / max(n - 1, 1)  # noqa: E731
     y = lambda v: base - (v - y0) / (y1 - y0) * (base - topo)  # noqa: E731
-    p = [f'<svg viewBox="0 0 {largura} {altura}" class="grafico {classe}" role="img" '
+    # geometria para o cursor do JavaScript (base.html): esq, dir, topo, base, y0, y1, 1º mês da janela, meses, fonte
+    geo = f"{esq:.1f},{dir_},{topo},{base},{y0:.10g},{y1:.10g},{i0},{n},{fonte}"
+    p = [f'<svg viewBox="0 0 {largura} {altura}" class="grafico {classe}" role="img" data-g="{geo}" '
          f'aria-label="{escape(descrever(pares, periodos, rotulo, sufixo))}">']
     for t in ticks:
         traco = EIXO if t == y0 else GRADE
@@ -116,18 +119,32 @@ def _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero, font
     return "".join(p)
 
 
+def _dados(valores, periodos, sufixo) -> str:
+    """Valores e meses do gráfico, para o cursor que mostra o número de cada mês. Os meses vão como
+    início + contagem quando são consecutivos (o normal); senão, como lista."""
+    def arred(v):
+        return None if v is None else round(v, 2 if abs(v) >= 100 else 4)
+    ms = [int(p[:4]) * 12 + int(p[5:7]) for p in periodos]
+    d = {"v": [arred(v) for v in valores], "s": sufixo}
+    if all(b - a == 1 for a, b in zip(ms, ms[1:])):
+        d["i"] = periodos[0]
+    else:
+        d["p"] = list(periodos)
+    return json.dumps(d, ensure_ascii=False, separators=(",", ":"))
+
+
 # janelas oferecidas além do total, em meses, e o passo dos rótulos do eixo em cada uma (larga, celular)
 JANELAS = {12: (2, 4), 36: (6, 12), 60: (12, 12)}
 
 
-def _vista(valores, periodos, rotulo, cor, largura, altura, sufixo, area, zero, passo_larga, passo_cel, teto):
+def _vista(valores, periodos, rotulo, cor, largura, altura, sufixo, area, zero, passo_larga, passo_cel, teto, i0=0):
     pares = [(i, v) for i, v in enumerate(valores) if v is not None]
     if len(pares) < 2:
         return None
     larga = _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero,
-                 fonte=12 if largura >= 700 else 13, classe="larga", n_ticks=4, passo_x=passo_larga, teto=teto)
+                 fonte=12 if largura >= 700 else 13, classe="larga", n_ticks=4, passo_x=passo_larga, teto=teto, i0=i0)
     cel = _svg(pares, periodos, rotulo, cor, 380, 240, sufixo, area, zero,
-               fonte=13, classe="cel", n_ticks=3, passo_x=passo_cel, teto=teto)
+               fonte=13, classe="cel", n_ticks=3, passo_x=passo_cel, teto=teto, i0=i0)
     return larga + cel
 
 
@@ -140,16 +157,16 @@ def linha(valores, periodos, rotulo: str, cor: str = "#B45309", largura: int = 8
     desenhadas no servidor; o JavaScript da página só troca qual delas aparece (ver base.html). Sem
     JavaScript, aparece o total."""
     total = _vista(valores, periodos, rotulo, cor, largura, altura, sufixo, area, zero,
-                   passo or (6 if len(periodos) <= 24 else 12), passo or (12 if len(periodos) <= 24 else 24), teto)
+                   passo or (6 if len(periodos) <= 24 else 12),
+                   (passo * 2 if passo and passo <= 60 else passo) or (12 if len(periodos) <= 24 else 24), teto)
     if total is None:
         return Markup('<p class="nota">Série curta demais para o gráfico.</p>')
     n = len(periodos)
     vistas = []
     for k, (pl, pc) in JANELAS.items():
         if n > k:
-            v = _vista(valores[n - k:], periodos[n - k:], rotulo, cor, largura, altura, sufixo, area, zero, pl, pc, teto)
+            v = _vista(valores[n - k:], periodos[n - k:], rotulo, cor, largura, altura, sufixo, area, zero, pl, pc, teto, i0=n - k)
             if v:
                 vistas.append(f'<div class="gr-v" data-p="{k}" hidden>{v}</div>')
-    if not vistas:
-        return Markup(total)
-    return Markup(f'<div class="gr"><div class="gr-v" data-p="total">{total}</div>{"".join(vistas)}</div>')
+    corpo = f'<div class="gr-v" data-p="total">{total}</div>{"".join(vistas)}'
+    return Markup(f'<div class="gr" data-d="{escape(_dados(valores, periodos, sufixo))}">{corpo}</div>')

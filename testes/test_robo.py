@@ -843,7 +843,8 @@ def test_grafico_oferece_so_as_janelas_menores_que_a_serie():
     assert 'data-p="total"' in g and 'data-p="12"' in g and 'data-p="36"' in g and 'data-p="60"' not in g
     assert g.count('data-p="12"') == 1 and g.count("<svg") == 6            # total, 1 ano e 3 anos, cada um em duas versões
     curto = str(linha(list(range(1, 11)), per[:10], "Teste"))
-    assert "gr-v" not in curto and curto.count("<svg") == 2                # série de 10 meses: só o total, sem controles
+    assert 'data-p="12"' not in curto and curto.count("<svg") == 2         # série de 10 meses: só o total (o JS não cria botões)
+    assert "&quot;i&quot;:&quot;2020-01&quot;" in curto and 'data-g="' in curto   # dados e geometria para o cursor
     # janela só com um ponto com dado não vira gráfico
     esparso = str(linha([None] * 38 + [1, 2], per, "Teste"))
     assert 'data-p="12"' in esparso

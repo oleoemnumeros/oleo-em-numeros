@@ -106,7 +106,7 @@
       valorTexto(u[1], suf) + ". Máximo: " + valorTexto(mx[1], suf) + ", em " + mesExtenso(periodos[mx[0]]) + ". Mínimo: " +
       valorTexto(mn[1], suf) + ", em " + mesExtenso(periodos[mn[0]]) + ".";
   }
-  function svg(pares, periodos, rotulo, cor, L, A, suf, fonte, classe, nT, passoX) {
+  function svg(pares, periodos, rotulo, cor, L, A, suf, fonte, classe, nT, passoX, i0) {
     var vals = pares.map(function (p) { return p[1]; });
     var lo = 0, hi = Math.max.apply(null, vals);
     var tk = ticks(0, hi + ((hi - lo) * 0.08 || 1), nT), y0 = tk[0], y1 = tk[tk.length - 1];
@@ -115,7 +115,8 @@
     var esq = 14 + fonte * 0.62 * larguraRot, dir = L - 12, topo = fonte + 12, base = A - fonte - 22, n = periodos.length;
     var x = function (i) { return esq + i * (dir - esq) / Math.max(n - 1, 1); };
     var y = function (v) { return base - (v - y0) / (y1 - y0) * (base - topo); };
-    var s = ['<svg viewBox="0 0 ' + L + " " + A + '" class="grafico ' + classe + '" role="img" aria-label="' +
+    var geo = [esq.toFixed(1), dir, topo, base, y0, y1, i0 || 0, n, fonte].join(",");
+    var s = ['<svg viewBox="0 0 ' + L + " " + A + '" class="grafico ' + classe + '" role="img" data-g="' + geo + '" aria-label="' +
              esc(descrever(pares, periodos, rotulo, suf)) + '">'];
     tk.forEach(function (t) {
       s.push('<line x1="' + esq.toFixed(0) + '" y1="' + y(t).toFixed(1) + '" x2="' + dir + '" y2="' + y(t).toFixed(1) +
@@ -149,12 +150,12 @@
     s.push("</svg>");
     return s.join("");
   }
-  function vista(valores, periodos, rotulo, cor, L, suf, passoLarga, passoCel) {
+  function vista(valores, periodos, rotulo, cor, L, suf, passoLarga, passoCel, i0) {
     var pares = [];
     valores.forEach(function (v, i) { if (v !== null && v !== undefined) pares.push([i, v]); });
     if (pares.length < 2) return null;
-    return svg(pares, periodos, rotulo, cor, L || 800, L && L < 700 ? 300 : 270, suf || "", (L || 800) >= 700 ? 12 : 13, "larga", 4, passoLarga) +
-           svg(pares, periodos, rotulo, cor, 380, 240, suf || "", 13, "cel", 3, passoCel);
+    return svg(pares, periodos, rotulo, cor, L || 800, L && L < 700 ? 300 : 270, suf || "", (L || 800) >= 700 ? 12 : 13, "larga", 4, passoLarga, i0) +
+           svg(pares, periodos, rotulo, cor, 380, 240, suf || "", 13, "cel", 3, passoCel, i0);
   }
   // mesmas janelas (1, 3 e 5 anos e total) das páginas geradas no servidor; base.html escolhe qual aparece
   var JANELAS = [[12, 2, 4], [36, 6, 12], [60, 12, 12]];
@@ -166,10 +167,11 @@
     var extra = "";
     JANELAS.forEach(function (j) {
       if (n <= j[0]) return;
-      var v = vista(valores.slice(n - j[0]), periodos.slice(n - j[0]), rotulo, cor, L, suf, j[1], j[2]);
+      var v = vista(valores.slice(n - j[0]), periodos.slice(n - j[0]), rotulo, cor, L, suf, j[1], j[2], n - j[0]);
       if (v) extra += '<div class="gr-v" data-p="' + j[0] + '" hidden>' + v + "</div>";
     });
-    return extra ? '<div class="gr"><div class="gr-v" data-p="total">' + total + "</div>" + extra + "</div>" : total;
+    var dados = {v: valores.map(function (v) { return v === null || v === undefined ? null : Math.round(v * 1e4) / 1e4; }), s: suf || "", i: periodos[0]};
+    return '<div class="gr" data-d="' + esc(JSON.stringify(dados)) + '"><div class="gr-v" data-p="total">' + total + "</div>" + extra + "</div>";
   }
 
   // ---------- busca ----------
