@@ -228,3 +228,6 @@ tr.eu th { font-weight: 600; }
 .sug-ok p{margin:4px 0 0}
 .sug-ok:target,.sug-ok.on{display:block}
 .sug-ok:target ~ .sug,.sug-ok.on ~ .sug{display:none}
+
+.familia-links{list-style:none;padding:0;margin:0}
+.familia-links li{margin:.5em 0}

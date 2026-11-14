@@ -489,6 +489,31 @@ def test_paginas_de_royalties(base, tmp_path):
     assert "É o município que mais recebe" in html
 
 
+def test_links_da_familia_por_municipio(base, tmp_path, monkeypatch):
+    """Cidade com página no Comex/Economia ganha o quadro "Mais sobre"; o site publica a própria lista."""
+    import json
+    from robo import royalties as RY
+    from robo.executar import _leve
+    from gerador.gerar import gerar
+    monkeypatch.setenv("OLEO_SEM_REDE", "1")
+    r = RY.montar(_pasta_royalties(tmp_path))
+    proc = tmp_path / "proc"
+    (proc / "familia").mkdir(parents=True)
+    (proc / "royalties.json").write_text(json.dumps(r, ensure_ascii=False), "utf-8")
+    (proc / "agregados.json").write_text(json.dumps(_leve(agregar(base)), ensure_ascii=False, default=str), "utf-8")
+    (proc / "familia" / "comex.json").write_text('[["Maricá","RJ","/municipio/marica-rj/"]]', "utf-8")
+    (proc / "familia" / "economia.json").write_text('[["Marica","RJ","/municipios/rio-de-janeiro/marica/","x"]]', "utf-8")
+    gerar(proc, tmp_path / "site", teste=True)
+    html = (tmp_path / "site" / "royalties" / "rio-de-janeiro" / "marica" / "index.html").read_text("utf-8")
+    assert "Mais sobre Maricá (RJ)" in html
+    assert "https://comexemnumeros.com.br/municipio/marica-rj/" in html
+    assert "https://economiaemnumeros.com.br/municipios/rio-de-janeiro/marica/" in html
+    pojuca = (tmp_path / "site" / "royalties" / "bahia" / "pojuca" / "index.html").read_text("utf-8")
+    assert "Mais sobre" not in pojuca
+    indice = json.loads((tmp_path / "site" / "royalties" / "indice.json").read_text("utf-8"))
+    assert ["Maricá", "RJ", "/royalties/rio-de-janeiro/marica/"] in indice
+
+
 def test_grafico_desenha_lacuna_e_rotulos_do_eixo():
     """Mês sem dado quebra a linha (antes ela ligava os vizinhos) e o eixo mostra 0,25 e 2,5 por inteiro."""
     from gerador.graficos import _casas, _ticks, linha

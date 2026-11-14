@@ -76,6 +76,17 @@
 </section>
 {% endif %}
 
+{% if m.familia %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>Mais sobre {{ m.nome }} ({{ m.uf }})</h2>
+<ul class="familia-links">
+{% for f in m.familia %}<li><a href="{{ f.url }}">{{ f.rotulo }} de {{ m.nome }}</a> <span class="legenda">· {{ f.portal }}: {{ f.descricao }}</span></li>
+{% endfor %}</ul>
+</div>
+</section>
+{% endif %}
+
 <section class="miolo secao">
 <div class="explica">
 <p class="explica-titulo">De onde vem esse dinheiro</p>

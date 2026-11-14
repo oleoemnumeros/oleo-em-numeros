@@ -26,6 +26,7 @@ from .gas import preparar as preparar_gas
 from .mapa import gerar_mapa
 from .pocos import gerar_pocos
 from .royalties import dinheiro, escala, preparar as preparar_royalties, resumo_municipio
+from .familia import carregar as carregar_familia, chave_cidade
 
 AQUI = Path(__file__).resolve().parent
 ICONE = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"><path d="M15 2c4.5 5.6 8 10.2 8 14.6a8 8 0 0 1-16 0'
@@ -463,7 +464,12 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                      titulo=f"Royalties de petróleo {e['de']}: municípios e estado",
                      descricao=f"Royalties de petróleo e gás recebidos pelos municípios {e['de']}: "
                                f"{dinheiro(e['mun_total12'], False)} em 12 meses. Ranking, mês a mês e por habitante. Dados da ANP.")
+        familia = carregar_familia(Path(dados) / "familia", rede=not teste and os.environ.get("OLEO_SEM_REDE") != "1")
+        indice = sorted([m["nome"], m["uf"], f"/royalties/{m['estado_slug']}/{m['slug']}/"] for m in R["municipios"])
+        (saida / "royalties").mkdir(parents=True, exist_ok=True)
+        (saida / "royalties" / "indice.json").write_text(json.dumps(indice, ensure_ascii=False, separators=(",", ":")), "utf-8")
         for m in R["municipios"]:
+            m["familia"] = familia.get(chave_cidade(m["nome"], m["uf"]), [])
             m["resumo"] = resumo_municipio(m, R)
             valores, unidade = escala(m["r"])
             m["grafico"] = {"valores": valores, "unidade": unidade}
