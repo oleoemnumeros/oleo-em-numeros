@@ -120,6 +120,29 @@ jobs:
           path: dados/gas
           key: gas-${{ github.run_id }}
 
+      # refino: processamento de petróleo e derivados por refinaria (ANP); sem cópia nenhuma, o site sai sem a seção de refino
+      - name: Recupera os arquivos de refino
+        uses: actions/cache/restore@v4
+        with:
+          path: dados/refino
+          key: refino-${{ github.run_id }}
+          restore-keys: refino-
+
+      - name: Refino (ANP)
+        run: |
+          if [ "${{ steps.modo.outputs.baixar }}" = "sim" ]; then
+            python -m robo.refino || { echo "::warning::Download do refino falhou; usando a última cópia."; python -m robo.refino --sem-baixar || echo "::warning::O site sai sem a seção de refino."; }
+          else
+            python -m robo.refino --sem-baixar || python -m robo.refino || echo "::warning::O site sai sem a seção de refino."
+          fi
+
+      - name: Guarda os arquivos de refino
+        if: always() && hashFiles('dados/refino/*.csv') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: dados/refino
+          key: refino-${{ github.run_id }}
+
       - name: Guarda os arquivos baixados
         if: always() && steps.modo.outputs.baixar == 'sim'
         uses: actions/cache/save@v4

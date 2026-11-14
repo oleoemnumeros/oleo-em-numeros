@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+<link rel="stylesheet" href="{{ raiz }}leaflet/leaflet.css?v=1.9.4">
+<section class="miolo cabeca">
+<h1>Refino de petróleo no Brasil</h1>
+<p class="sub">Quanto petróleo cada refinaria processa, de onde vem e que derivados produz, mês a mês desde 1990 · dados da ANP até {{ mes_extenso(R.ultimo) }}</p>
+<div class="kpis kpis-5">
+{{ kpi('Petróleo processado', fmt(R.k.proc.valor, 0), 'mil barris/dia', (fmt_var(R.k.proc.var12) ~ ' em 12 meses') if R.k.proc.var12 is not none else None, var_classe(R.k.proc.var12), principal=True) }}
+{{ kpi('Petróleo importado', fmt(R.k.imp.valor, 1) ~ '%', 'da carga processada', (fmt_pp(R.k.imp.valor - R.k.imp.antes) ~ ' em 12 meses') if R.k.imp.antes is not none else None) }}
+{{ kpi('Óleo diesel', fmt(R.k.diesel.valor, 0), 'mil m³/dia', (fmt_var(R.k.diesel.var12) ~ ' em 12 meses') if R.k.diesel.var12 is not none else None, var_classe(R.k.diesel.var12)) }}
+{{ kpi('Gasolina A', fmt(R.k.gasolina.valor, 0), 'mil m³/dia', (fmt_var(R.k.gasolina.var12) ~ ' em 12 meses') if R.k.gasolina.var12 is not none else None, var_classe(R.k.gasolina.var12)) }}
+{{ kpi('Refinarias em operação', fmt(R.n_operando), 'com processamento nos últimos 3 meses') }}
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Mapa das refinarias</h2>
+<p class="legenda">O tamanho do círculo é a média de petróleo processado nos últimos 12 meses. Clique para ver os números e abrir a página da refinaria.</p>
+<div id="mapa" style="height:460px;min-height:360px" role="region" aria-label="Mapa das refinarias de petróleo do Brasil. Use as setas do teclado para mover e as teclas + e − para ampliar."></div>
+<p class="nota">Posições aproximadas, marcadas à mão a partir da cidade de cada refinaria; a ANP não publica coordenadas. Mapa de fundo: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (abre em nova aba).</p>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Ranking das refinarias</h2>
+<p class="legenda">média dos últimos 12 meses até {{ mes_extenso(R.ultimo) }} · petróleo processado em mil barris por dia</p>
+<div class="tabela">
+<table>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Refinaria</th><th>Empresa</th><th class="n">Processado</th><th class="n">% do país</th><th class="n">vs. 12 meses antes</th><th class="n">% importado</th><th class="n">% diesel</th><th class="n">% gasolina</th></tr></thead>
+<tbody>
+{% for x in R.ranking %}
+<tr><td>{{ x.posicao }}</td><th scope="row"><a href="{{ u('refino/' ~ x.slug ~ '/') }}">{{ x.sigla }}</a> <span class="legenda">{{ x.cidade }}{% if x.cidade %}/{% endif %}{{ x.uf }}</span></th><td>{{ x.empresa or '—' }}</td><td class="n"><strong>{{ fmt(x.proc12, 0) }}</strong></td><td class="n">{{ pct(x.pct_pais, 1) }}</td><td class="n {{ var_classe(x.var12) }}">{{ fmt_var(x.var12) }}</td><td class="n">{{ pct(x.pct_imp12, 0) }}</td><td class="n">{{ pct(x.pct_diesel, 0) }}</td><td class="n">{{ pct(x.pct_gasolina, 0) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">"% diesel" e "% gasolina" são a parte do óleo diesel e da gasolina A no total de derivados que a refinaria produziu. Variações muito grandes indicam refinaria que parou ou voltou a operar.</p>
+</div>
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Petróleo processado</h2>
+<p class="legenda">mil barris por dia · média de cada mês · todas as refinarias</p>
+{{ linha(R.serie_proc, R.meses, 'Petróleo processado nas refinarias do Brasil, em mil barris por dia', zero=True, passo=120) }}
+</div>
+<div class="cartao">
+<h2>Petróleo importado na carga</h2>
+<p class="legenda">% da carga processada · desde 1990</p>
+{{ linha(R.serie_imp, R.meses, 'Petróleo importado, em porcentagem da carga processada', sufixo='%', area=False, zero=True, passo=120, teto=100) }}
+<p class="nota">O restante é petróleo nacional e, em pequena parte, outras cargas (como resíduos e correntes intermediárias).</p>
+</div>
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Óleo diesel produzido</h2>
+<p class="legenda">mil m³ por dia · média de cada mês</p>
+{{ linha(R.serie_diesel, R.meses, 'Óleo diesel produzido nas refinarias, em mil metros cúbicos por dia', zero=True, passo=120) }}
+</div>
+<div class="cartao">
+<h2>Gasolina A produzida</h2>
+<p class="legenda">mil m³ por dia · média de cada mês</p>
+{{ linha(R.serie_gasolina, R.meses, 'Gasolina A produzida nas refinarias, em mil metros cúbicos por dia', zero=True, passo=120) }}
+<p class="nota">Gasolina A é a gasolina pura, sem o etanol anidro que é misturado antes da venda.</p>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>O que as refinarias produzem</h2>
+<p class="legenda">média dos últimos 12 meses · mil m³ por dia</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Derivado</th><th class="n">mil m³/dia</th><th class="n">% do total</th><th class="n">vs. 12 meses antes</th></tr></thead>
+<tbody>
+{% for d in R.derivados %}
+<tr><th scope="row">{{ d.nome }}</th><td class="n">{{ fmt(d.valor, 1) }}</td><td class="n">{{ pct(d.pct, 1) }}</td><td class="n {{ var_classe(d.var12) }}">{{ fmt_var(d.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">Só a produção das refinarias. Não inclui as centrais petroquímicas, as usinas de xisto nem o diesel e a gasolina importados.</p>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="explica">
+<p class="explica-titulo">Como ler</p>
+<p>A ANP divulga o petróleo processado e os derivados produzidos em metros cúbicos por mês. Dividimos pelos dias do mês e convertemos o petróleo para barris (1 m³ = 6,29 barris). Os derivados ficam em mil m³ por dia, a unidade do mercado de combustíveis. O último mês pode ser revisado. Refinarias que mudaram de nome aparecem sob o nome atual: Mataripe (antiga RLAM), Ream (antiga Reman) e Potiguar (antiga RPCC). O site não mostra capacidade nem fator de utilização, que a ANP publica em outra fonte, nem preços de saída de refinaria. <a href="{{ u('sobre/') }}#refino">Como calculamos</a></p>
+</div>
+</section>
+
+<script src="{{ raiz }}leaflet/leaflet.js?v=1.9.4"></script>
+{% set pts = [] %}{% for p in R.mapa %}{% set _ = pts.append({"n": p.n, "s": p.s, "e": p.e, "c": p.c, "uf": p.uf, "lat": p.lat, "lon": p.lon, "v": p.v, "a": p.a, "u": u('refino/' ~ p.slug ~ '/')}) %}{% endfor %}
+<script>
+(function () {
+  "use strict";
+  var PONTOS = {{ pts|tojson }};
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; }); }
+  function num(v) { return Math.round(v).toLocaleString("pt-BR"); }
+  var el = document.getElementById("mapa");
+  var mapa = L.map("mapa", {zoomControl: false, minZoom: 3, maxZoom: 12, zoomSnap: 0.5});
+  L.control.zoom({zoomInTitle: "Ampliar", zoomOutTitle: "Reduzir"}).addTo(mapa);
+  mapa.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+  }).addTo(mapa);
+  var limites = [];
+  PONTOS.slice().sort(function (a, b) { return b.v - a.v; }).forEach(function (p) {
+    var r = Math.max(6, Math.min(34, Math.sqrt(p.v) * 1.6));
+    var m = L.circleMarker([p.lat, p.lon], {radius: r, weight: 1.5, color: p.a ? "#92400E" : "#6B7280",
+      fillColor: p.a ? "#B45309" : "#9CA3AF", fillOpacity: .55}).addTo(mapa);
+    m.bindTooltip(esc(p.s), {direction: "top"});
+    var w = el.clientWidth || 360;
+    m.bindPopup('<strong>' + esc(p.n) + '</strong><br>' + esc(p.e || "") + (p.e ? " · " : "") + esc(p.c) + "/" + esc(p.uf) +
+      '<br>' + num(p.v) + ' mil barris/dia (média de 12 meses)<br><a href="' + esc(p.u) + '">Ver a refinaria</a>',
+      {maxWidth: Math.max(180, Math.min(300, w - 124)), autoPanPaddingTopLeft: [60, 16], autoPanPaddingBottomRight: [16, 16]});
+    limites.push([p.lat, p.lon]);
+  });
+  if (limites.length) { mapa.fitBounds(limites, {padding: [24, 24], maxZoom: 6}); } else { mapa.setView([-14, -48], 4); }
+})();
+</script>
+{% endblock %}

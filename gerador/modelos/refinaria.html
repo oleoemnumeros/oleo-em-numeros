@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+{% set x = e %}
+<section class="miolo cabeca">
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('refino/') }}">Refino</a><span aria-hidden="true"> / </span><span aria-current="page">{{ x.sigla }}</span></nav>
+<h1>{{ x.nome }}{% if x.sigla != x.nome %} ({{ x.sigla }}){% endif %}</h1>
+<p class="sub">{% if x.empresa %}{{ x.empresa }} · {% endif %}{% if x.cidade %}{{ x.cidade }}/{% endif %}{{ x.uf }} · dados da ANP até {{ mes_extenso(R.ultimo) }}</p>
+<div class="resumo"><p>{{ resumo }}</p></div>
+<div class="kpis kpis-5">
+{{ kpi('Petróleo processado', fmt(x.proc12, 0), 'mil barris/dia, média de 12 meses', (fmt_var(x.var12) ~ ' em relação aos 12 meses antes') if x.var12 is not none else None, var_classe(x.var12), principal=True) }}
+{{ kpi('Parte do país', pct(x.pct_pais, 1), ('posição ' ~ x.posicao ~ ' de ' ~ R.n_ativas) if x.posicao else '', None) }}
+{{ kpi('Petróleo importado', pct(x.pct_imp12, 0), 'da carga em 12 meses', None) }}
+{{ kpi('Óleo diesel', pct(x.pct_diesel, 0), 'dos derivados produzidos', None) }}
+{{ kpi('Gasolina A', pct(x.pct_gasolina, 0), 'dos derivados produzidos', None) }}
+</div>
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Petróleo processado</h2>
+<p class="legenda">mil barris por dia · média de cada mês</p>
+{{ linha(x.serie_proc, R.meses, 'Petróleo processado na ' ~ x.sigla ~ ', em mil barris por dia', zero=True, passo=120) }}
+</div>
+<div class="cartao">
+<h2>Petróleo importado na carga</h2>
+<p class="legenda">% da carga processada</p>
+{{ linha(x.serie_imp, R.meses, 'Petróleo importado na carga da ' ~ x.sigla ~ ', em porcentagem', sufixo='%', area=False, zero=True, passo=120, teto=100) }}
+</div>
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Óleo diesel produzido</h2>
+<p class="legenda">mil m³ por dia · média de cada mês</p>
+{{ linha(x.serie_diesel, R.meses, 'Óleo diesel produzido na ' ~ x.sigla ~ ', em mil metros cúbicos por dia', zero=True, passo=120) }}
+</div>
+<div class="cartao">
+<h2>Gasolina A produzida</h2>
+<p class="legenda">mil m³ por dia · média de cada mês</p>
+{{ linha(x.serie_gasolina, R.meses, 'Gasolina A produzida na ' ~ x.sigla ~ ', em mil metros cúbicos por dia', zero=True, passo=120) }}
+</div>
+</section>
+
+{% if x.derivados %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>O que a {{ x.sigla }} produz</h2>
+<p class="legenda">média dos últimos 12 meses · mil m³ por dia</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Derivado</th><th class="n">mil m³/dia</th><th class="n">% do total</th><th class="n">vs. 12 meses antes</th></tr></thead>
+<tbody>
+{% for d in x.derivados %}
+<tr><th scope="row">{{ d.nome }}</th><td class="n">{{ fmt(d.valor, 1) }}</td><td class="n">{{ pct(d.pct, 1) }}</td><td class="n {{ var_classe(d.var12) }}">{{ fmt_var(d.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+{% endif %}
+
+<section class="miolo secao">
+{% if x.obs %}<p class="nota">{{ x.obs|capitalize }}.</p>{% endif %}
+<p class="nota">Dados da ANP (processamento de petróleo e produção de derivados por refinaria). O último mês pode ser revisado. <a href="{{ u('refino/') }}">Ver todas as refinarias e o mapa</a> · <a href="{{ u('sobre/') }}#refino">Como calculamos</a></p>
+</section>
+{% endblock %}

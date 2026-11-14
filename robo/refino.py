@@ -4,10 +4,13 @@ Uso:
     python -m robo.refino --so-baixar    # baixa os CSVs para dados/refino
 """
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
 from urllib.parse import unquote, urljoin
+
+import pandas as pd
 
 from . import config
 from .baixar import _Links, _get, _sessao
@@ -59,6 +62,80 @@ def baixar_csvs(destino: Path = PASTA) -> dict:
     return saida
 
 
+MES = {m: i + 1 for i, m in enumerate(["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"])}
+ORIGENS = {"PETRÓLEO NACIONAL": "nacional", "PETRÓLEO IMPORTADO": "importado", "OUTRAS CARGAS": "outras"}
+CADASTRO = config.MANUAIS / "refinarias.csv"
+
+
+def canonica(nome: str) -> str:
+    """A ANP renomeou refinarias ao longo da série (RLAM virou REFMAT, REMAN virou REAM, RPCC virou 3R Potiguar)
+    e repete o 'ex-' em alguns arquivos; junta tudo sob o nome atual."""
+    n = re.sub(r"\s+", " ", str(nome).strip().upper())
+    if "3R POTIGUAR" in n or n == "RPCC":
+        return "3R POTIGUAR"
+    return {"RLAM": "REFMAT", "REMAN": "REAM"}.get(n, n)
+
+
+def _ler(caminho: Path, valor: str, decimal: str) -> pd.DataFrame:
+    df = pd.read_csv(caminho, sep=";", encoding="utf-8-sig", decimal=decimal)
+    df.columns = ["ano", "mes", "uf", "refinaria", "item", "valor"]
+    df["mes"] = df["mes"].astype(str).str.strip().str.upper().map(MES)
+    df["valor"] = pd.to_numeric(df["valor"], errors="coerce").fillna(0.0)
+    df = df.dropna(subset=["ano", "mes"]).astype({"ano": int, "mes": int})
+    df["refinaria"] = df["refinaria"].map(canonica)
+    df["item"] = df["item"].astype(str).str.strip().str.upper()
+    df["periodo"] = df["ano"].map(str) + "-" + df["mes"].map(lambda m: f"{m:02d}")
+    return df
+
+
+def processar(pasta: Path, saida: Path, cadastro: Path = CADASTRO) -> dict:
+    """Série mensal por refinaria: petróleo processado por origem e derivados produzidos, em m³ no mês."""
+    p = _ler(pasta / "processamento.csv", "processado", ",")
+    d = _ler(pasta / "derivados.csv", "producao", ",")
+    meses = sorted(set(p["periodo"]) & set(d["periodo"]))
+    ultimo = meses[-1]
+    idx = {m: i for i, m in enumerate(meses)}
+    reg = {}
+    if cadastro.exists():
+        for r in pd.read_csv(cadastro, encoding="utf-8").fillna("").to_dict("records"):
+            reg[canonica(r["anp"])] = r
+    refinarias = {}
+
+    def serie(x):
+        v = [0] * len(meses)
+        for per, tot in x.groupby("periodo")["valor"].sum().items():
+            if per in idx:
+                v[idx[per]] = int(round(tot))
+        return v
+
+    for nome, x in p.groupby("refinaria"):
+        r = refinarias.setdefault(nome, {"uf": x["uf"].iloc[-1], "proc": {}, "deriv": {}})
+        for item, y in x.groupby("item"):
+            if item in ORIGENS:
+                r["proc"][ORIGENS[item]] = serie(y)
+    for nome, x in d.groupby("refinaria"):
+        r = refinarias.setdefault(nome, {"uf": x["uf"].iloc[-1], "proc": {}, "deriv": {}})
+        for item, y in x.groupby("item"):
+            s = serie(y)
+            if any(s):
+                r["deriv"][item] = s
+    for nome in list(refinarias):
+        r = refinarias[nome]
+        if not any(any(v) for v in r["proc"].values()) and not r["deriv"]:
+            del refinarias[nome]
+            continue
+        for o in ORIGENS.values():
+            r["proc"].setdefault(o, [0] * len(meses))
+        r["uf"] = {"RIO GRANDE DO SUL": "RS", "SÃO PAULO": "SP", "RIO DE JANEIRO": "RJ", "BAHIA": "BA", "PARANÁ": "PR",
+                   "MINAS GERAIS": "MG", "PERNAMBUCO": "PE", "CEARÁ": "CE", "AMAZONAS": "AM", "RIO GRANDE DO NORTE": "RN"
+                   }.get(str(r["uf"]).upper(), str(r["uf"]))
+        r["cadastro"] = reg.get(nome, {"nome": nome.title(), "sigla": nome.title()})
+    resultado = {"meses": meses, "ultimo": ultimo, "unidade": "m³ no mês", "refinarias": refinarias}
+    saida.parent.mkdir(parents=True, exist_ok=True)
+    saida.write_text(json.dumps(resultado, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    return resultado
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--so-baixar", action="store_true")
@@ -68,7 +145,8 @@ def main() -> None:
         baixar_csvs()
     if a.so_baixar:
         return
-    raise SystemExit("processamento ainda não implementado")
+    r = processar(PASTA, config.PROCESSADOS / "refino.json")
+    print(f"Refino: {r['meses'][0]} a {r['ultimo']}, {len(r['refinarias'])} refinarias")
 
 
 if __name__ == "__main__":

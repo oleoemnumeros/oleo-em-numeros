@@ -1,0 +1,19 @@
+anp,nome,sigla,empresa,cidade,uf,lat,lon,obs
+REPLAN,Refinaria de Paulínia,Replan,Petrobras,Paulínia,SP,-22.7240,-47.1260,
+REVAP,Refinaria Henrique Lage,Revap,Petrobras,São José dos Campos,SP,-23.2370,-45.9570,
+REDUC,Refinaria de Duque de Caxias,Reduc,Petrobras,Duque de Caxias,RJ,-22.7160,-43.2650,
+RPBC,Refinaria Presidente Bernardes,RPBC,Petrobras,Cubatão,SP,-23.8760,-46.3890,
+REPAR,Refinaria Presidente Getúlio Vargas,Repar,Petrobras,Araucária,PR,-25.5720,-49.3590,
+REFAP,Refinaria Alberto Pasqualini,Refap,Petrobras,Canoas,RS,-29.9000,-51.1590,
+REGAP,Refinaria Gabriel Passos,Regap,Petrobras,Betim,MG,-19.9500,-44.0210,
+RNEST,Refinaria Abreu e Lima,RNEST,Petrobras,Ipojuca,PE,-8.3930,-35.0370,
+RECAP,Refinaria de Capuava,Recap,Petrobras,Mauá,SP,-23.6420,-46.4780,
+LUBNOR,Lubrificantes e Derivados de Petróleo do Nordeste,Lubnor,Petrobras,Fortaleza,CE,-3.7190,-38.4780,
+REFMAT,Refinaria de Mataripe,Mataripe,Acelen,São Francisco do Conde,BA,-12.7110,-38.4800,antiga RLAM; vendida pela Petrobras em 2021
+3R POTIGUAR,Refinaria Potiguar Clara Camarão,Potiguar,3R Petroleum,Guamaré,RN,-5.1080,-36.3350,antiga RPCC; vendida pela Petrobras em 2023
+REAM,Refinaria da Amazônia,Ream,Atem,Manaus,AM,-3.1450,-59.9950,antiga REMAN; vendida pela Petrobras em 2022
+MANGUINHOS,Refinaria de Manguinhos,Manguinhos,Refit,Rio de Janeiro,RJ,-22.8800,-43.2430,sem processamento registrado pela ANP em 2026
+RIOGRANDENSE,Refinaria de Petróleo Riograndense,Riograndense,Petrobras,Rio Grande,RS,-32.0650,-52.1100,em conversão para biorrefinaria
+DAX OIL,Dax Oil Refino,Dax Oil,Dax Oil,Camaçari,BA,-12.6950,-38.3150,
+SSOIL,SSOIL Energy,SSOIL,SSOIL Energy,Coroados,SP,-21.3550,-50.2930,inscrição estadual cassada em 2025
+UNIVEN,Univen Petróleo,Univen,Univen,Itupeva,SP,,,sem produção desde 2014

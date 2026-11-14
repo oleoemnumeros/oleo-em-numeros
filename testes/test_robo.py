@@ -773,3 +773,64 @@ def test_gas_paginas_so_com_dados_e_com_ranking_e_cartao_no_campo(base, tmp_path
     assert "Boletim Mensal" in rank and "1.234" in rank
     campo = (site / "campos" / c0["slug"] / "index.html").read_text("utf-8")
     assert "Queima de gás no" in campo and "745" in campo
+
+
+def _csv_refino(pasta):
+    # RLAM virou REFMAT, e o arquivo de derivados repete o "ex-" no nome da Potiguar; fevereiro tem 28 dias
+    (pasta / "processamento.csv").write_text(
+        "\ufeffANO;MÊS;UNIDADE DA FEDERAÇÃO;REFINARIA;MATÉRIA PRIMA;PROCESSADO\r\n"
+        "1999;DEZ;BAHIA;RLAM;PETRÓLEO NACIONAL;500000\r\n"
+        "2026;JAN;BAHIA;REFMAT;PETRÓLEO NACIONAL;1550000\r\n2026;JAN;BAHIA;REFMAT;PETRÓLEO IMPORTADO;310000\r\n"
+        "2026;FEV;BAHIA;REFMAT;PETRÓLEO NACIONAL;1400000\r\n2026;FEV;BAHIA;REFMAT;PETRÓLEO IMPORTADO;140000\r\n"
+        "2026;JAN;RIO GRANDE DO NORTE;3R POTIGUAR (ex-RPCC);PETRÓLEO NACIONAL;62000\r\n"
+        "2026;FEV;RIO GRANDE DO NORTE;3R POTIGUAR (ex-RPCC);PETRÓLEO NACIONAL;56000\r\n"
+        "2026;JAN;SÃO PAULO;UNIVEN;OUTRAS CARGAS;0\r\n2026;FEV;SÃO PAULO;UNIVEN;OUTRAS CARGAS;0\r\n", "utf-8")
+    (pasta / "derivados.csv").write_text(
+        "\ufeffANO;MÊS;UNIDADE DA FEDERAÇÃO;REFINARIA;PRODUTO;PRODUÇÃO\r\n"
+        "2026;JAN;BAHIA;REFMAT;ÓLEO DIESEL;620000,5\r\n2026;JAN;BAHIA;REFMAT;GASOLINA A;310000\r\n"
+        "2026;FEV;BAHIA;REFMAT;ÓLEO DIESEL;560000\r\n2026;FEV;BAHIA;REFMAT;GASOLINA A;280000\r\n"
+        "2026;JAN;RIO GRANDE DO NORTE;3R POTIGUAR (ex-3R POTIGUAR (ex-RPCC));ÓLEO DIESEL;9000\r\n"
+        "2026;FEV;RIO GRANDE DO NORTE;3R POTIGUAR (ex-3R POTIGUAR (ex-RPCC));ÓLEO DIESEL;8400\r\n", "utf-8")
+
+
+def test_refino_junta_nomes_converte_unidades_e_ignora_refinaria_parada(tmp_path):
+    from robo.refino import canonica, processar
+    assert canonica("RLAM") == "REFMAT" and canonica("REMAN") == "REAM"
+    assert canonica("3R POTIGUAR (ex-3R POTIGUAR (ex-RPCC))") == canonica("RPCC") == "3R POTIGUAR"
+    _csv_refino(tmp_path)
+    r = processar(tmp_path, tmp_path / "refino.json", cadastro=tmp_path / "nao-existe.csv")
+    assert r["ultimo"] == "2026-02" and set(r["refinarias"]) == {"REFMAT", "3R POTIGUAR"}   # Univen só tem zeros
+    m = r["refinarias"]["REFMAT"]
+    assert m["proc"]["nacional"][-1] == 1400000 and m["proc"]["importado"][-1] == 140000
+    assert m["deriv"]["ÓLEO DIESEL"][0] == 620000     # vírgula decimal lida e arredondada
+    assert r["refinarias"]["3R POTIGUAR"]["deriv"]["ÓLEO DIESEL"] == [9000, 8400]
+    assert r["refinarias"]["REFMAT"]["proc"]["nacional"][0] == 1550000 and len(r["meses"]) == 2
+
+
+def test_refino_paginas_so_com_dados_com_mapa_e_ranking(base, tmp_path):
+    from robo.executar import _leve
+    from robo.refino import processar
+    ag = _leve(agregar(base))
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "agregados.json").write_text(json.dumps(ag, ensure_ascii=False, default=str), "utf-8")
+    gerar(proc, tmp_path / "s1", limpos=True)
+    assert not (tmp_path / "s1" / "refino").exists()
+    assert 'href="refino/"' not in (tmp_path / "s1" / "index.html").read_text("utf-8")
+
+    brutos = tmp_path / "refino"
+    brutos.mkdir()
+    _csv_refino(brutos)
+    cad = tmp_path / "refinarias.csv"
+    cad.write_text("anp,nome,sigla,empresa,cidade,uf,lat,lon,obs\n"
+                   "REFMAT,Refinaria de Mataripe,Mataripe,Acelen,São Francisco do Conde,BA,-12.71,-38.48,antiga RLAM\n", "utf-8")
+    processar(brutos, proc / "refino.json", cadastro=cad)
+    gerar(proc, tmp_path / "s2", limpos=True)
+    site = tmp_path / "s2"
+    pagina = (site / "refino" / "index.html").read_text("utf-8")
+    assert "Mataripe" in pagina and "Ranking das refinarias" in pagina and "-12.71" in pagina    # coordenada no mapa
+    assert "Potiguar" in pagina and "mil barris/dia" in pagina
+    assert 'href="refino/"' in (site / "index.html").read_text("utf-8") and "/refino/" in (site / "sitemap.xml").read_text("utf-8")
+    ref = (site / "refino" / "mataripe" / "index.html").read_text("utf-8")
+    assert "Acelen" in ref and "Óleo diesel" in ref and "São Francisco do Conde" in ref
+    assert (site / "refino" / "3r-potiguar" / "index.html").exists()    # sem cadastro: nome da ANP

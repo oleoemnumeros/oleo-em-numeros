@@ -23,6 +23,7 @@ from robo.util import MESES, fmt, fmt_inteligente, fmt_pp, fmt_var, mes_extenso,
 from .graficos import linha
 from .financeiro import carregar_financeiro, reais
 from .gas import preparar as preparar_gas
+from .refino import preparar as preparar_refino
 from .mapa import gerar_mapa
 from .pocos import gerar_pocos
 from .royalties import dinheiro, escala, preparar as preparar_royalties, resumo_municipio
@@ -299,6 +300,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     R = preparar_royalties(dados)
     G = preparar_gas(dados, ag)
     env.globals.update(tem_gas=bool(G))
+    RF = preparar_refino(dados)
+    env.globals.update(tem_refino=bool(RF))
     env.globals.update(ufs_royalties={e["uf"] for e in R["estados"]} if R else set())
     financeiro = carregar_financeiro(dados, ag)
     for o in ag["operadores"]:
@@ -446,6 +449,30 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                      titulo="Campos que mais queimam gás natural no Brasil",
                      descricao=f"Ranking mensal dos {Q['n']} campos com maior queima de gás natural, com operadora e variação: "
                                f"{Q['linhas'][0]['campo']} lidera em {mes_extenso(Q['mes'])}. Dados da ANP.")
+    # ---------- refino ----------
+    if RF:
+        top = RF["ranking"][0]
+        escrever("refino/", "refino.html", secao="refino", R=RF,
+                 titulo="Refino de petróleo no Brasil: refinarias, processamento e derivados",
+                 descricao=f"Quanto petróleo cada refinaria brasileira processa, a parte de petróleo importado e os derivados produzidos, "
+                           f"mês a mês desde 1990, com mapa e ranking. {top['sigla']} lidera, com {fmt(top['proc12'], 0)} mil barris por dia. "
+                           f"Dados da ANP até {mes_extenso(RF['ultimo'])}.")
+        for x in RF["paginas"]:
+            de = f"{x['cidade']} ({x['uf']})" if x["cidade"] else x["uf"]
+            partes = [f"A {x['sigla']}, {'de ' + x['empresa'] + ', ' if x['empresa'] else ''}fica em {de}."]
+            if x["ativa"] and x["operando"]:
+                partes.append(f"Processou em média {fmt(x['proc12'], 0)} mil barris de petróleo por dia nos últimos 12 meses"
+                              f"{', ' + fmt(x['pct_pais'], 1) + '% do total do país' if x.get('pct_pais') else ''}"
+                              f"{', a ' + str(x['posicao']) + 'ª maior do Brasil' if x.get('posicao') else ''}.")
+                if x["pct_imp12"] is not None:
+                    partes.append(f"{fmt(x['pct_imp12'], 0)}% da carga foi petróleo importado.")
+                if x["derivados"]:
+                    partes.append(f"O principal derivado é {x['derivados'][0]['nome'].lower()} ({fmt(x['derivados'][0]['pct'], 0)}% da produção).")
+            else:
+                partes.append("Não registrou processamento nos últimos 3 meses." if x["ativa"] else "Não registrou processamento nos últimos 12 meses.")
+            escrever(f"refino/{x['slug']}/", "refinaria.html", secao="refino", R=RF, e=x, resumo=" ".join(partes),
+                     titulo=f"{x['sigla']}: processamento de petróleo e derivados produzidos",
+                     descricao=" ".join(partes)[:300] + " Dados da ANP.")
     # ---------- royalties ----------
     if R:
         prod = {e["uf"]: e["slug"] for e in ag.get("estados", []) if e.get("slug")}
