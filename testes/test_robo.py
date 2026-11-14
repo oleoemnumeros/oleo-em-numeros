@@ -834,3 +834,16 @@ def test_refino_paginas_so_com_dados_com_mapa_e_ranking(base, tmp_path):
     ref = (site / "refino" / "mataripe" / "index.html").read_text("utf-8")
     assert "Acelen" in ref and "Óleo diesel" in ref and "São Francisco do Conde" in ref
     assert (site / "refino" / "3r-potiguar" / "index.html").exists()    # sem cadastro: nome da ANP
+
+
+def test_grafico_oferece_so_as_janelas_menores_que_a_serie():
+    from gerador.graficos import linha
+    per = [f"{2020 + m // 12}-{m % 12 + 1:02d}" for m in range(40)]
+    g = str(linha(list(range(1, 41)), per, "Teste"))
+    assert 'data-p="total"' in g and 'data-p="12"' in g and 'data-p="36"' in g and 'data-p="60"' not in g
+    assert g.count('data-p="12"') == 1 and g.count("<svg") == 6            # total, 1 ano e 3 anos, cada um em duas versões
+    curto = str(linha(list(range(1, 11)), per[:10], "Teste"))
+    assert "gr-v" not in curto and curto.count("<svg") == 2                # série de 10 meses: só o total, sem controles
+    # janela só com um ponto com dado não vira gráfico
+    esparso = str(linha([None] * 38 + [1, 2], per, "Teste"))
+    assert 'data-p="12"' in esparso

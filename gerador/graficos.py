@@ -116,17 +116,40 @@ def _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero, font
     return "".join(p)
 
 
+# janelas oferecidas além do total, em meses, e o passo dos rótulos do eixo em cada uma (larga, celular)
+JANELAS = {12: (2, 4), 36: (6, 12), 60: (12, 12)}
+
+
+def _vista(valores, periodos, rotulo, cor, largura, altura, sufixo, area, zero, passo_larga, passo_cel, teto):
+    pares = [(i, v) for i, v in enumerate(valores) if v is not None]
+    if len(pares) < 2:
+        return None
+    larga = _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero,
+                 fonte=12 if largura >= 700 else 13, classe="larga", n_ticks=4, passo_x=passo_larga, teto=teto)
+    cel = _svg(pares, periodos, rotulo, cor, 380, 240, sufixo, area, zero,
+               fonte=13, classe="cel", n_ticks=3, passo_x=passo_cel, teto=teto)
+    return larga + cel
+
+
 def linha(valores, periodos, rotulo: str, cor: str = "#B45309", largura: int = 800,
           altura: int = 270, sufixo: str = "", area: bool = True, zero: bool = False,
           passo: int | None = None, teto: float | None = None) -> Markup:
-    """Linha com grade, último ponto marcado e rótulos de mês no eixo x."""
-    pares = [(i, v) for i, v in enumerate(valores) if v is not None]
-    if len(pares) < 2:
+    """Linha com grade, último ponto marcado e rótulos de mês no eixo x.
+
+    Além do período total, sai com as janelas de 1, 3 e 5 anos (só as menores que a série), todas já
+    desenhadas no servidor; o JavaScript da página só troca qual delas aparece (ver base.html). Sem
+    JavaScript, aparece o total."""
+    total = _vista(valores, periodos, rotulo, cor, largura, altura, sufixo, area, zero,
+                   passo or (6 if len(periodos) <= 24 else 12), passo or (12 if len(periodos) <= 24 else 24), teto)
+    if total is None:
         return Markup('<p class="nota">Série curta demais para o gráfico.</p>')
     n = len(periodos)
-    larga = _svg(pares, periodos, rotulo, cor, largura, altura, sufixo, area, zero,
-                 fonte=12 if largura >= 700 else 13, classe="larga", n_ticks=4, passo_x=passo or (6 if n <= 24 else 12),
-                 teto=teto)
-    cel = _svg(pares, periodos, rotulo, cor, 380, 240, sufixo, area, zero,
-               fonte=13, classe="cel", n_ticks=3, passo_x=passo or (12 if n <= 24 else 24), teto=teto)
-    return Markup(larga + cel)
+    vistas = []
+    for k, (pl, pc) in JANELAS.items():
+        if n > k:
+            v = _vista(valores[n - k:], periodos[n - k:], rotulo, cor, largura, altura, sufixo, area, zero, pl, pc, teto)
+            if v:
+                vistas.append(f'<div class="gr-v" data-p="{k}" hidden>{v}</div>')
+    if not vistas:
+        return Markup(total)
+    return Markup(f'<div class="gr"><div class="gr-v" data-p="total">{total}</div>{"".join(vistas)}</div>')

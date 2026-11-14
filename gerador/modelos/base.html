@@ -102,6 +102,44 @@
   window.ajustarTabelas = tabelas;
   tabelas();
   window.addEventListener("resize", tabelas);
+  // período dos gráficos: o servidor já desenhou 1, 3 e 5 anos e o total; aqui só se escolhe qual aparece
+  var ROT = {"12": "1 ano", "36": "3 anos", "60": "5 anos", "total": "Total"}, CHAVE = "oleo-periodo";
+  function lembrado() { try { return localStorage.getItem(CHAVE) || "total"; } catch (e) { return "total"; } }
+  function guardar(p) { try { localStorage.setItem(CHAVE, p); } catch (e) { /* sem armazenamento: vale só nesta página */ } }
+  function mostrar(raiz, p) {
+    var vs = Array.prototype.slice.call(raiz.children).filter(function (e) { return e.classList.contains("gr-v"); });
+    if (!vs.some(function (v) { return v.getAttribute("data-p") === p; })) p = "total";
+    vs.forEach(function (v) { v.hidden = v.getAttribute("data-p") !== p; });
+    Array.prototype.forEach.call(raiz.querySelectorAll(".gr-ctl button"), function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-p") === p ? "true" : "false");
+    });
+  }
+  window.iniciarGraficos = function (contexto) {
+    Array.prototype.forEach.call((contexto || document).querySelectorAll(".gr:not([data-ok])"), function (raiz) {
+      raiz.setAttribute("data-ok", "1");
+      var tem = Array.prototype.map.call(raiz.querySelectorAll(":scope > .gr-v"), function (v) { return v.getAttribute("data-p"); });
+      var c = document.createElement("div");
+      c.className = "gr-ctl";
+      c.setAttribute("role", "group");
+      c.setAttribute("aria-label", "Período do gráfico");
+      ["12", "36", "60", "total"].forEach(function (p) {
+        if (tem.indexOf(p) < 0) return;
+        var b = document.createElement("button");
+        b.type = "button"; b.setAttribute("data-p", p); b.textContent = ROT[p]; b.setAttribute("aria-pressed", "false");
+        c.appendChild(b);
+      });
+      c.addEventListener("click", function (ev) {
+        var b = ev.target.closest && ev.target.closest("button");
+        if (!b) return;
+        var p = b.getAttribute("data-p");
+        guardar(p);
+        Array.prototype.forEach.call(document.querySelectorAll(".gr[data-ok]"), function (r) { mostrar(r, p); });
+      });
+      raiz.insertBefore(c, raiz.firstChild);
+      mostrar(raiz, lembrado());
+    });
+  };
+  window.iniciarGraficos();
   // menu rolável no celular: a seção atual fica à vista
   var nav = document.querySelector(".nav"), atual = nav && nav.querySelector('[aria-current="page"]');
   if (atual && nav.scrollWidth > nav.clientWidth) {
