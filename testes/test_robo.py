@@ -921,3 +921,14 @@ def test_precos_paginas_so_com_dados_sem_posto_e_com_busca(base, tmp_path):
     assert (site / "precos" / "rio-grande-do-sul" / "sant-ana-do-livramento" / "index.html").exists()
     todo = "".join(p.read_text("utf-8") for p in (site / "precos").rglob("index.html"))
     assert "SECRETO" not in todo and "SEGREDO" not in todo and "BANDEIRA" not in todo
+
+
+def test_continue_explorando_so_liga_a_paginas_que_existem_e_nunca_a_propria():
+    from gerador.familia import continuar
+    sem = continuar("precos", "precos/", {})
+    assert [c for c in sem if c["portal"] == "oleo"] == []              # sem refino nem royalties, só cartões de outros portais
+    assert any(c["url"] == "https://comexemnumeros.com.br/produto/2710/" for c in sem)
+    com = continuar("precos", "precos/", {"refino": True, "royalties": True, "precos": True})
+    assert {c["caminho"] for c in com if c["portal"] == "oleo"} == {"refino/", "royalties/"}
+    assert all(c.get("caminho") != "precos/" for c in com) and len(com) <= 4
+    assert continuar("sobre", "sobre/", {}) == []

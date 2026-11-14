@@ -89,10 +89,10 @@
 <div class="cards">
 <a class="card" href="{{ u('campos/') }}"><h3>Todos os campos</h3><p>{{ ag.campos|length }} campos produtores, com histórico mês a mês.</p></a>
 <a class="card" href="{{ u('operadoras/') }}"><h3>Todas as operadoras</h3><p>{{ ag.n_operadoras }} operadoras, com seus campos e bacias.</p></a>
-<a class="card" href="{{ u('royalties/') }}"><h3>Royalties por município</h3><p>Quanto cada cidade e cada estado recebe, mês a mês, e por habitante.</p></a>
+{% if tem_royalties %}<a class="card" href="{{ u('royalties/') }}"><h3>Royalties por município</h3><p>Quanto cada cidade e cada estado recebe, mês a mês, e por habitante.</p></a>{% endif %}
 <a class="card" href="{{ u('estados/') }}"><h3>Estados e bacias</h3><p>Produção de cada estado e de cada bacia, com empresas e campos.</p></a>
 <a class="card" href="{{ u('pocos/') }}"><h3>Produção por poço</h3><p>Busque qualquer poço e veja o gráfico mês a mês desde 2018.</p></a>
-<a class="card" href="{{ u('resultados/') }}"><h3>Petroleiras listadas</h3><p>Resultado trimestral de PETR4, PRIO3, BRAV3 e RECV3 ao lado da produção.</p></a>
+{% if tem_resultados %}<a class="card" href="{{ u('resultados/') }}"><h3>Petroleiras listadas</h3><p>Resultado trimestral de PETR4, PRIO3, BRAV3 e RECV3 ao lado da produção.</p></a>{% endif %}
 <a class="card" href="{{ u('rankings/') }}"><h3>Rankings do mês</h3><p>Quem mais cresceu e quem mais caiu.</p></a>
 <a class="card" href="{{ u('sobre/') }}"><h3>Metodologia</h3><p>De onde vêm os dados e como calculamos.</p></a>
 </div>

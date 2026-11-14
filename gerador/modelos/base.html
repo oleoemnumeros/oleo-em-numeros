@@ -45,15 +45,22 @@
 <a href="{{ u('pocos/') }}"{% if secao == 'pocos' %} aria-current="page"{% endif %}>Poços</a>
 {% if tem_mapa %}<a href="{{ u('mapa/') }}"{% if secao == 'mapa' %} aria-current="page"{% endif %}>Mapa</a>
 {% endif %}<a href="{{ u('estados/') }}"{% if secao == 'estados' %} aria-current="page"{% endif %}>Estados</a>
-<a href="{{ u('royalties/') }}"{% if secao == 'royalties' %} aria-current="page"{% endif %}>Royalties</a>
-<a href="{{ u('rankings/') }}"{% if secao == 'rankings' %} aria-current="page"{% endif %}>Rankings</a>
-<a href="{{ u('resultados/') }}"{% if secao == 'resultados' %} aria-current="page"{% endif %}>Listadas</a>
-<a href="{{ u('noticias/') }}"{% if secao == 'noticias' %} aria-current="page"{% endif %}>Notícias</a>
+{% if tem_royalties %}<a href="{{ u('royalties/') }}"{% if secao == 'royalties' %} aria-current="page"{% endif %}>Royalties</a>
+{% endif %}<a href="{{ u('rankings/') }}"{% if secao == 'rankings' %} aria-current="page"{% endif %}>Rankings</a>
+{% if tem_resultados %}<a href="{{ u('resultados/') }}"{% if secao == 'resultados' %} aria-current="page"{% endif %}>Listadas</a>
+{% endif %}<a href="{{ u('noticias/') }}"{% if secao == 'noticias' %} aria-current="page"{% endif %}>Notícias</a>
 </nav>
 </div>
 </header>
 <main id="conteudo" tabindex="-1">
 {% block conteudo %}{% endblock %}
+{% set cartoes = continuar(secao, caminho) if not erro else [] %}
+{% if cartoes %}<section class="miolo continue" aria-labelledby="continue-t">
+<h2 id="continue-t">Continue explorando</h2>
+<ul class="cont-grid">
+{% for c in cartoes %}<li><a href="{{ u(c.caminho) if c.caminho else c.url }}" data-goatcounter-click="continue/oleo-{{ c.portal }}" data-goatcounter-title="Continue explorando: {{ c.titulo }}"><span class="cont-tag"><i style="background:{{ c.cor }}"></i>{{ c.nome }}</span><b>{{ c.titulo }}</b><span class="cont-d">{{ c.desc }}</span></a></li>
+{% endfor %}</ul>
+</section>{% endif %}
 </main>
 <footer class="rodape">
 <div class="miolo">

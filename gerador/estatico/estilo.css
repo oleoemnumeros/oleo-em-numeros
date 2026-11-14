@@ -236,3 +236,14 @@ tr.eu th { font-weight: 600; }
 
 .familia-links{list-style:none;padding:0;margin:0}
 .familia-links li{margin:.5em 0}
+
+/* Continue explorando (fim da página, entre os portais da família) */
+.continue { margin-top: 32px; }
+.continue h2 { font-family: var(--titulo); font-size: 20px; margin: 0 0 12px; }
+.cont-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.cont-grid a { display: flex; flex-direction: column; gap: 4px; height: 100%; padding: 14px 16px; background: var(--cartao); border: 1px solid var(--borda); border-radius: 12px; text-decoration: none; color: var(--tinta); min-height: 44px; }
+.cont-grid a:hover, .cont-grid a:focus-visible { border-color: var(--ambar); }
+.cont-tag { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--cinza); }
+.cont-tag i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.cont-grid b { font-size: 16px; line-height: 1.3; }
+.cont-d { font-size: 14px; line-height: 1.4; color: var(--cinza); }

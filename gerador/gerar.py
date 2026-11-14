@@ -28,7 +28,7 @@ from .refino import preparar as preparar_refino
 from .mapa import gerar_mapa
 from .pocos import gerar_pocos
 from .royalties import dinheiro, escala, preparar as preparar_royalties, resumo_municipio
-from .familia import carregar as carregar_familia, chave_cidade
+from .familia import carregar as carregar_familia, chave_cidade, continuar as continuar_cartoes
 
 AQUI = Path(__file__).resolve().parent
 ICONE = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"><path d="M15 2c4.5 5.6 8 10.2 8 14.6a8 8 0 0 1-16 0'
@@ -307,6 +307,10 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     env.globals.update(tem_precos=bool(PR))
     env.globals.update(ufs_royalties={e["uf"] for e in R["estados"]} if R else set())
     financeiro = carregar_financeiro(dados, ag)
+    flags = {"gas": bool(G), "refino": bool(RF), "precos": bool(PR), "royalties": bool(R), "resultados": bool(financeiro),
+             "mapa": bool(env.globals["tem_mapa"])}
+    env.globals.update(tem_royalties=bool(R), tem_resultados=bool(financeiro),
+                       continuar=lambda secao, caminho: continuar_cartoes(secao, caminho, flags))
     for o in ag["operadores"]:
         o["financeiro"] = financeiro.get(o["nome"])
 
