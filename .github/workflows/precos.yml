@@ -1,17 +1,18 @@
-# Ferramenta de manutenção: lista e baixa os arquivos de preços da ANP. Não mexe no site.
-name: Explorar dados de preços
+# Ferramenta de manutenção: roda o robô de preços da ANP (por padrão, só lista as fontes), guarda os resumos
+# no cache usado pelo workflow principal e exporta o resultado processado para o ramo exportacao-precos.
+name: Preços (manutenção)
 on:
   workflow_dispatch:
     inputs:
       args:
-        description: "Argumentos de python -m robo.precos"
+        description: "Argumentos de python -m robo.precos (vazio = baixar o que falta e processar)"
         default: "--listar"
 permissions:
   contents: write
 jobs:
   precos:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,14 +20,28 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Recupera os resumos de preços
+        uses: actions/cache/restore@v4
+        with:
+          path: dados/precos/agg
+          key: precos-${{ github.run_id }}
+          restore-keys: precos-
       - name: Executa
         run: python -m robo.precos ${{ inputs.args }}
-      - name: Guarda no ramo exportacao-precos
+      - name: Guarda os resumos de preços
+        if: always() && hashFiles('dados/precos/agg/*.csv.gz') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: dados/precos/agg
+          key: precos-${{ github.run_id }}
+      - name: Exporta para o ramo exportacao-precos
         run: |
-          if ls dados/precos/* >/dev/null 2>&1; then
-            mkdir -p /tmp/exp/precos && cp dados/precos/* /tmp/exp/precos/
+          if ls dados/precos/*.* >/dev/null 2>&1 || ls dados/processados/precos.json >/dev/null 2>&1; then
+            mkdir -p /tmp/exp/precos
+            cp dados/precos/*.* /tmp/exp/precos/ 2>/dev/null || true
+            cp dados/processados/precos.json /tmp/exp/precos/ 2>/dev/null || true
             cd /tmp/exp && tar czf precos.tgz precos && rm -rf precos && git init -q -b exportacao-precos
             git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" add precos.tgz
-            git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" commit -qm "Arquivos de preços da ANP para desenvolvimento"
+            git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" commit -qm "Preços da ANP para desenvolvimento"
             git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" exportacao-precos
           fi
