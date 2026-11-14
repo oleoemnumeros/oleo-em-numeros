@@ -18,11 +18,12 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from robo import config
 from robo.agregar import PREP_BACIA
-from robo.util import MESES, fmt, fmt_inteligente, fmt_pp, fmt_var, mes_extenso, sem_acento
+from robo.util import MESES, fmt, fmt_inteligente, fmt_pp, fmt_var, mes_extenso, sem_acento, slug
 
 from .graficos import linha
 from .financeiro import carregar_financeiro, reais
 from .gas import preparar as preparar_gas
+from .precos import preparar as preparar_precos
 from .refino import preparar as preparar_refino
 from .mapa import gerar_mapa
 from .pocos import gerar_pocos
@@ -302,6 +303,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     env.globals.update(tem_gas=bool(G))
     RF = preparar_refino(dados)
     env.globals.update(tem_refino=bool(RF))
+    PR = preparar_precos(dados)
+    env.globals.update(tem_precos=bool(PR))
     env.globals.update(ufs_royalties={e["uf"] for e in R["estados"]} if R else set())
     financeiro = carregar_financeiro(dados, ag)
     for o in ag["operadores"]:
@@ -473,6 +476,44 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
             escrever(f"refino/{x['slug']}/", "refinaria.html", secao="refino", R=RF, e=x, resumo=" ".join(partes),
                      titulo=f"{x['sigla']}: processamento de petróleo e derivados produzidos",
                      descricao=" ".join(partes)[:300] + " Dados da ANP.")
+    # ---------- preços dos combustíveis ----------
+    if PR:
+        gb = PR["brasil"]["GASOLINA"]["k"]
+        escrever("precos/", "precos.html", secao="precos", P=PR,
+                 titulo="Preço dos combustíveis no Brasil: gasolina, etanol e diesel por estado e município",
+                 descricao=f"Preço médio da gasolina, do etanol e do diesel nos postos, por estado e por município, mês a mês. "
+                           f"Gasolina comum a R$ {fmt(gb['valor'], 2)} por litro em {mes_extenso(gb['mes'])}. Dados do levantamento da ANP.")
+        roy = {(m["uf"], slug(m["nome"])): f"royalties/{m['estado_slug']}/{m['slug']}/" for m in R["municipios"]} if R else {}
+        for e in PR["estados"]:
+            gp = e["p"]["GASOLINA"]["k"]
+            partes = [f"Em {mes_extenso(gp['mes'])}, o preço médio da gasolina comum {e['de']} foi de R$ {fmt(gp['valor'], 2)} por litro, "
+                      f"{fmt(abs(gp['valor'] / gb['valor'] - 1) * 100, 1)}% {'acima' if gp['valor'] >= gb['valor'] else 'abaixo'} da média do Brasil (R$ {fmt(gb['valor'], 2)})."]
+            if gp["var12"] is not None:
+                partes.append(f"Em 12 meses, {'subiu' if gp['var12'] >= 0 else 'caiu'} {fmt(abs(gp['var12']) * 100, 1)}%.")
+            if "ETANOL" in e["p"]:
+                partes.append(f"O etanol custou R$ {fmt(e['p']['ETANOL']['k']['valor'], 2)}"
+                              + (f", {fmt(e['razao_ult'], 0)}% do preço da gasolina." if e.get("razao_ult") is not None else "."))
+            escrever(f"precos/{e['slug']}/", "precos_estado.html", secao="precos", P=PR, e=e, resumo=" ".join(partes),
+                     titulo=f"Preço da gasolina {e['de']}: média, etanol e diesel por município",
+                     descricao=" ".join(partes)[:300])
+            for m in e["municipios"]:
+                b = m["p"]
+                gm = b["GASOLINA"]["k"]
+                partes = [f"Em {mes_extenso(gm['mes'])}, o preço médio da gasolina comum em {m['nome']} ({m['uf']}) foi de R$ {fmt(gm['valor'], 2)} por litro."]
+                if m["vs_uf"] is not None:
+                    partes.append(f"Isso é {fmt(abs(m['vs_uf']) * 100, 1)}% {'acima' if m['vs_uf'] >= 0 else 'abaixo'} da média {e['de']} "
+                                  f"(R$ {fmt(m['ref_uf'], 2)}) e {fmt(abs(m['vs_br']) * 100, 1)}% {'acima' if m['vs_br'] >= 0 else 'abaixo'} da média do Brasil.")
+                if gm["var12"] is not None:
+                    partes.append(f"Em 12 meses, {'subiu' if gm['var12'] >= 0 else 'caiu'} {fmt(abs(gm['var12']) * 100, 1)}%.")
+                if "ETANOL" in b and m.get("razao_ult") is not None:
+                    partes.append(f"O etanol custou R$ {fmt(b['ETANOL']['k']['valor'], 2)}, {fmt(m['razao_ult'], 0)}% do preço da gasolina"
+                                  f"{': abaixo de 70%, ele costuma compensar.' if m['razao_ult'] < 70 else '.'}")
+                if "DIESEL S10" in b:
+                    partes.append(f"O diesel S10 saiu a R$ {fmt(b['DIESEL S10']['k']['valor'], 2)}.")
+                escrever(f"precos/{e['slug']}/{m['slug']}/", "precos_municipio.html", secao="precos", P=PR, m=m, resumo=" ".join(partes),
+                         royalties_path=roy.get((m["uf"], slug(m["nome"]))),
+                         titulo=f"Preço da gasolina em {m['nome']} ({m['uf']}): média, etanol e diesel",
+                         descricao=" ".join(partes)[:300])
     # ---------- royalties ----------
     if R:
         prod = {e["uf"]: e["slug"] for e in ag.get("estados", []) if e.get("slug")}

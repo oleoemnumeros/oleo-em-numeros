@@ -143,6 +143,30 @@ jobs:
           path: dados/refino
           key: refino-${{ github.run_id }}
 
+      # preços dos combustíveis (ANP): cada arquivo é resumido por município, produto e mês e só o resumo fica em cache;
+      # o primeiro carregamento pode levar mais de uma execução (o robô tem orçamento de tempo)
+      - name: Recupera os resumos de preços
+        uses: actions/cache/restore@v4
+        with:
+          path: dados/precos/agg
+          key: precos-${{ github.run_id }}
+          restore-keys: precos-
+
+      - name: Preços (ANP)
+        run: |
+          if [ "${{ steps.modo.outputs.baixar }}" = "sim" ]; then
+            python -m robo.precos || { echo "::warning::Download dos preços falhou; usando os resumos guardados."; python -m robo.precos --sem-baixar || echo "::warning::O site sai sem a seção de preços."; }
+          else
+            python -m robo.precos --sem-baixar || echo "::warning::O site sai sem a seção de preços."
+          fi
+
+      - name: Guarda os resumos de preços
+        if: always() && hashFiles('dados/precos/agg/*.csv.gz') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: dados/precos/agg
+          key: precos-${{ github.run_id }}
+
       - name: Guarda os arquivos baixados
         if: always() && steps.modo.outputs.baixar == 'sim'
         uses: actions/cache/save@v4

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+{% set B = P.brasil %}
+<section class="miolo cabeca">
+<h1>Preço dos combustíveis no Brasil</h1>
+<p class="sub">Média dos preços nos postos, por mês, em {{ P.n_municipios }} municípios pesquisados pela ANP · coletas até {{ P.coleta_txt }}</p>
+<div class="kpis kpis-5">
+{{ kpi('Gasolina comum', 'R$ ' ~ fmt(B.GASOLINA.k.valor, 2), 'por litro', (fmt_var(B.GASOLINA.k.var12) ~ ' em 12 meses') if B.GASOLINA.k.var12 is not none else None, var_classe(B.GASOLINA.k.var12, inverter=True), principal=True) }}
+{{ kpi('Etanol', 'R$ ' ~ fmt(B.ETANOL.k.valor, 2), 'por litro', (fmt_var(B.ETANOL.k.var12) ~ ' em 12 meses') if B.ETANOL.k.var12 is not none else None, var_classe(B.ETANOL.k.var12, inverter=True)) if B.ETANOL else '' }}
+{{ kpi('Diesel S10', 'R$ ' ~ fmt(B['DIESEL S10'].k.valor, 2), 'por litro', (fmt_var(B['DIESEL S10'].k.var12) ~ ' em 12 meses') if B['DIESEL S10'].k.var12 is not none else None, var_classe(B['DIESEL S10'].k.var12, inverter=True)) if B['DIESEL S10'] else '' }}
+{{ kpi('Etanol ÷ gasolina', fmt(P.razao_ult, 0) ~ '%', 'do preço da gasolina', 'abaixo de 70%, o etanol costuma compensar') if P.razao_ult is not none else '' }}
+{{ kpi('Municípios', fmt(P.n_municipios), 'com preço no último mês') }}
+</div>
+<div class="filtro busca">
+<label for="busca-mun">Procure o seu município</label>
+<input id="busca-mun" type="search" placeholder="Digite o nome da cidade" autocomplete="off" list="lista-mun">
+<datalist id="lista-mun">{% for m in P.municipios %}<option value="{{ m.nome }} ({{ m.uf }})">{% endfor %}</datalist>
+<p class="nota" id="busca-aviso" role="status"></p>
+</div>
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Gasolina comum</h2>
+<p class="legenda">R$ por litro · média nacional de cada mês</p>
+{{ linha(B.GASOLINA.serie, P.meses, 'Preço médio da gasolina comum no Brasil, em reais por litro', passo=12) }}
+</div>
+<div class="cartao">
+<h2>Etanol</h2>
+<p class="legenda">R$ por litro · média nacional de cada mês</p>
+{% if B.ETANOL %}{{ linha(B.ETANOL.serie, P.meses, 'Preço médio do etanol no Brasil, em reais por litro', cor='#4A7C59', passo=12) }}{% endif %}
+</div>
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Diesel S10</h2>
+<p class="legenda">R$ por litro · média nacional de cada mês</p>
+{% if B['DIESEL S10'] %}{{ linha(B['DIESEL S10'].serie, P.meses, 'Preço médio do diesel S10 no Brasil, em reais por litro', cor='#2F5D8A', passo=12) }}{% endif %}
+</div>
+<div class="cartao">
+<h2>Etanol ou gasolina?</h2>
+<p class="legenda">preço do etanol como % do preço da gasolina · média nacional</p>
+{{ linha(B.razao, P.meses, 'Preço do etanol em porcentagem do preço da gasolina, média nacional', sufixo='%', area=False, cor='#4A7C59', passo=12) }}
+<p class="nota">Como o etanol rende cerca de 70% da gasolina nos carros flex, abaixo de 70% ele costuma compensar. É uma regra prática: o rendimento varia de carro para carro.</p>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Preços por estado</h2>
+<p class="legenda">R$ por litro · média de {{ mes_extenso(P.ultimo) }}</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Estado</th><th class="n">Gasolina</th><th class="n">Etanol</th><th class="n">Diesel S10</th><th class="n">Etanol ÷ gasolina</th><th class="n">Gasolina em 12 meses</th></tr></thead>
+<tbody>
+{% for e in P.estados %}
+<tr><th scope="row"><a href="{{ u('precos/' ~ e.slug ~ '/') }}">{{ e.nome }}</a></th><td class="n"><strong>{{ fmt(e.p.GASOLINA.k.valor, 2) }}</strong></td><td class="n">{{ fmt(e.p.ETANOL.k.valor, 2) if e.p.ETANOL else '—' }}</td><td class="n">{{ fmt(e.p['DIESEL S10'].k.valor, 2) if e.p['DIESEL S10'] else '—' }}</td><td class="n">{{ pct(e.razao_ult, 0) if e.razao_ult is not none else '—' }}</td><td class="n {{ var_classe(e.p.GASOLINA.k.var12, inverter=True) }}">{{ fmt_var(e.p.GASOLINA.k.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Gasolina mais barata</h2>
+<p class="legenda">entre os municípios com {{ P.min_ranking }} ou mais coletas em {{ mes_extenso(P.ultimo) }}</p>
+<div class="tabela">
+<table>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Município</th><th class="n">R$ por litro</th></tr></thead>
+<tbody>
+{% for m in P.baratos %}<tr><td>{{ loop.index }}</td><th scope="row"><a href="{{ u('precos/' ~ m.estado_slug ~ '/' ~ m.slug ~ '/') }}">{{ m.nome }}</a> <span class="legenda">{{ m.uf }}</span></th><td class="n"><strong>{{ fmt(m.p.GASOLINA.k.valor, 2) }}</strong></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+<div class="cartao">
+<h2>Gasolina mais cara</h2>
+<p class="legenda">entre os municípios com {{ P.min_ranking }} ou mais coletas em {{ mes_extenso(P.ultimo) }}</p>
+<div class="tabela">
+<table>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Município</th><th class="n">R$ por litro</th></tr></thead>
+<tbody>
+{% for m in P.caros %}<tr><td>{{ loop.index }}</td><th scope="row"><a href="{{ u('precos/' ~ m.estado_slug ~ '/' ~ m.slug ~ '/') }}">{{ m.nome }}</a> <span class="legenda">{{ m.uf }}</span></th><td class="n"><strong>{{ fmt(m.p.GASOLINA.k.valor, 2) }}</strong></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="explica">
+<p class="explica-titulo">Como ler</p>
+<p>Os preços vêm do levantamento que a ANP faz nos postos: uma amostra de postos de cerca de {{ P.n_municipios }} municípios, pesquisados ao longo de todo o mês. O site mostra a média simples dos preços coletados (preço ao consumidor, à vista) e nunca o preço de um posto específico. Município com menos de {{ P.min_coletas }} coletas no mês fica sem média. A ANP não pesquisa todos os municípios do país, e um município que não aparece aqui não tem pesquisa. <a href="{{ u('sobre/') }}#precos">Como calculamos</a></p>
+</div>
+</section>
+<script>
+(function () {
+  var mapa = { {% for m in P.municipios %}{{ (m.nome ~ ' (' ~ m.uf ~ ')')|tojson }}: {{ u('precos/' ~ m.estado_slug ~ '/' ~ m.slug ~ '/')|tojson }}{% if not loop.last %},{% endif %}{% endfor %} };
+  var campo = document.getElementById("busca-mun"), aviso = document.getElementById("busca-aviso");
+  function norm(s) { return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim(); }
+  var lista = Object.keys(mapa).map(function (k) { return { k: k, n: norm(k), s: norm(k.replace(/ \([A-Z]{2}\)$/, "")) }; });
+  function ir() {
+    var q = norm(campo.value);
+    if (!q) return;
+    if (mapa[campo.value]) { location.href = mapa[campo.value]; return; }
+    var exatos = lista.filter(function (x) { return x.n === q || x.s === q; });
+    var achados = exatos.length ? exatos : lista.filter(function (x) { return x.n.indexOf(q) === 0; });
+    if (achados.length === 1) { location.href = mapa[achados[0].k]; return; }
+    aviso.textContent = achados.length ? "Há " + achados.length + " municípios com esse nome: escolha um na lista, com a UF."
+                                       : "Esse município não é pesquisado pela ANP, ou o nome está diferente. Veja o estado na tabela.";
+  }
+  campo.addEventListener("change", function () { if (mapa[campo.value]) location.href = mapa[campo.value]; });
+  campo.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); ir(); } });
+  campo.addEventListener("input", function () { aviso.textContent = ""; });
+})();
+</script>
+{% endblock %}

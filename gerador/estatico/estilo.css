@@ -26,10 +26,10 @@ h1, h2, h3 { font-family: var(--titulo); letter-spacing: -0.01em; }
 
 /* Cabeçalho */
 .topo { background: var(--cartao); border-bottom: 1px solid var(--borda); }
-.topo .miolo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; padding-top: 14px; padding-bottom: 14px; }
+.topo .miolo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-top: 14px; padding-bottom: 14px; }
 .marca { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--tinta); }
 .marca span { font-family: var(--titulo); font-weight: 700; font-size: 20px; }
-.nav { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 15px; flex: 1 1 420px; }
+.nav { display: flex; flex-wrap: wrap; gap: 4px 15px; font-size: 15px; flex: 1 1 420px; }
 .nav a { color: var(--tinta); text-decoration: none; padding: 6px 0; border-bottom: 2px solid transparent; font-weight: 500; }
 .nav a:hover { color: var(--ambar); }
 .nav a[aria-current="page"] { border-bottom-color: var(--ambar); font-weight: 600; }

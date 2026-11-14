@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+{% set b = m.p %}{% set g = b.GASOLINA %}
+<section class="miolo cabeca">
+<nav class="trilha" aria-label="Você está em"><a href="{{ u('precos/') }}">Preços</a><span aria-hidden="true"> / </span><a href="{{ u('precos/' ~ m.estado_slug ~ '/') }}">{{ m.estado_nome }}</a><span aria-hidden="true"> / </span><span aria-current="page">{{ m.nome }}</span></nav>
+<h1>Preço da gasolina em {{ m.nome }} ({{ m.uf }})</h1>
+<p class="sub">{% if m.pos_uf %}{{ m.pos_uf }}º mais barata {{ m.estado_de }} · {% endif %}média dos preços nos postos em {{ mes_extenso(g.k.mes) }} · coletas da ANP até {{ P.coleta_txt }}</p>
+<div class="cartao resumo"><p class="olho">Em resumo</p><p>{{ resumo }}</p></div>
+<div class="kpis kpis-5">
+{{ kpi('Gasolina comum', 'R$ ' ~ fmt(g.k.valor, 2), 'por litro', (fmt_var(g.k.var12) ~ ' em 12 meses') if g.k.var12 is not none else None, var_classe(g.k.var12, inverter=True), principal=True) }}
+{% if b.ETANOL %}{{ kpi('Etanol', 'R$ ' ~ fmt(b.ETANOL.k.valor, 2), 'por litro', (fmt_var(b.ETANOL.k.var12) ~ ' em 12 meses') if b.ETANOL.k.var12 is not none else None, var_classe(b.ETANOL.k.var12, inverter=True)) }}{% endif %}
+{% if b['DIESEL S10'] %}{{ kpi('Diesel S10', 'R$ ' ~ fmt(b['DIESEL S10'].k.valor, 2), 'por litro', (fmt_var(b['DIESEL S10'].k.var12) ~ ' em 12 meses') if b['DIESEL S10'].k.var12 is not none else None, var_classe(b['DIESEL S10'].k.var12, inverter=True)) }}{% endif %}
+{% if m.razao_ult is not none %}{{ kpi('Etanol ÷ gasolina', fmt(m.razao_ult, 0) ~ '%', 'do preço da gasolina', 'abaixo de 70%, o etanol costuma compensar') }}{% endif %}
+{% if m.vs_uf is not none %}{{ kpi('Frente ao estado', fmt_var(m.vs_uf), 'gasolina, média ' ~ m.estado_de ~ ': R$ ' ~ fmt(m.ref_uf, 2), (fmt_var(m.vs_br) ~ ' frente ao Brasil') if m.vs_br is not none else None) }}{% endif %}
+</div>
+</section>
+
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Gasolina comum</h2>
+<p class="legenda">R$ por litro · média de cada mês em {{ m.nome }}</p>
+{{ linha(g.serie, P.meses, 'Preço médio da gasolina comum em ' ~ m.nome ~ ', em reais por litro', passo=12) }}
+</div>
+<div class="cartao">
+<h2>Etanol</h2>
+<p class="legenda">R$ por litro · média de cada mês em {{ m.nome }}</p>
+{% if b.ETANOL %}{{ linha(b.ETANOL.serie, P.meses, 'Preço médio do etanol em ' ~ m.nome ~ ', em reais por litro', cor='#4A7C59', passo=12) }}{% else %}<p class="nota">Sem coletas suficientes de etanol neste município.</p>{% endif %}
+</div>
+</section>
+{% if b['DIESEL S10'] %}
+<section class="miolo secao grade-2">
+<div class="cartao">
+<h2>Diesel S10</h2>
+<p class="legenda">R$ por litro · média de cada mês em {{ m.nome }}</p>
+{{ linha(b['DIESEL S10'].serie, P.meses, 'Preço médio do diesel S10 em ' ~ m.nome ~ ', em reais por litro', cor='#2F5D8A', passo=12) }}
+</div>
+{% if m.razao and m.razao_ult is not none %}
+<div class="cartao">
+<h2>Etanol ou gasolina?</h2>
+<p class="legenda">preço do etanol como % do preço da gasolina</p>
+{{ linha(m.razao, P.meses, 'Preço do etanol em porcentagem do preço da gasolina em ' ~ m.nome, sufixo='%', area=False, cor='#4A7C59', passo=12) }}
+</div>
+{% endif %}
+</section>
+{% endif %}
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Todos os combustíveis</h2>
+<p class="legenda">R$ por litro (GNV, por m³) · média dos preços coletados no último mês com dados</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Combustível</th><th class="n">Média</th><th class="n">Mínimo</th><th class="n">Máximo</th><th class="n">Postos pesquisados</th><th class="n">vs. mês anterior</th><th class="n">vs. 12 meses antes</th></tr></thead>
+<tbody>
+{% for cod, x in b.items() %}
+<tr><th scope="row">{{ P.rotulos[cod] }}</th><td class="n"><strong>{{ fmt(x.k.valor, 2) }}</strong></td><td class="n">{{ fmt(x.min, 2) if x.min is defined else '—' }}</td><td class="n">{{ fmt(x.max, 2) if x.max is defined else '—' }}</td><td class="n">{{ x.postos if x.postos is defined else '—' }}</td><td class="n {{ var_classe(x.k.var_mes, inverter=True) }}">{{ fmt_var(x.k.var_mes) }}</td><td class="n {{ var_classe(x.k.var12, inverter=True) }}">{{ fmt_var(x.k.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">Fonte: levantamento de preços da ANP. O site mostra só médias do município, nunca o preço de um posto. Mínimo e máximo, e postos pesquisados, são do mês mais recente. <a href="{{ u('precos/' ~ m.estado_slug ~ '/') }}">Outros municípios {{ m.estado_de }}</a> · <a href="{{ u('precos/') }}">Brasil</a>{% if royalties_path %} · <a href="{{ u(royalties_path) }}">Royalties de {{ m.nome }}</a>{% endif %} · <a href="{{ u('sobre/') }}#precos">Como calculamos</a></p>
+</div>
+</section>
+{% endblock %}

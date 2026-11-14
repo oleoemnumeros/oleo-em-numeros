@@ -848,3 +848,76 @@ def test_grafico_oferece_so_as_janelas_menores_que_a_serie():
     # janela só com um ponto com dado não vira gráfico
     esparso = str(linha([None] * 38 + [1, 2], per, "Teste"))
     assert 'data-p="12"' in esparso
+
+
+_CAB_PRECOS = ("Regiao - Sigla;Estado - Sigla;Municipio;Revenda;CNPJ da Revenda;Nome da Rua;Numero Rua;Complemento;Bairro;Cep;"
+               "Produto;Data da Coleta;Valor de Venda;Valor de Compra;Unidade de Medida;Bandeira")
+
+
+def _csv_precos(caminho, mes, base_gasolina=6.0):
+    linhas = [_CAB_PRECOS]
+    for uf, mun in (("RS", "SANTANA DO LIVRAMENTO"), ("SP", "SAO PAULO")):
+        for k in range(4):   # 4 postos
+            for prod, v in (("GASOLINA", base_gasolina + k / 10), ("ETANOL", base_gasolina * 0.68 + k / 20), ("DIESEL S10", base_gasolina + 1)):
+                linhas.append(f"S;{uf};{mun};POSTO SECRETO {k} LTDA; 00.000.000/000{k}-00;RUA DO SEGREDO;{k};;CENTRO;00000-000;"
+                              f"{prod};{15 + k}/{mes[5:7]}/{mes[:4]};{str(round(v, 3)).replace('.', ',')};;R$ / litro;BANDEIRA SECRETA")
+    linhas.append(f"S;SP;SAO PAULO;POSTO ERRO LTDA; 1;RUA;1;;X;00000-000;GASOLINA;10/{mes[5:7]}/{mes[:4]};599,0;;R$ / litro;X")   # erro de digitação
+    linhas.append(f"S;SP;SAO PAULO;POSTO GLP LTDA; 2;RUA;1;;X;00000-000;GLP;10/{mes[5:7]}/{mes[:4]};100,0;;R$ / 13 kg;X")       # fora do escopo
+    caminho.write_text("﻿" + "\r\n".join(linhas) + "\r\n", "utf-8")
+
+
+def test_precos_fontes_resumo_e_media_sem_expor_postos(tmp_path):
+    from robo.precos import _chaves, processar, resumir
+    base = "https://x/dados-abertos/arquivos/shpc/"
+    ch = _chaves([base + "dsas/ca/ca-2022-02.zip", base + "dsas/ca/ca-2023-01.zip", base + "dsas/ca/ca-2018-01.csv",
+                  base + "dsan/2026/10-gasolina-etanol.csv", base + "dsan/2026/04-dados-abertos-precos-gasolina-etanol",
+                  base + "dsan/2026/02-cados-abertos-preco-gasolina-etanol.csv", base + "dsan/2025/precos-diesel-gnv-12.csv",
+                  base + "dsan/2026/09-dados-abertos-precos-2026-09-diesel-gnv.csv", base + "dsan/2023/precos-outra-coisa-01.csv"])
+    assert set(ch) == {"ca-2022-02", "dsan-2026-10-gasolina-etanol", "dsan-2026-04-gasolina-etanol", "dsan-2026-02-gasolina-etanol",
+                       "dsan-2025-12-diesel-gnv", "dsan-2026-09-diesel-gnv"}    # semestral de 2023 em diante e antes de 2019 ficam de fora
+    agg = tmp_path / "agg"
+    agg.mkdir()
+    for mes in ("2026-09", "2026-10"):
+        _csv_precos(tmp_path / f"{mes}.csv", mes, 6.0 if mes == "2026-09" else 6.3)
+        resumir(tmp_path / f"{mes}.csv").to_csv(agg / f"dsan-{mes}-x.csv.gz", index=False, compression="gzip")
+    bruto = (agg / "dsan-2026-10-x.csv.gz").read_bytes()
+    import gzip
+    texto = gzip.decompress(bruto).decode("utf-8")
+    assert "SECRETO" not in texto and "SEGREDO" not in texto and "BANDEIRA" not in texto    # o resumo não guarda posto nem endereço
+    r = processar(agg, tmp_path / "precos.json")
+    assert r["meses"] == ["2026-09", "2026-10"] and r["produtos"] == ["GASOLINA", "ETANOL", "DIESEL S10"]    # GLP fora; erro de R$ 599 descartado
+    g = r["brasil"]["GASOLINA"]
+    assert g["n"] == [8, 8] and abs(g["m"][1] - 6.45) < 1e-9
+    sp = next(m for m in r["municipios"] if m["uf"] == "SP")
+    assert sp["serie"]["GASOLINA"]["n"] == [4, 4] and abs(sp["serie"]["GASOLINA"]["m"][1] - 6.45) < 1e-9    # média de 6,3 / 6,4 / 6,5 / 6,6
+    assert sp["ultimo"]["GASOLINA"] == {"min": 6.3, "max": 6.6, "postos": 4}
+    rs = next(m for m in r["municipios"] if m["uf"] == "RS")
+    assert rs["nome"] == "Sant'Ana do Livramento"       # a ANP escreve Santana; o nome oficial é do IBGE
+
+
+def test_precos_paginas_so_com_dados_sem_posto_e_com_busca(base, tmp_path):
+    from robo.executar import _leve
+    from robo.precos import processar, resumir
+    ag = _leve(agregar(base))
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "agregados.json").write_text(json.dumps(ag, ensure_ascii=False, default=str), "utf-8")
+    gerar(proc, tmp_path / "s1", limpos=True)
+    assert not (tmp_path / "s1" / "precos").exists() and 'href="precos/"' not in (tmp_path / "s1" / "index.html").read_text("utf-8")
+
+    agg = tmp_path / "agg"
+    agg.mkdir()
+    for mes in ("2026-09", "2026-10"):
+        _csv_precos(tmp_path / f"{mes}.csv", mes)
+        resumir(tmp_path / f"{mes}.csv").to_csv(agg / f"{mes}.csv.gz", index=False, compression="gzip")
+    processar(agg, proc / "precos.json")
+    gerar(proc, tmp_path / "s2", limpos=True)
+    site = tmp_path / "s2"
+    pagina = (site / "precos" / "index.html").read_text("utf-8")
+    assert "Preço dos combustíveis no Brasil" in pagina and "Gasolina mais barata" in pagina and 'id="busca-mun"' in pagina
+    assert 'href="precos/"' in (site / "index.html").read_text("utf-8") and "/precos/" in (site / "sitemap.xml").read_text("utf-8")
+    mun = (site / "precos" / "sao-paulo" / "sao-paulo" / "index.html").read_text("utf-8")
+    assert "Preço da gasolina em São Paulo (SP)" in mun and "R$ 6,15" in mun and "Etanol" in mun
+    assert (site / "precos" / "rio-grande-do-sul" / "sant-ana-do-livramento" / "index.html").exists()
+    todo = "".join(p.read_text("utf-8") for p in (site / "precos").rglob("index.html"))
+    assert "SECRETO" not in todo and "SEGREDO" not in todo and "BANDEIRA" not in todo

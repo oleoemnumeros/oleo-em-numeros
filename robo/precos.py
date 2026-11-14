@@ -142,6 +142,8 @@ def processar(pasta: Path = AGG, saida: Path | None = None, ibge: dict | None = 
     idx = {m: i for i, m in enumerate(meses)}
     prods = [p for p in PRODUTOS if p in set(t["prod"])]
     ibge = carregar_ibge() if ibge is None else ibge
+    # a ANP escreve "Santana do Livramento", o IBGE "Sant'Ana do Livramento": cai na comparação só com letras e números
+    ibge_solto = {re.sub(r"[^a-z0-9]", "", k): v for k, v in ibge.items()}
 
     def serie(x):
         m, n = [None] * len(meses), [0] * len(meses)
@@ -157,7 +159,7 @@ def processar(pasta: Path = AGG, saida: Path | None = None, ibge: dict | None = 
     ultimo = meses[-1]
     municipios = []
     for (uf, mun), x in t.groupby(["uf", "mun"]):
-        info = ibge.get(_chave(mun, uf))
+        info = ibge.get(_chave(mun, uf)) or ibge_solto.get(re.sub(r"[^a-z0-9]", "", _chave(mun, uf)))
         u = x[x["mes"] == ultimo].set_index("prod")
         municipios.append({
             "uf": uf, "nome": info["nome"] if info else mun.title(), "ibge": info["ibge"] if info else None,

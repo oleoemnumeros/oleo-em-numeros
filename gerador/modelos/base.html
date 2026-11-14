@@ -38,6 +38,7 @@
 <a href="{{ u('') }}"{% if secao == 'inicio' %} aria-current="page"{% endif %}>Produção</a>
 {% if tem_gas %}<a href="{{ u('gas/') }}"{% if secao == 'gas' %} aria-current="page"{% endif %}>Gás</a>
 {% endif %}{% if tem_refino %}<a href="{{ u('refino/') }}"{% if secao == 'refino' %} aria-current="page"{% endif %}>Refino</a>
+{% endif %}{% if tem_precos %}<a href="{{ u('precos/') }}"{% if secao == 'precos' %} aria-current="page"{% endif %}>Preços</a>
 {% endif %}<a href="{{ u('operadoras/') }}"{% if secao == 'operadoras' %} aria-current="page"{% endif %}>Operadoras</a>
 <a href="{{ u('bacias/') }}"{% if secao == 'bacias' %} aria-current="page"{% endif %}>Bacias</a>
 <a href="{{ u('campos/') }}"{% if secao == 'campos' %} aria-current="page"{% endif %}>Campos</a>
