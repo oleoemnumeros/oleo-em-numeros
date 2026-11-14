@@ -6,7 +6,7 @@ on:
     inputs:
       args:
         description: "Argumentos de python -m robo.precos (vazio = baixar o que falta e processar)"
-        default: "--listar"
+        default: ""
 permissions:
   contents: write
 jobs:
