@@ -44,6 +44,9 @@ def _chaves(links: list[str]) -> dict[str, str]:
     """Chave de cada arquivo (ca-2019-01, dsan-2026-10-gasolina-etanol...) -> URL."""
     out = {}
     for u in links:
+        if re.search(r"/dsas/ca/precos-semestrais-ca\.zip$", u):     # o 1º semestre de 2022 saiu com nome diferente
+            out.setdefault("ca-2022-01", u)
+            continue
         m = re.search(r"/dsas/ca/ca-(\d{4})-(\d{2})\.(?:csv|zip)$", u)
         if m:
             ano, sem = int(m[1]), int(m[2])
@@ -138,7 +141,13 @@ def processar(pasta: Path = AGG, saida: Path | None = None, ibge: dict | None = 
     t = pd.concat([pd.read_csv(a, dtype={"uf": str, "mun": str, "prod": str, "mes": str}) for a in arqs], ignore_index=True)
     # um mês pode vir de dois arquivos (virada de semestre, correções): vale o último arquivo lido
     t = t.drop_duplicates(["uf", "mun", "prod", "mes"], keep="last")
-    meses = sorted(t["mes"].unique())
+    # calendário contínuo: mês sem nenhuma coleta vira lacuna no gráfico, em vez de encolher o eixo
+    a, b = map(int, min(t["mes"]).split("-"))
+    z = max(t["mes"])
+    meses = []
+    while f"{a}-{b:02d}" <= z:
+        meses.append(f"{a}-{b:02d}")
+        a, b = (a + 1, 1) if b == 12 else (a, b + 1)
     idx = {m: i for i, m in enumerate(meses)}
     prods = [p for p in PRODUTOS if p in set(t["prod"])]
     ibge = carregar_ibge() if ibge is None else ibge

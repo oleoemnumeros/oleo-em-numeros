@@ -872,9 +872,9 @@ def test_precos_fontes_resumo_e_media_sem_expor_postos(tmp_path):
     ch = _chaves([base + "dsas/ca/ca-2022-02.zip", base + "dsas/ca/ca-2023-01.zip", base + "dsas/ca/ca-2018-01.csv",
                   base + "dsan/2026/10-gasolina-etanol.csv", base + "dsan/2026/04-dados-abertos-precos-gasolina-etanol",
                   base + "dsan/2026/02-cados-abertos-preco-gasolina-etanol.csv", base + "dsan/2025/precos-diesel-gnv-12.csv",
-                  base + "dsan/2026/09-dados-abertos-precos-2026-09-diesel-gnv.csv", base + "dsan/2023/precos-outra-coisa-01.csv"])
+                  base + "dsan/2026/09-dados-abertos-precos-2026-09-diesel-gnv.csv", base + "dsan/2023/precos-outra-coisa-01.csv", base + "dsas/ca/precos-semestrais-ca.zip"])
     assert set(ch) == {"ca-2022-02", "dsan-2026-10-gasolina-etanol", "dsan-2026-04-gasolina-etanol", "dsan-2026-02-gasolina-etanol",
-                       "dsan-2025-12-diesel-gnv", "dsan-2026-09-diesel-gnv"}    # semestral de 2023 em diante e antes de 2019 ficam de fora
+                       "dsan-2025-12-diesel-gnv", "dsan-2026-09-diesel-gnv", "ca-2022-01"}    # semestral de 2023 em diante e antes de 2019 ficam de fora
     agg = tmp_path / "agg"
     agg.mkdir()
     for mes in ("2026-09", "2026-10"):
