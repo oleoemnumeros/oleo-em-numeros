@@ -142,6 +142,11 @@ def test_gera_site(base, tmp_path):
     assert sug.count("<h1") == 1 and "[Óleo em Números] Sugestão ou crítica" in sug
     assert "sugestoes/" in html and "Sugestões e críticas" in html
     assert "sugestoes/" in (tmp_path / "site" / "sitemap.xml").read_text("utf-8")
+    # imagem de prévia do link (WhatsApp, Instagram, X, LinkedIn)
+    assert '<meta property="og:image" content="' in html and html.count('og.png"') == 1
+    assert '<meta name="twitter:card" content="summary_large_image">' in html
+    og = (tmp_path / "site" / "og.png").read_bytes()
+    assert og[:8] == b"\x89PNG\r\n\x1a\n" and int.from_bytes(og[16:20], "big") == 1200 and int.from_bytes(og[20:24], "big") == 630
 
 
 def test_cabecalho_em_duas_linhas():

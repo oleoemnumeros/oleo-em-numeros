@@ -484,6 +484,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
              descricao="Página não encontrada.", noindex=True, erro=True)
 
     shutil.copy(AQUI / "estatico" / "estilo.css", saida / "estilo.css")
+    shutil.copy(AQUI / "estatico" / "og.png", saida / "og.png")
     if M:
         shutil.copytree(AQUI / "estatico" / "leaflet", saida / "leaflet")
     (saida / "icone.svg").write_text(ICONE, "utf-8")
