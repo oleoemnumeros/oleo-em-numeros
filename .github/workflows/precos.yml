@@ -1,0 +1,32 @@
+# Ferramenta de manutenção: lista e baixa os arquivos de preços da ANP. Não mexe no site.
+name: Explorar dados de preços
+on:
+  workflow_dispatch:
+    inputs:
+      args:
+        description: "Argumentos de python -m robo.precos"
+        default: "--listar"
+permissions:
+  contents: write
+jobs:
+  precos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Executa
+        run: python -m robo.precos ${{ inputs.args }}
+      - name: Guarda no ramo exportacao-precos
+        run: |
+          if ls dados/precos/* >/dev/null 2>&1; then
+            mkdir -p /tmp/exp/precos && cp dados/precos/* /tmp/exp/precos/
+            cd /tmp/exp && tar czf precos.tgz precos && rm -rf precos && git init -q -b exportacao-precos
+            git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" add precos.tgz
+            git -c user.name="Óleo em Números" -c user.email="oleoemnumeros@users.noreply.github.com" commit -qm "Arquivos de preços da ANP para desenvolvimento"
+            git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" exportacao-precos
+          fi
