@@ -269,7 +269,7 @@ def resumo_dados(ag: dict, per: str) -> dict | None:
         return None
     d["delta"] = d["boe"] - _na_serie(serie, "boe", ant)
     idx = serie["periodo"].index(per)
-    ate = serie["boe"][:idx + 1]
+    ate = [v for v in serie["boe"][:idx + 1] if v is not None]
     d["recorde"] = idx >= 11 and d["boe"] >= max(ate)
     d["minimo"] = idx >= 11 and d["boe"] <= min(ate)
     d["desde"] = serie["periodo"][0]
@@ -321,7 +321,7 @@ def resumo_destaques(ag: dict, d: dict) -> list[dict]:
         L.append({"texto": f"É a menor produção em {d['janela']} meses, o período que o site cobre (desde {mes_extenso(d['desde'])})."})
     if d["ultimo"]:
         br = ag["brasil"]
-        if br["varmes_terra"] is not None:
+        if br.get("varmes_terra") is not None and br.get("boe_terra") is not None:
             L.append({"texto": f"Em terra, a produção {'subiu' if br['varmes_terra'] > 0 else 'caiu'} "
                                f"{fmt(abs(br['varmes_terra']) * 100, 1)}% no mês, para {fmt(br['boe_terra'], 1)} mil boe/d.",
                       "link": ("rankings/terra/", "Ranking em terra")})
@@ -475,8 +475,12 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         return u
 
     mes = mes_extenso(ag["ultimo"])
-    d_home = resumo_dados(ag, ag["ultimo"])
-    resumo_home = {"per": ag["ultimo"], "manchete": resumo_manchete(d_home)} if d_home else None
+    try:
+        d_home = resumo_dados(ag, ag["ultimo"])
+        resumo_home = {"per": ag["ultimo"], "manchete": resumo_manchete(d_home)} if d_home else None
+    except Exception as e:  # noqa: BLE001 - o resumo é um extra: nunca trava a publicação do site
+        print(f"AVISO: resumo do mês indisponível ({type(e).__name__}: {e}); a home sai sem o card.")
+        resumo_home = None
     raiz_u = lambda alvo: alvo + ("" if limpos else "index.html") if (alvo == "" or alvo.endswith("/")) else alvo  # noqa: E731
     escrever("", "inicio.html", secao="inicio", titulo=f"{site['nome']}: produção de petróleo e gás no Brasil",
              descricao="Produção de petróleo e gás do Brasil por operadora, campo e poço, royalties por município e "
@@ -703,25 +707,32 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
              descricao="De onde vêm os dados do Óleo em Números e como os números são calculados.")
     escrever("sugestoes/", "sugestoes.html", secao="sugestoes", titulo="Sugestões e críticas",
              descricao="Envie uma sugestão, crítica ou correção para o Óleo em Números. A mensagem chega por e-mail e é lida por uma pessoa.")
-    meses_resumo = resumo_meses(ag)
+    try:
+        meses_resumo = resumo_meses(ag)
+    except Exception as e:  # noqa: BLE001
+        print(f"AVISO: resumos mensais indisponíveis ({type(e).__name__}: {e}); o site sai sem eles.")
+        meses_resumo = []
     itens_resumo = []
     for i, per in enumerate(meses_resumo):
-        d = resumo_dados(ag, per)
-        manchete = resumo_manchete(d)
-        itens_resumo.append({"per": per, "mes": mes_extenso(per), "manchete": manchete})
-        dest = resumo_destaques(ag, d)
-        idx = ag["brasil"]["serie"]["periodo"].index(per)
-        r = ag["rankings"]["todos"]
-        escrever(f"resumo/{per}/", "resumo.html", secao="resumo", d=d, manchete=manchete, destaques=dest,
-                 post=resumo_post(site, d, manchete, dest),
-                 serie_boe=ag["brasil"]["serie"]["boe"][:idx + 1], serie_per=ag["brasil"]["serie"]["periodo"][:idx + 1],
-                 campos_altas=[c for c in r["altas"] if c["delta_mes"] and c["delta_mes"] > 0][:5] if d["ultimo"] else [],
-                 campos_quedas=[c for c in r["quedas"] if c["delta_mes"] and c["delta_mes"] < 0][:5] if d["ultimo"] else [],
-                 anterior=meses_resumo[i - 1] if i else None,
-                 proximo=meses_resumo[i + 1] if i + 1 < len(meses_resumo) else None,
-                 titulo=f"{manchete} | Resumo de {mes_extenso(per)}",
-                 descricao=f"Resumo de {mes_extenso(per)}: produção de petróleo e gás do Brasil, o que mudou no mês, "
-                           "operadoras e bacias. Dados oficiais da ANP.")
+        try:
+            d = resumo_dados(ag, per)
+            manchete = resumo_manchete(d)
+            dest = resumo_destaques(ag, d)
+            idx = ag["brasil"]["serie"]["periodo"].index(per)
+            r = ag["rankings"]["todos"]
+            escrever(f"resumo/{per}/", "resumo.html", secao="resumo", d=d, manchete=manchete, destaques=dest,
+                     post=resumo_post(site, d, manchete, dest),
+                     serie_boe=ag["brasil"]["serie"]["boe"][:idx + 1], serie_per=ag["brasil"]["serie"]["periodo"][:idx + 1],
+                     campos_altas=[c for c in r["altas"] if c["delta_mes"] and c["delta_mes"] > 0][:5] if d["ultimo"] else [],
+                     campos_quedas=[c for c in r["quedas"] if c["delta_mes"] and c["delta_mes"] < 0][:5] if d["ultimo"] else [],
+                     anterior=meses_resumo[i - 1] if i else None,
+                     proximo=meses_resumo[i + 1] if i + 1 < len(meses_resumo) else None,
+                     titulo=f"{manchete} | Resumo de {mes_extenso(per)}",
+                     descricao=f"Resumo de {mes_extenso(per)}: produção de petróleo e gás do Brasil, o que mudou no mês, "
+                               "operadoras e bacias. Dados oficiais da ANP.")
+            itens_resumo.append({"per": per, "mes": mes_extenso(per), "manchete": manchete})
+        except Exception as e:  # noqa: BLE001 - um mês com dado estranho não derruba o site
+            print(f"AVISO: resumo de {per} não gerado ({type(e).__name__}: {e}).")
     if itens_resumo:
         escrever("resumo/", "resumos.html", secao="resumo", itens=list(reversed(itens_resumo)),
                  titulo="Resumos mensais da produção de petróleo e gás",
