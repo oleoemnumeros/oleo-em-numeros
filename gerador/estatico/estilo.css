@@ -25,7 +25,7 @@ h1, h2, h3 { font-family: var(--titulo); letter-spacing: -0.01em; }
 .faixa-teste { background: var(--cor-claro); color: var(--cor-texto); font-size: 13px; text-align: center; padding: 8px 16px; }
 
 /* Cabeçalho */
-.topo { background: var(--cartao); border-bottom: 1px solid var(--borda); }
+.topo { position: sticky; top: 0; z-index: 1100; background: var(--cartao); border-bottom: 1px solid var(--borda); }
 .topo .miolo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-top: 14px; padding-bottom: 14px; }
 .marca { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--tinta); }
 .marca span { font-family: var(--titulo); font-weight: 700; font-size: 20px; }
@@ -187,7 +187,7 @@ h2.bloco { margin: 48px 0 0; font-size: 26px; }
 
 /* acessibilidade */
 .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-.pular { position: absolute; left: 12px; top: -64px; z-index: 10; padding: 10px 16px; border-radius: 8px; background: var(--tinta); color: #FFFFFF; font-weight: 600; text-decoration: none; }
+.pular { position: absolute; left: 12px; top: -64px; z-index: 1200; padding: 10px 16px; border-radius: 8px; background: var(--tinta); color: #FFFFFF; font-weight: 600; text-decoration: none; }
 .pular:focus, .pular:hover { top: 12px; color: #FFFFFF; }
 :focus-visible { outline: 3px solid var(--cor); outline-offset: 2px; }
 .rodape :focus-visible { outline-color: #FBBF24; }

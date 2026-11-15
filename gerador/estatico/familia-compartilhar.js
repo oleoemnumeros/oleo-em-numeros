@@ -646,7 +646,7 @@
       ".fam-sheet-acoes button svg{width:18px!important;height:18px!important}" +
       ".fam-comp-btn,.fam-sheet button{text-transform:none;letter-spacing:normal;box-shadow:none;width:auto}" +
       ".fam-sheet-acoes button{width:100%}" +
-      ".fam-ancora{scroll-margin-top:84px}" +
+      ".fam-ancora{scroll-margin-top:var(--fam-topo,84px)}" +
       ".fam-pisca{animation:fam-pisca 2.6s ease-out 1}" +
       "@keyframes fam-pisca{0%,40%{outline:3px solid #f59e0b;outline-offset:6px}100%{outline:3px solid transparent;outline-offset:6px}}" +
       "@media (prefers-reduced-motion:reduce){.fam-pisca{animation:none;outline:3px solid #f59e0b;outline-offset:6px}}" +
@@ -673,8 +673,16 @@
     document.head.appendChild(s);
   }
 
+  // cabeçalho fixo (sticky) cobriria o título do gráfico ao abrir um link direto: mede a altura e deixa a margem certa
+  function medirTopo() {
+    var h = document.querySelector("header"), cs = h && getComputedStyle(h);
+    var px = cs && (cs.position === "sticky" || cs.position === "fixed") ? h.offsetHeight + 12 : 12;
+    document.documentElement.style.setProperty("--fam-topo", px + "px");
+  }
   function pronto() {
     estilo();
+    medirTopo();
+    window.addEventListener("resize", medirTopo);
     iniciar();
     irParaHash();
     window.addEventListener("load", function () { iniciar(); irParaHash(); });
