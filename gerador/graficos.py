@@ -148,7 +148,7 @@ def _vista(valores, periodos, rotulo, cor, largura, altura, sufixo, area, zero, 
     return larga + cel
 
 
-def linha(valores, periodos, rotulo: str, cor: str = "#B45309", largura: int = 800,
+def linha(valores, periodos, rotulo: str, cor: str = "#0F4C5C", largura: int = 800,
           altura: int = 270, sufixo: str = "", area: bool = True, zero: bool = False,
           passo: int | None = None, teto: float | None = None) -> Markup:
     """Linha com grade, último ponto marcado e rótulos de mês no eixo x.

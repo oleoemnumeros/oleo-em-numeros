@@ -31,7 +31,7 @@
 <header class="topo">
 <div class="miolo">
 <a class="marca" href="{{ u('') }}">
-<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 2c4.5 5.6 8 10.2 8 14.6a8 8 0 0 1-16 0C7 12.2 10.5 7.6 15 2z" fill="#B45309"/><rect x="10.5" y="16" width="2.2" height="6" rx="1" fill="#fff"/><rect x="13.9" y="12.5" width="2.2" height="9.5" rx="1" fill="#fff"/><rect x="17.3" y="14.5" width="2.2" height="7.5" rx="1" fill="#fff"/></svg>
+<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 2c4.5 5.6 8 10.2 8 14.6a8 8 0 0 1-16 0C7 12.2 10.5 7.6 15 2z" fill="#0F4C5C"/><rect x="10.5" y="16" width="2.2" height="6" rx="1" fill="#fff"/><rect x="13.9" y="12.5" width="2.2" height="9.5" rx="1" fill="#fff"/><rect x="17.3" y="14.5" width="2.2" height="7.5" rx="1" fill="#fff"/></svg>
 <span>{{ site.nome }}</span>
 </a>
 <nav class="nav" aria-label="Principal">
@@ -48,7 +48,8 @@
 {% if tem_royalties %}<a href="{{ u('royalties/') }}"{% if secao == 'royalties' %} aria-current="page"{% endif %}>Royalties</a>
 {% endif %}<a href="{{ u('rankings/') }}"{% if secao == 'rankings' %} aria-current="page"{% endif %}>Rankings</a>
 {% if tem_resultados %}<a href="{{ u('resultados/') }}"{% if secao == 'resultados' %} aria-current="page"{% endif %}>Listadas</a>
-{% endif %}<a href="{{ u('noticias/') }}"{% if secao == 'noticias' %} aria-current="page"{% endif %}>Notícias</a>
+{% endif %}<a href="{{ u('resumo/') }}"{% if secao == 'resumo' %} aria-current="page"{% endif %}>Resumos</a>
+<a href="{{ u('noticias/') }}"{% if secao == 'noticias' %} aria-current="page"{% endif %}>Notícias</a>
 </nav>
 </div>
 </header>
@@ -69,6 +70,7 @@
 <p>Dados públicos de petróleo e gás do Brasil, organizados todo mês. Fonte: ANP. Dado mais recente: {{ mes_extenso(ag.ultimo) }}. Nada neste site é recomendação de investimento.</p>
 </div>
 <nav aria-label="Rodapé">
+<a href="{{ u('resumo/') }}">Resumos mensais</a>
 <a href="{{ u('sobre/') }}">Sobre e metodologia</a>
 <a href="{{ u('sobre/') }}#erro">Reportar um erro</a>
 <a href="{{ u('sugestoes/') }}">Sugestões e críticas</a>
@@ -77,10 +79,10 @@
 </div>
 {# Família em Números: para incluir um novo portal, acrescente uma linha nesta lista #}
 {% set familia = [
-  {"nome": "Óleo em Números", "tema": "Petróleo e gás", "url": "https://oleoemnumeros.com.br/", "cor": "#F59E0B"},
-  {"nome": "Comex em Números", "tema": "Exportações e importações", "url": "https://comexemnumeros.com.br/", "cor": "#37C0A5"},
-  {"nome": "Voo em Números", "tema": "Pontualidade aérea", "url": "https://vooemnumeros.com.br/", "cor": "#A58BF0"},
-  {"nome": "Economia em Números", "tema": "Macroeconomia", "url": "https://economiaemnumeros.com.br/", "cor": "#7EA3FF"},
+  {"nome": "Óleo em Números", "tema": "Petróleo e gás", "url": "https://oleoemnumeros.com.br/", "cor": "#17758C"},
+  {"nome": "Comex em Números", "tema": "Exportações e importações", "url": "https://comexemnumeros.com.br/", "cor": "#1F85D0"},
+  {"nome": "Voo em Números", "tema": "Pontualidade aérea", "url": "https://vooemnumeros.com.br/", "cor": "#4FB8EE"},
+  {"nome": "Economia em Números", "tema": "Macroeconomia", "url": "https://economiaemnumeros.com.br/", "cor": "#D9A514"},
 ] %}
 <div class="miolo familia">
 <p class="familia-titulo"><b>Família em Números</b> · portais independentes que organizam dados públicos do Brasil</p>
@@ -215,6 +217,7 @@
   }
 })();
 </script>
+<script src="{{ raiz }}familia.js?v={{ v_js }}" defer></script>
 {% if not (site.teste or site.previa) %}<script data-goatcounter="https://oleoemnumeros.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>{% endif %}
 </body>
 </html>

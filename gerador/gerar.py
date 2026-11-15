@@ -32,7 +32,7 @@ from .familia import carregar as carregar_familia, chave_cidade, continuar as co
 
 AQUI = Path(__file__).resolve().parent
 ICONE = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"><path d="M15 2c4.5 5.6 8 10.2 8 14.6a8 8 0 0 1-16 0'
-         'C7 12.2 10.5 7.6 15 2z" fill="#B45309"/><rect x="10.5" y="16" width="2.2" height="6" rx="1" fill="#fff"/>'
+         'C7 12.2 10.5 7.6 15 2z" fill="#0F4C5C"/><rect x="10.5" y="16" width="2.2" height="6" rx="1" fill="#fff"/>'
          '<rect x="13.9" y="12.5" width="2.2" height="9.5" rx="1" fill="#fff"/><rect x="17.3" y="14.5" width="2.2" '
          'height="7.5" rx="1" fill="#fff"/></svg>')
 
@@ -220,6 +220,148 @@ def destaques(ag, u):
     return lista
 
 
+# ---------------- resumo do mês ----------------
+# Um resumo por mês coberto pela série nacional. Tudo sai de agregados.json (não há histórico a guardar):
+# totais do Brasil, operadoras e bacias valem para qualquer mês da série; campos e terra só para o mês mais
+# recente, porque a lista de campos é a de hoje e um campo que parou de produzir não aparece nela.
+
+def _mes_antes(per: str, n: int) -> str:
+    ano, mes = map(int, per.split("-"))
+    k = ano * 12 + mes - 1 - n
+    return f"{k // 12}-{k % 12 + 1:02d}"
+
+
+def _na_serie(serie: dict, chave: str, per: str):
+    try:
+        return serie[chave][serie["periodo"].index(per)]
+    except (KeyError, ValueError, IndexError):
+        return None
+
+
+def _razao(a, b):
+    """a/b - 1, ou None quando falta valor ou a base é zero."""
+    return None if a is None or not b else a / b - 1
+
+
+def _movimentos(itens, per: str, ant: str, ano: str, exclui=()):
+    out = []
+    for e in itens:
+        if e["nome"] in exclui:
+            continue
+        v, a = _na_serie(e["serie"], "boe", per), _na_serie(e["serie"], "boe", ant)
+        if v is None or a is None:
+            continue
+        out.append({"nome": e["nome"], "slug": e["slug"], "boe": v, "ant": a, "delta": v - a, "var": _razao(v, a),
+                    "var12": _razao(v, _na_serie(e["serie"], "boe", ano))})
+    return out
+
+
+def resumo_dados(ag: dict, per: str) -> dict | None:
+    serie = ag["brasil"]["serie"]
+    ant, ano = _mes_antes(per, 1), _mes_antes(per, 12)
+    d = {"per": per, "ant": ant, "ano": ano, "ultimo": per == ag["ultimo"]}
+    for k in ("boe", "petroleo", "gas"):
+        v = _na_serie(serie, k, per)
+        d[k] = v
+        d[k + "_mes"] = _razao(v, _na_serie(serie, k, ant))
+        d[k + "_12"] = _razao(v, _na_serie(serie, k, ano))
+    if d["boe"] is None or d["boe_mes"] is None:
+        return None
+    d["delta"] = d["boe"] - _na_serie(serie, "boe", ant)
+    idx = serie["periodo"].index(per)
+    ate = serie["boe"][:idx + 1]
+    d["recorde"] = idx >= 11 and d["boe"] >= max(ate)
+    d["minimo"] = idx >= 11 and d["boe"] <= min(ate)
+    d["desde"] = serie["periodo"][0]
+    d["janela"] = idx + 1
+    ops = _movimentos(ag["operadores"], per, ant, ano, exclui=(DESCONHECIDO,))
+    d["operadoras"] = sorted(ops, key=lambda o: -o["boe"])
+    bac = _movimentos(ag.get("bacias", []), per, ant, ano)
+    d["bacias"] = sorted(bac, key=lambda o: -o["boe"])
+    return d
+
+
+def resumo_manchete(d: dict) -> str:
+    mes = mes_extenso(d["per"])
+    v = d["boe_mes"]
+    total = d["boe"] / 1000
+    texto = f"{fmt(total, 2)} {'milhões' if total >= 2 else 'milhão'} de boe/d"
+    if abs(v) < 0.005:
+        return f"Produção de petróleo e gás do Brasil fica estável em {mes}, em {texto}"
+    verbo = "sobe" if v > 0 else "cai"
+    if d["recorde"] and v > 0:
+        return f"Produção de petróleo e gás do Brasil sobe {fmt(abs(v) * 100, 1)}% em {mes} e é a maior em {d['janela']} meses: {texto}"
+    return f"Produção de petróleo e gás do Brasil {verbo} {fmt(abs(v) * 100, 1)}% em {mes}, para {texto}"
+
+
+def _sinal(x, casas=0):
+    return ("+" if x > 0 else "−" if x < 0 else "") + fmt(abs(x), casas)
+
+
+def resumo_destaques(ag: dict, d: dict) -> list[dict]:
+    """O que mudou: frases curtas, cada uma com (opcional) um link para a página de quem ela cita."""
+    nome_ant = mes_extenso(d["ant"])
+    mes_ano = mes_extenso(d["ano"])
+    L = []
+    v = d["boe_mes"]
+    if abs(v) < 0.005:
+        L.append({"texto": f"A produção total ficou praticamente igual à de {nome_ant}: {fmt(d['boe'])} mil boe/d."})
+    else:
+        L.append({"texto": f"A produção total {'subiu' if v > 0 else 'caiu'} {fmt(abs(v) * 100, 1)}% sobre {nome_ant}, "
+                           f"{_sinal(d['delta'])} mil boe/d, e chegou a {fmt(d['boe'])} mil boe/d."})
+    if d["petroleo"] is not None and d["gas"] is not None:
+        L.append({"texto": f"Petróleo: {fmt(d['petroleo'])} mil bbl/d ({fmt_var(d['petroleo_mes'])} no mês). "
+                           f"Gás natural: {fmt(d['gas'], 1)} milhões m³/d ({fmt_var(d['gas_mes'])} no mês)."})
+    if d["boe_12"] is not None:
+        L.append({"texto": f"Em 12 meses, a produção {'subiu' if d['boe_12'] > 0 else 'caiu'} "
+                           f"{fmt(abs(d['boe_12']) * 100, 1)}%, ante {mes_ano}."})
+    if d["recorde"]:
+        L.append({"texto": f"É a maior produção em {d['janela']} meses, o período que o site cobre (desde {mes_extenso(d['desde'])})."})
+    elif d["minimo"]:
+        L.append({"texto": f"É a menor produção em {d['janela']} meses, o período que o site cobre (desde {mes_extenso(d['desde'])})."})
+    if d["ultimo"]:
+        br = ag["brasil"]
+        if br["varmes_terra"] is not None:
+            L.append({"texto": f"Em terra, a produção {'subiu' if br['varmes_terra'] > 0 else 'caiu'} "
+                               f"{fmt(abs(br['varmes_terra']) * 100, 1)}% no mês, para {fmt(br['boe_terra'], 1)} mil boe/d.",
+                      "link": ("rankings/terra/", "Ranking em terra")})
+        r = ag["rankings"]["todos"]
+        for lado, rot in (("altas", "maior alta"), ("quedas", "maior queda")):
+            if r[lado] and r[lado][0]["delta_mes"]:
+                c = r[lado][0]
+                L.append({"texto": f"Entre os campos, a {rot} foi {c['nome']} ({c['grupo']}): {_sinal(c['delta_mes'])} boe/d, "
+                                   f"para {fmt(c['boe'])} boe/d.", "link": (f"campos/{c['slug']}/", "Ver campo")})
+    ops = d["operadoras"]
+    if ops:
+        alta, queda = max(ops, key=lambda o: o["delta"]), min(ops, key=lambda o: o["delta"])
+        if alta["delta"] > 0:
+            L.append({"texto": f"Entre as operadoras, quem mais somou foi {alta['nome']}: {_sinal(alta['delta'], 1)} mil boe/d "
+                               f"({fmt_var(alta['var'])}).", "link": (f"operadoras/{alta['slug']}/", "Ver operadora")})
+        if queda["delta"] < 0:
+            L.append({"texto": f"Quem mais perdeu foi {queda['nome']}: {_sinal(queda['delta'], 1)} mil boe/d "
+                               f"({fmt_var(queda['var'])}).", "link": (f"operadoras/{queda['slug']}/", "Ver operadora")})
+    bac = d["bacias"]
+    if bac:
+        b = max(bac, key=lambda o: abs(o["delta"]))
+        if b["delta"]:
+            L.append({"texto": f"A bacia que mais se mexeu foi a {b['nome']}: {_sinal(b['delta'], 1)} mil boe/d "
+                               f"({fmt_var(b['var'])}).", "link": (f"bacias/{b['slug']}/", "Ver bacia")})
+    return L
+
+
+def resumo_post(site: dict, d: dict, manchete: str, destaques_: list[dict]) -> str:
+    l = [f"Produção de petróleo e gás no Brasil, {mes_extenso(d['per'])}", "", manchete + ".", ""]
+    l += [f"• {x['texto']}" for x in destaques_[:5]]
+    l += ["", "Resumo completo, com operadoras e bacias:", f"{site['url']}/resumo/{d['per']}/", "",
+          "#petroleo #gasnatural #ANP #oleoemnumeros"]
+    return "\n".join(l)
+
+
+def resumo_meses(ag: dict) -> list[str]:
+    """Meses com resumo: todos os da série nacional, do segundo em diante (precisa do mês anterior)."""
+    return [p for p in ag["brasil"]["serie"]["periodo"][1:] if resumo_dados(ag, p)]
+
+
 # ---------------- carga ----------------
 
 def carregar(pasta: Path) -> dict:
@@ -289,6 +431,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
 
     # o endereço do CSS leva o hash do conteúdo: quem abriu o site pouco antes de uma atualização não fica com o estilo antigo
     env.globals["v_css"] = hashlib.md5((AQUI / "estatico" / "estilo.css").read_bytes()).hexdigest()[:8]
+    env.globals["v_js"] = hashlib.md5((AQUI / "estatico" / "familia.js").read_bytes()).hexdigest()[:8]
     env.globals["tem_mapa"] = (dados / "geo.json").exists() and (dados / "base_pocos.csv.gz").exists()
 
     if saida.exists():
@@ -332,11 +475,13 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         return u
 
     mes = mes_extenso(ag["ultimo"])
+    d_home = resumo_dados(ag, ag["ultimo"])
+    resumo_home = {"per": ag["ultimo"], "manchete": resumo_manchete(d_home)} if d_home else None
     raiz_u = lambda alvo: alvo + ("" if limpos else "index.html") if (alvo == "" or alvo.endswith("/")) else alvo  # noqa: E731
     escrever("", "inicio.html", secao="inicio", titulo=f"{site['nome']}: produção de petróleo e gás no Brasil",
              descricao="Produção de petróleo e gás do Brasil por operadora, campo e poço, royalties por município e "
                        "resultados das listadas. Dados oficiais da ANP e da CVM.",
-             destaques=destaques(ag, raiz_u), noticias=noticias[:8])
+             destaques=destaques(ag, raiz_u), noticias=noticias[:8], resumo=resumo_home)
 
     escrever("operadoras/", "listas.html", secao="operadoras", tipo="operadoras", itens=ag["operadores"],
              titulo="Operadoras de petróleo e gás no Brasil", h1="Operadoras",
@@ -558,10 +703,35 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
              descricao="De onde vêm os dados do Óleo em Números e como os números são calculados.")
     escrever("sugestoes/", "sugestoes.html", secao="sugestoes", titulo="Sugestões e críticas",
              descricao="Envie uma sugestão, crítica ou correção para o Óleo em Números. A mensagem chega por e-mail e é lida por uma pessoa.")
+    meses_resumo = resumo_meses(ag)
+    itens_resumo = []
+    for i, per in enumerate(meses_resumo):
+        d = resumo_dados(ag, per)
+        manchete = resumo_manchete(d)
+        itens_resumo.append({"per": per, "mes": mes_extenso(per), "manchete": manchete})
+        dest = resumo_destaques(ag, d)
+        idx = ag["brasil"]["serie"]["periodo"].index(per)
+        r = ag["rankings"]["todos"]
+        escrever(f"resumo/{per}/", "resumo.html", secao="resumo", d=d, manchete=manchete, destaques=dest,
+                 post=resumo_post(site, d, manchete, dest),
+                 serie_boe=ag["brasil"]["serie"]["boe"][:idx + 1], serie_per=ag["brasil"]["serie"]["periodo"][:idx + 1],
+                 campos_altas=[c for c in r["altas"] if c["delta_mes"] and c["delta_mes"] > 0][:5] if d["ultimo"] else [],
+                 campos_quedas=[c for c in r["quedas"] if c["delta_mes"] and c["delta_mes"] < 0][:5] if d["ultimo"] else [],
+                 anterior=meses_resumo[i - 1] if i else None,
+                 proximo=meses_resumo[i + 1] if i + 1 < len(meses_resumo) else None,
+                 titulo=f"{manchete} | Resumo de {mes_extenso(per)}",
+                 descricao=f"Resumo de {mes_extenso(per)}: produção de petróleo e gás do Brasil, o que mudou no mês, "
+                           "operadoras e bacias. Dados oficiais da ANP.")
+    if itens_resumo:
+        escrever("resumo/", "resumos.html", secao="resumo", itens=list(reversed(itens_resumo)),
+                 titulo="Resumos mensais da produção de petróleo e gás",
+                 descricao="Resumo mensal da produção de petróleo e gás do Brasil: manchete, o que mudou, operadoras e bacias. "
+                           "Dados oficiais da ANP.")
     escrever("404.html", "nao_encontrada.html", raiz="/", secao="", titulo="Página não encontrada",
              descricao="Página não encontrada.", noindex=True, erro=True)
 
     shutil.copy(AQUI / "estatico" / "estilo.css", saida / "estilo.css")
+    shutil.copy(AQUI / "estatico" / "familia.js", saida / "familia.js")
     shutil.copy(AQUI / "estatico" / "og.png", saida / "og.png")
     if M:
         shutil.copytree(AQUI / "estatico" / "leaflet", saida / "leaflet")

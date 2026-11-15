@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<p class="olho">Resumos mensais</p>
+<h1>A produção de petróleo e gás, mês a mês</h1>
+<p class="sub">Todo mês, quando a ANP publica a produção, sai aqui um resumo com a manchete, o que mudou e o ranking de operadoras e bacias.</p>
+</section>
+<section class="miolo secao">
+<div class="cartao">
+<ul class="lista-resumos">
+{% for r in itens %}<li><a href="{{ u('resumo/' ~ r.per ~ '/') }}"><b>{{ r.mes }}</b><span>{{ r.manchete }}</span></a></li>
+{% endfor %}</ul>
+</div>
+</section>
+{% endblock %}
