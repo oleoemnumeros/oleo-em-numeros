@@ -274,3 +274,4 @@ tr.eu th { font-weight: 600; }
 a.card.resumo-home { border-left: 4px solid var(--cor); }
 a.card.resumo-home h3 { font-size: 24px; }
 .fam-post { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; line-height: 1.5; padding: 12px; border-radius: 8px; border: 1px solid var(--borda); background: var(--fundo); color: inherit; margin-bottom: 10px; resize: vertical; }
+.rodape .familia-titulo a { color: #FFFFFF; text-decoration: underline; text-underline-offset: 3px; }
