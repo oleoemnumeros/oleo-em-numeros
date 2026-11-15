@@ -1,6 +1,7 @@
 # Atualização do Óleo em Números.
 # Dias 5, 15 e 25: baixa a ANP (que não tem data fixa), confere, gera e publica.
 # Todo dia: coleta as manchetes do setor e republica, sem baixar a ANP de novo.
+# Quando o código do site ou do robô muda na main: roda os testes e republica, também sem baixar a ANP.
 # Se a conferência encontrar algo crítico, o job falha, o GitHub manda e-mail
 # e o site continua com a última versão boa.
 name: Atualização do site
@@ -14,6 +15,13 @@ on:
       ano_inicial:
         description: "Primeiro ano da base (2018 = histórico completo)"
         default: "2018"
+  push:                             # mudança no site ou no robô: republica com os dados que já temos
+    branches: [main]
+    paths:
+      - "gerador/**"
+      - "robo/**"
+      - "requirements.txt"
+      - ".github/workflows/atualizar.yml"
 
 permissions:
   contents: read
@@ -45,8 +53,8 @@ jobs:
       - name: Modo da execução
         id: modo
         run: |
-          if [ "${{ github.event.schedule }}" = "23 10 * * *" ]; then
-            echo "baixar=nao" >> "$GITHUB_OUTPUT"; echo "Execução diária: só notícias."
+          if [ "${{ github.event.schedule }}" = "23 10 * * *" ] || [ "${{ github.event_name }}" = "push" ]; then
+            echo "baixar=nao" >> "$GITHUB_OUTPUT"; echo "Execução sem baixar a ANP: só notícias e geração do site."
           else
             echo "baixar=sim" >> "$GITHUB_OUTPUT"; echo "Execução completa: baixa a ANP."
           fi
