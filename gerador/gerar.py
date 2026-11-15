@@ -432,6 +432,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     # o endereço do CSS leva o hash do conteúdo: quem abriu o site pouco antes de uma atualização não fica com o estilo antigo
     env.globals["v_css"] = hashlib.md5((AQUI / "estatico" / "estilo.css").read_bytes()).hexdigest()[:8]
     env.globals["v_js"] = hashlib.md5((AQUI / "estatico" / "familia.js").read_bytes()).hexdigest()[:8]
+    env.globals["v_comp"] = hashlib.md5((AQUI / "estatico" / "familia-compartilhar.js").read_bytes()).hexdigest()[:8]
     env.globals["tem_mapa"] = (dados / "geo.json").exists() and (dados / "base_pocos.csv.gz").exists()
 
     if saida.exists():
@@ -743,6 +744,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
 
     shutil.copy(AQUI / "estatico" / "estilo.css", saida / "estilo.css")
     shutil.copy(AQUI / "estatico" / "familia.js", saida / "familia.js")
+    shutil.copy(AQUI / "estatico" / "familia-compartilhar.js", saida / "familia-compartilhar.js")
     shutil.copy(AQUI / "estatico" / "og.png", saida / "og.png")
     if M:
         shutil.copytree(AQUI / "estatico" / "leaflet", saida / "leaflet")

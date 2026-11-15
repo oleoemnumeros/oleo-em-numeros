@@ -135,6 +135,9 @@ def test_gera_site(base, tmp_path):
         assert nome in html
     assert 'href="https://economiaemnumeros.com.br/"' in html
     assert html.count("você está aqui") == 1 and 'href="https://oleoemnumeros.com.br/"' not in html.split("Família em Números")[-1]
+    # botão Compartilhar (WhatsApp): o arquivo é copiado e toda página o carrega
+    assert (tmp_path / "site" / "familia-compartilhar.js").exists()
+    assert "familia-compartilhar.js?v=" in html and "familia-compartilhar.js?v=" in (tmp_path / "site" / "index.html").read_text("utf-8")
     # página de sugestões e críticas, com o link no rodapé
     sug = (tmp_path / "site" / "sugestoes" / "index.html").read_text("utf-8")
     assert 'action="https://formsubmit.co/' in sug and 'name="mensagem"' in sug and 'name="_honey"' in sug
