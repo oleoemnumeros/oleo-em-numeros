@@ -32,7 +32,7 @@ from .familia import carregar as carregar_familia, chave_cidade, continuar as co
 
 AQUI = Path(__file__).resolve().parent
 ICONE = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"><path d="M15 2c4.5 5.6 8 10.2 8 14.6a8 8 0 0 1-16 0'
-         'C7 12.2 10.5 7.6 15 2z" fill="#B45309"/><rect x="10.5" y="16" width="2.2" height="6" rx="1" fill="#fff"/>'
+         'C7 12.2 10.5 7.6 15 2z" fill="#0F4C5C"/><rect x="10.5" y="16" width="2.2" height="6" rx="1" fill="#fff"/>'
          '<rect x="13.9" y="12.5" width="2.2" height="9.5" rx="1" fill="#fff"/><rect x="17.3" y="14.5" width="2.2" '
          'height="7.5" rx="1" fill="#fff"/></svg>')
 
@@ -289,6 +289,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
 
     # o endereço do CSS leva o hash do conteúdo: quem abriu o site pouco antes de uma atualização não fica com o estilo antigo
     env.globals["v_css"] = hashlib.md5((AQUI / "estatico" / "estilo.css").read_bytes()).hexdigest()[:8]
+    env.globals["v_js"] = hashlib.md5((AQUI / "estatico" / "familia.js").read_bytes()).hexdigest()[:8]
     env.globals["tem_mapa"] = (dados / "geo.json").exists() and (dados / "base_pocos.csv.gz").exists()
 
     if saida.exists():
@@ -562,6 +563,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
              descricao="Página não encontrada.", noindex=True, erro=True)
 
     shutil.copy(AQUI / "estatico" / "estilo.css", saida / "estilo.css")
+    shutil.copy(AQUI / "estatico" / "familia.js", saida / "familia.js")
     shutil.copy(AQUI / "estatico" / "og.png", saida / "og.png")
     if M:
         shutil.copytree(AQUI / "estatico" / "leaflet", saida / "leaflet")

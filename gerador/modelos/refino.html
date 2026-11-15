@@ -112,8 +112,8 @@
   var limites = [];
   PONTOS.slice().sort(function (a, b) { return b.v - a.v; }).forEach(function (p) {
     var r = Math.max(6, Math.min(34, Math.sqrt(p.v) * 1.6));
-    var m = L.circleMarker([p.lat, p.lon], {radius: r, weight: 1.5, color: p.a ? "#92400E" : "#6B7280",
-      fillColor: p.a ? "#B45309" : "#9CA3AF", fillOpacity: .55}).addTo(mapa);
+    var m = L.circleMarker([p.lat, p.lon], {radius: r, weight: 1.5, color: p.a ? "#0A3A47" : "#6B7280",
+      fillColor: p.a ? "#0F4C5C" : "#9CA3AF", fillOpacity: .55}).addTo(mapa);
     m.bindTooltip(esc(p.s), {direction: "top"});
     var w = el.clientWidth || 360;
     m.bindPopup('<strong>' + esc(p.n) + '</strong><br>' + esc(p.e || "") + (p.e ? " · " : "") + esc(p.c) + "/" + esc(p.uf) +

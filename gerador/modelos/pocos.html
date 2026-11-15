@@ -160,7 +160,7 @@
   // mesmas janelas (1, 3 e 5 anos e total) das páginas geradas no servidor; base.html escolhe qual aparece
   var JANELAS = [[12, 2, 4], [36, 6, 12], [60, 12, 12]];
   function linha(valores, periodos, rotulo, cor, L, suf) {
-    cor = cor || "#B45309";
+    cor = cor || "#0F4C5C";
     var n = periodos.length;
     var total = vista(valores, periodos, rotulo, cor, L, suf, n <= 24 ? 6 : n <= 60 ? 12 : 24, n <= 24 ? 12 : n <= 60 ? 24 : 36);
     if (!total) return '<p class="nota">Poucos meses com dado para desenhar o gráfico.</p>';
@@ -247,7 +247,7 @@
         mesCurto(per[0]) + " a " + mesCurto(per[n - 1]) + "</p>" + linha(boe, per, "Produção total do poço " + nome + ", em boe por dia") +
         '<p class="nota">Meses sem dado da ANP aparecem como lacuna; mês com o poço parado aparece como zero.</p></div></section>' +
         '<section class="miolo secao grade-2">' +
-        '<div class="cartao"><h2>Petróleo</h2><p class="legenda">bbl/d</p>' + linha(w.p, per, "Petróleo, bbl/d", "#B45309", 600) + "</div>" +
+        '<div class="cartao"><h2>Petróleo</h2><p class="legenda">bbl/d</p>' + linha(w.p, per, "Petróleo, bbl/d", "#0F4C5C", 600) + "</div>" +
         '<div class="cartao"><h2>Gás natural</h2><p class="legenda">mil m³/d</p>' + linha(w.g, per, "Gás, mil m³/d", "#2F5D8A", 600) + "</div>" +
         '<div class="cartao"><h2>Água</h2><p class="legenda">bbl/d</p>' + linha(w.a, per, "Água, bbl/d", "#4A7C59", 600) + "</div>" +
         '<div class="cartao"><h2>BSW</h2><p class="legenda">% de água no líquido produzido</p>' + linha(b, per, "BSW, %", "#5B616B", 600, "%") + "</div>" +

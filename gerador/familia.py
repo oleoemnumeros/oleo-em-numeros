@@ -61,10 +61,10 @@ def carregar(pasta: Path, timeout: float = 15, rede: bool = True) -> dict:
 # ---------------------------------------------------------------- Continue explorando (fim de cada página)
 # Para incluir um novo portal, acrescente uma linha aqui e na lista do rodapé (modelos/base.html).
 PORTAIS = {
-    "oleo": ("Óleo em Números", "", "#F59E0B"),
-    "comex": ("Comex em Números", "https://comexemnumeros.com.br", "#37C0A5"),
-    "voo": ("Voo em Números", "https://vooemnumeros.com.br", "#A58BF0"),
-    "economia": ("Economia em Números", "https://economiaemnumeros.com.br", "#7EA3FF"),
+    "oleo": ("Óleo em Números", "", "#17758C"),
+    "comex": ("Comex em Números", "https://comexemnumeros.com.br", "#1F85D0"),
+    "voo": ("Voo em Números", "https://vooemnumeros.com.br", "#4FB8EE"),
+    "economia": ("Economia em Números", "https://economiaemnumeros.com.br", "#D9A514"),
 }
 CX_PETROLEO = ("comex", "/produto/2709/", "O petróleo na balança comercial", "Quanto o Brasil exporta de petróleo bruto e para onde vai")
 CX_DERIVADOS = ("comex", "/produto/2710/", "Derivados no comércio exterior", "Diesel, gasolina e outros: o que o Brasil vende e compra")
