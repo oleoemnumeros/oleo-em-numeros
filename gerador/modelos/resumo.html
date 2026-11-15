@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<p class="olho">Resumo do mês · {{ mes_extenso(d.per) }}</p>
+<h1>{{ manchete }}</h1>
+<p class="sub">{% if d.boe_12 is not none %}{{ fmt_var(d.boe_12) }} em 12 meses. {% endif %}Dados oficiais da ANP. O que mudou, quem mais cresceu e quem mais caiu.</p>
+<div class="kpis">
+{{ kpi('Produção total', fmt(d.boe / 1000, 2), 'milhões boe/d', fmt_var(d.boe_mes) ~ ' no mês', var_classe(d.boe_mes), principal=True) }}
+{{ kpi('Petróleo', fmt(d.petroleo / 1000, 2), 'milhões bbl/d', fmt_var(d.petroleo_mes) ~ ' no mês', var_classe(d.petroleo_mes)) }}
+{{ kpi('Gás natural', fmt(d.gas, 1), 'milhões m³/d', fmt_var(d.gas_mes) ~ ' no mês', var_classe(d.gas_mes)) }}
+{{ kpi('Em 12 meses', fmt_var(d.boe_12), '', 'ante ' ~ mes_extenso(d.ano), var_classe(d.boe_12)) }}
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>O que mudou</h2>
+<ul class="destaques-mes">
+{% for x in destaques %}<li>{{ x.texto }}{% if x.link %} <a href="{{ u(x.link[0]) }}">{{ x.link[1] }}</a>{% endif %}</li>
+{% endfor %}</ul>
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Produção total até {{ mes_extenso(d.per) }}</h2>
+<p class="legenda">Petróleo e gás natural, em mil boe por dia</p>
+{{ linha(serie_boe, serie_per, 'Produção total de petróleo e gás do Brasil, em mil boe por dia') }}
+</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<div class="linha-titulo"><h2>Operadoras em {{ mes_extenso(d.per) }}</h2><a href="{{ u('operadoras/') }}">Ver todas</a></div>
+<p class="legenda">Produção operada, em mil boe/d</p>
+<div class="tabela">
+<table>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Operadora</th><th class="n">Mil boe/d</th><th class="n">Variação no mês</th><th class="n">Variação em 12 meses</th></tr></thead>
+<tbody>
+{% for o in d.operadoras[:10] %}
+<tr><td>{{ loop.index }}</td><td><a href="{{ u('operadoras/' ~ o.slug ~ '/') }}">{{ o.nome }}</a></td><td class="n"><strong>{{ fmt_inteligente(o.boe) }}</strong></td><td class="n {{ var_classe(o.var) }}">{{ fmt_var(o.var) }}</td><td class="n {{ var_classe(o.var12) }}">{{ fmt_var(o.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota"><strong>Produção operada:</strong> 100% dos campos que cada empresa opera, incluindo a parte dos sócios. Não é a produção própria que as empresas divulgam ao mercado.</p>
+</div>
+</section>
+
+{% if d.bacias %}
+<section class="miolo secao">
+<div class="cartao">
+<div class="linha-titulo"><h2>Bacias em {{ mes_extenso(d.per) }}</h2><a href="{{ u('bacias/') }}">Ver todas</a></div>
+<p class="legenda">Produção, em mil boe/d</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Bacia</th><th class="n">Mil boe/d</th><th class="n">Variação no mês</th><th class="n">Variação em 12 meses</th></tr></thead>
+<tbody>
+{% for b in d.bacias %}
+<tr><td><a href="{{ u('bacias/' ~ b.slug ~ '/') }}">{{ titulo_bacia(b.nome) }}</a></td><td class="n"><strong>{{ fmt_inteligente(b.boe) }}</strong></td><td class="n {{ var_classe(b.var) }}">{{ fmt_var(b.var) }}</td><td class="n {{ var_classe(b.var12) }}">{{ fmt_var(b.var12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+{% endif %}
+
+{% if campos_altas or campos_quedas %}
+<section class="miolo secao grade-2">
+{% for titulo_c, lista in (('Campos que mais cresceram', campos_altas), ('Campos que mais caíram', campos_quedas)) %}
+<div class="cartao">
+<h2>{{ titulo_c }}</h2>
+<p class="legenda">Variação sobre {{ mes_extenso(d.ant) }}, em boe/d</p>
+{% if lista %}
+<div class="tabela">
+<table>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Campo</th><th>Empresa</th><th class="n">Variação (boe/d)</th><th class="n">Produção (boe/d)</th></tr></thead>
+<tbody>
+{% for c in lista %}
+<tr><td>{{ loop.index }}</td><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.grupo }}</td><td class="n {{ var_classe(c.delta_mes) }}">{{ '+' if c.delta_mes > 0 }}{{ fmt(c.delta_mes) }}</td><td class="n">{{ fmt(c.boe) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}<p class="legenda">Nenhum campo {{ 'cresceu' if loop.first else 'caiu' }} neste mês.</p>{% endif %}
+</div>
+{% endfor %}
+</section>
+{% endif %}
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Compartilhe este resumo</h2>
+<p class="legenda">Texto pronto para WhatsApp, LinkedIn ou e-mail.</p>
+<textarea id="post" class="fam-post" readonly rows="11">{{ post }}</textarea>
+<div><button type="button" class="fam-btn" data-copiar="post"><span>Copiar texto</span></button> <span class="legenda" data-copiar-msg aria-live="polite"></span></div>
+</div>
+</section>
+
+<section class="miolo secao">
+<nav class="resumo-nav" aria-label="Outros meses">
+{% if anterior %}<a href="{{ u('resumo/' ~ anterior ~ '/') }}">← {{ mes_extenso(anterior) }}</a>{% else %}<span></span>{% endif %}
+<a href="{{ u('resumo/') }}">Todos os resumos</a>
+{% if proximo %}<a href="{{ u('resumo/' ~ proximo ~ '/') }}">{{ mes_extenso(proximo) }} →</a>{% else %}<span></span>{% endif %}
+</nav>
+</section>
+{% endblock %}

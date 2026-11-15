@@ -76,6 +76,18 @@
   }
   window.familiaIniciarTabelas = iniciar;
 
+  // botão "Copiar texto": <button data-copiar="id-do-textarea"> copia o conteúdo e avisa em [data-copiar-msg]
+  document.addEventListener("click", function (ev) {
+    var b = ev.target.closest && ev.target.closest("[data-copiar]");
+    if (!b) return;
+    var alvo = document.getElementById(b.getAttribute("data-copiar")), msg = b.parentNode.querySelector("[data-copiar-msg]");
+    if (!alvo) return;
+    function aviso(t) { if (msg) msg.textContent = t; }
+    try {
+      navigator.clipboard.writeText(alvo.value).then(function () { aviso("Texto copiado."); }, function () { alvo.select(); aviso("Selecione o texto e copie."); });
+    } catch (e) { alvo.select(); aviso("Selecione o texto e copie."); }
+  });
+
   function pronto() {
     iniciar();
     // tabelas que a página monta depois (buscas, abas): uma checagem leve quando o conteúdo muda

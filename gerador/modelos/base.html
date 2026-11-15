@@ -48,7 +48,8 @@
 {% if tem_royalties %}<a href="{{ u('royalties/') }}"{% if secao == 'royalties' %} aria-current="page"{% endif %}>Royalties</a>
 {% endif %}<a href="{{ u('rankings/') }}"{% if secao == 'rankings' %} aria-current="page"{% endif %}>Rankings</a>
 {% if tem_resultados %}<a href="{{ u('resultados/') }}"{% if secao == 'resultados' %} aria-current="page"{% endif %}>Listadas</a>
-{% endif %}<a href="{{ u('noticias/') }}"{% if secao == 'noticias' %} aria-current="page"{% endif %}>Notícias</a>
+{% endif %}<a href="{{ u('resumo/') }}"{% if secao == 'resumo' %} aria-current="page"{% endif %}>Resumos</a>
+<a href="{{ u('noticias/') }}"{% if secao == 'noticias' %} aria-current="page"{% endif %}>Notícias</a>
 </nav>
 </div>
 </header>
@@ -69,6 +70,7 @@
 <p>Dados públicos de petróleo e gás do Brasil, organizados todo mês. Fonte: ANP. Dado mais recente: {{ mes_extenso(ag.ultimo) }}. Nada neste site é recomendação de investimento.</p>
 </div>
 <nav aria-label="Rodapé">
+<a href="{{ u('resumo/') }}">Resumos mensais</a>
 <a href="{{ u('sobre/') }}">Sobre e metodologia</a>
 <a href="{{ u('sobre/') }}#erro">Reportar um erro</a>
 <a href="{{ u('sugestoes/') }}">Sugestões e críticas</a>

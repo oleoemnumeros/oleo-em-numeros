@@ -16,6 +16,14 @@
 <p class="nota">boe = barril de óleo equivalente: petróleo mais gás natural convertido pela regra da ANP (1.000 m³ de gás = 6,29 boe). <a href="{{ u('sobre/') }}#calculo">Como calculamos</a></p>
 </section>
 
+{% if resumo %}<section class="miolo secao">
+<a class="card resumo-home" href="{{ u('resumo/' ~ resumo.per ~ '/') }}">
+<span class="tag">Resumo de {{ mes_extenso(resumo.per) }}</span>
+<h3>{{ resumo.manchete }}</h3>
+<p>O que mudou no mês, quem mais cresceu e quem mais caiu. Ler o resumo →</p>
+</a>
+</section>
+{% endif %}
 <section class="miolo secao">
 <div class="cartao">
 <h2>{{ titulo_tendencia('Produção total', br.var12_boe) }}</h2>

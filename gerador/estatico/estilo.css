@@ -258,3 +258,19 @@ tr.eu th { font-weight: 600; }
 
 /* Óleo: petróleo */
 :root { --fam-cor: var(--cor); --fam-texto: var(--cor); --fam-sobre: #FFFFFF; }
+
+/* Resumo do mês */
+.destaques-mes { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.destaques-mes li { padding-left: 14px; border-left: 3px solid var(--cor); font-size: 16px; line-height: 1.5; }
+.destaques-mes a { white-space: nowrap; font-size: 14px; }
+.lista-resumos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.lista-resumos li { border-bottom: 1px solid var(--borda); }
+.lista-resumos li:last-child { border-bottom: 0; }
+.lista-resumos a { display: flex; flex-direction: column; gap: 2px; padding: 12px 0; text-decoration: none; color: var(--tinta); }
+.lista-resumos a b { color: var(--cor-texto); text-transform: capitalize; }
+.lista-resumos a:hover span { text-decoration: underline; }
+.resumo-nav { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.resumo-nav a { display: inline-flex; align-items: center; min-height: 44px; }
+a.card.resumo-home { border-left: 4px solid var(--cor); }
+a.card.resumo-home h3 { font-size: 24px; }
+.fam-post { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; line-height: 1.5; padding: 12px; border-radius: 8px; border: 1px solid var(--borda); background: var(--fundo); color: inherit; margin-bottom: 10px; resize: vertical; }

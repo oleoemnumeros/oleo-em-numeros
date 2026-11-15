@@ -932,3 +932,52 @@ def test_continue_explorando_so_liga_a_paginas_que_existem_e_nunca_a_propria():
     assert {c["caminho"] for c in com if c["portal"] == "oleo"} == {"refino/", "royalties/"}
     assert all(c.get("caminho") != "precos/" for c in com) and len(com) <= 4
     assert continuar("sobre", "sobre/", {}) == []
+
+
+# ---------------- resumo mensal ----------------
+
+def _ag_sintetico(boe, per0="2025-01"):
+    from gerador.gerar import _mes_antes
+    periodos = [_mes_antes(per0, -i) for i in range(len(boe))]
+    serie = {"periodo": periodos, "boe": boe, "petroleo": [b * 0.45 for b in boe], "gas": [b / 12 for b in boe]}
+    return {"ultimo": periodos[-1], "brasil": {"serie": serie}, "operadores": [], "bacias": []}
+
+
+def test_resumo_meses_e_manchete():
+    from gerador.gerar import _mes_antes, resumo_dados, resumo_manchete
+    assert _mes_antes("2026-01", 1) == "2025-12" and _mes_antes("2026-03", 12) == "2025-03"
+    base_ = [4000 + i for i in range(13)]
+    # sobe e é recorde (há 13 meses de histórico)
+    m = resumo_manchete(resumo_dados(_ag_sintetico(base_ + [4100]), "2026-02"))
+    assert "sobe" in m and "maior em 14 meses" in m and "4,10 milhões de boe/d" in m
+    # cai: sem a palavra recorde
+    m = resumo_manchete(resumo_dados(_ag_sintetico(base_ + [3900]), "2026-02"))
+    assert "cai 2,8%" in m and "maior" not in m
+    # praticamente igual: estável, sem percentual
+    m = resumo_manchete(resumo_dados(_ag_sintetico(base_ + [4012.1]), "2026-02"))
+    assert "fica estável" in m and "%" not in m
+    # o primeiro mês da série não tem mês anterior: sem resumo
+    assert resumo_dados(_ag_sintetico(base_), "2025-01") is None
+
+
+def test_paginas_de_resumo(base, tmp_path):
+    import json
+    from robo.executar import _leve
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    ag = _leve(agregar(base))
+    (proc / "agregados.json").write_text(json.dumps(ag, ensure_ascii=False, default=str), "utf-8")
+    paginas = gerar(proc, tmp_path / "site", teste=True)
+    ultimo = ag["ultimo"]
+    assert "resumo/" in paginas and f"resumo/{ultimo}/" in paginas
+    site = tmp_path / "site"
+    html = (site / "resumo" / ultimo / "index.html").read_text("utf-8")
+    assert html.count("<h1") == 1 and "O que mudou" in html and 'data-copiar="post"' in html
+    assert "Produção de petróleo e gás do Brasil" in html and f"/resumo/{ultimo}/" in html
+    # link no menu e na home, e o mês mais recente fica no topo da lista
+    assert 'href="../../resumo/index.html"' in html or 'href="../../resumo/"' in html
+    home = (site / "index.html").read_text("utf-8")
+    assert "resumo-home" in home and f"resumo/{ultimo}/" in home
+    lista = (site / "resumo" / "index.html").read_text("utf-8")
+    assert lista.index(f"resumo/{ultimo}/") == min(lista.index(f"resumo/{p.split('/')[1]}/") for p in paginas if p.startswith("resumo/") and p != "resumo/")
+    assert "resumo/" in (site / "sitemap.xml").read_text("utf-8")
