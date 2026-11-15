@@ -253,7 +253,7 @@
         '<div class="cartao"><h2>BSW</h2><p class="legenda">% de água no líquido produzido</p>' + linha(b, per, "BSW, %", "#5B616B", 600, "%") + "</div>" +
         "</section>" +
         '<section class="miolo secao"><div class="cartao"><div class="linha-titulo"><h2>Mês a mês</h2>' +
-        '<button type="button" class="botao" id="baixar-csv">Baixar CSV</button></div><div class="tabela"><table>' +
+        '<button type="button" class="botao" id="baixar-csv">Baixar CSV</button></div><div class="tabela"><table data-sem-export>' +
         '<thead><tr><th>Mês</th><th class="n">Total (boe/d)</th><th class="n">Petróleo (bbl/d)</th><th class="n">Gás (mil m³/d)</th>' +
         '<th class="n">Água (bbl/d)</th><th class="n">BSW</th></tr></thead><tbody>';
       for (var k = n - 1; k >= Math.max(0, n - 24); k--) {
