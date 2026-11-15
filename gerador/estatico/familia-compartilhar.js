@@ -175,7 +175,13 @@
     });
     return out;
   }
-  function svgAtual(a) { return a.el.matches && a.el.matches("svg") ? a.el : (a.el.querySelector(".fam-gr-area svg") || a.el.querySelector("svg")); }
+  function svgAtual(a) {
+    var el = a.el;
+    if (el.matches && el.matches("svg")) return el;
+    // gráfico interativo da Família (.fam-gr) ou do Óleo (.gr, com uma variante .gr-v por período; vale a que está à vista)
+    return el.querySelector(".fam-gr-area svg") || el.querySelector(".gr-v:not([hidden]) svg.larga") || el.querySelector(".gr-v:not([hidden]) svg") ||
+           el.querySelector("svg.larga") || el.querySelector("svg");
+  }
 
   // ---------- SVG -> imagem ----------
   var PROPS = ["fill", "fill-opacity", "stroke", "stroke-width", "stroke-opacity", "stroke-dasharray", "stroke-linecap", "stroke-linejoin",
@@ -591,7 +597,7 @@
   }
   // elemento que embrulha só o gráfico (o botão entra depois dele); .chart que é o cartão inteiro não serve
   function contDe(s) {
-    var c = s.closest(".fam-gr") || s.closest(".chart:not(.card):not(.cartao)");
+    var c = s.closest(".fam-gr, .gr[data-d]") || s.closest(".chart:not(.card):not(.cartao)");
     if (c) return c;
     c = s.parentElement && s.parentElement.closest("[role='img']");
     return c && !c.matches(".card, .cartao, section, article") ? c : s;
