@@ -939,7 +939,7 @@ def test_continue_explorando_so_liga_a_paginas_que_existem_e_nunca_a_propria():
 def _ag_sintetico(boe, per0="2025-01"):
     from gerador.gerar import _mes_antes
     periodos = [_mes_antes(per0, -i) for i in range(len(boe))]
-    serie = {"periodo": periodos, "boe": boe, "petroleo": [b * 0.45 for b in boe], "gas": [b / 12 for b in boe]}
+    serie = {"periodo": periodos, "boe": boe, "petroleo": [None if b is None else b * 0.45 for b in boe], "gas": [None if b is None else b / 12 for b in boe]}
     return {"ultimo": periodos[-1], "brasil": {"serie": serie}, "operadores": [], "bacias": []}
 
 
@@ -981,3 +981,22 @@ def test_paginas_de_resumo(base, tmp_path):
     lista = (site / "resumo" / "index.html").read_text("utf-8")
     assert lista.index(f"resumo/{ultimo}/") == min(lista.index(f"resumo/{p.split('/')[1]}/") for p in paginas if p.startswith("resumo/") and p != "resumo/")
     assert "resumo/" in (site / "sitemap.xml").read_text("utf-8")
+
+
+def test_resumo_com_buracos_na_serie():
+    """Dado real tem meses sem valor (None): máximo, mínimo e variações não podem quebrar."""
+    from gerador.gerar import resumo_dados, resumo_destaques, resumo_manchete
+    # buraco no começo da série (era o que derrubava o site: max() com None no histórico)
+    boe = [None, None] + [4000 + i for i in range(12)] + [4100]
+    ag = _ag_sintetico(boe)
+    ag["brasil"]["varmes_terra"] = None
+    ag["rankings"] = {"todos": {"altas": [], "quedas": []}}
+    d = resumo_dados(ag, ag["ultimo"])
+    assert d is not None and d["recorde"] and "sobe" in resumo_manchete(d)
+    assert resumo_destaques(ag, d)
+    # buraco no meio e logo antes do mês: sem mês anterior comparável, sem resumo (e sem erro)
+    ag = _ag_sintetico([4000 + i for i in range(13)] + [None, 4100, 4120])
+    assert resumo_dados(ag, "2026-03") is None
+    assert resumo_dados(ag, "2026-02") is None
+    d = resumo_dados(ag, ag["ultimo"])
+    assert d is None or isinstance(d["recorde"], bool)

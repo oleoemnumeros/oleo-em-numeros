@@ -7,8 +7,8 @@
 <p class="sub">{% if d.boe_12 is not none %}{{ fmt_var(d.boe_12) }} em 12 meses. {% endif %}Dados oficiais da ANP. O que mudou, quem mais cresceu e quem mais caiu.</p>
 <div class="kpis">
 {{ kpi('Produção total', fmt(d.boe / 1000, 2), 'milhões boe/d', fmt_var(d.boe_mes) ~ ' no mês', var_classe(d.boe_mes), principal=True) }}
-{{ kpi('Petróleo', fmt(d.petroleo / 1000, 2), 'milhões bbl/d', fmt_var(d.petroleo_mes) ~ ' no mês', var_classe(d.petroleo_mes)) }}
-{{ kpi('Gás natural', fmt(d.gas, 1), 'milhões m³/d', fmt_var(d.gas_mes) ~ ' no mês', var_classe(d.gas_mes)) }}
+{% if d.petroleo is not none %}{{ kpi('Petróleo', fmt(d.petroleo / 1000, 2), 'milhões bbl/d', fmt_var(d.petroleo_mes) ~ ' no mês', var_classe(d.petroleo_mes)) }}{% endif %}
+{% if d.gas is not none %}{{ kpi('Gás natural', fmt(d.gas, 1), 'milhões m³/d', fmt_var(d.gas_mes) ~ ' no mês', var_classe(d.gas_mes)) }}{% endif %}
 {{ kpi('Em 12 meses', fmt_var(d.boe_12), '', 'ante ' ~ mes_extenso(d.ano), var_classe(d.boe_12)) }}
 </div>
 </section>
