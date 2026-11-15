@@ -11,14 +11,19 @@
   function textoCelula(c) {
     var k = c.cloneNode(true);
     Array.prototype.forEach.call(k.querySelectorAll(".s, .sr, .meta, [data-csv-ignorar]"), function (e) { e.parentNode.removeChild(e); });
-    return limpo(k.textContent);
+    Array.prototype.forEach.call(k.querySelectorAll("*"), function (e) { e.insertAdjacentText("afterend", " "); });   // evita "TomateAlimentação": separa blocos vizinhos
+    return limpo(k.textContent).replace(/▲\s*/g, "+").replace(/▼\s*/g, "-");   // setas de variação viram sinal
   }
   function celulaCsv(v) { return /[;"\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
 
   // CSV para abrir direto no Excel em português: ponto e vírgula, UTF-8 com BOM
   function csvDe(tabela) {
     var linhas = Array.prototype.map.call(tabela.rows, function (tr) {
-      return Array.prototype.map.call(tr.cells, function (c) { return celulaCsv(textoCelula(c)); }).join(";");
+      var cab = tr.parentNode && tr.parentNode.tagName === "THEAD";
+      return Array.prototype.map.call(tr.cells, function (c) {
+        var v = textoCelula(c);
+        return celulaCsv(cab && !v ? "#" : v);   // coluna de posição sem título ganha "#"
+      }).join(";");
     });
     return "﻿" + linhas.join("\r\n") + "\r\n";
   }
@@ -56,7 +61,7 @@
     Array.prototype.forEach.call((contexto || document).querySelectorAll("main table, .conteudo table"), function (t) {
       if (!elegivel(t)) return;
       t.setAttribute("data-fam", "1");
-      var envoltorio = t.closest(".scroll, .tabela, .tabela-wrap") || t;
+      var envoltorio = t.closest(".scroll, .tabela, .tabela-wrap, .tw") || t;
       var barra = document.createElement("div");
       barra.className = "fam-ferr";
       var b = document.createElement("button");
