@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ titulo }}{% if not titulo.startswith(site.nome) %} | {{ site.nome }}{% endif %}</title>
+<title>{{ titulo }}{% if not titulo.startswith(site.nome) and titulo|length <= 55 %} | {{ site.nome }}{% endif %}</title>
 <meta name="description" content="{{ descricao }}">
 {% if not erro %}<link rel="canonical" href="{{ site.url }}/{{ caminho }}">{% endif %}
 <meta property="og:type" content="website">
@@ -219,6 +219,7 @@
 </script>
 <script src="{{ raiz }}familia.js?v={{ v_js }}" defer></script>
 <script src="{{ raiz }}familia-compartilhar.js?v={{ v_comp }}" defer></script>
+<script src="{{ raiz }}familia-busca.js?v={{ v_busca }}" data-indice="{{ raiz }}busca-geral.json?v={{ v_busca }}" data-raiz="{{ raiz or './' }}" data-dica="Campo, bacia, estado, operadora ou cidade" defer></script>
 {% if not (site.teste or site.previa) %}<script data-goatcounter="https://oleoemnumeros.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>{% endif %}
 </body>
 </html>

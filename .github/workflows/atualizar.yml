@@ -221,6 +221,9 @@ jobs:
           SITE_PREVIA: ${{ vars.SITE_PREVIA || '0' }}   # '1' volta a faixa "em validação" e o noindex
         run: python -m gerador.gerar --links-limpos
 
+      - name: IndexNow, o que mudou nesta publicação
+        run: python scripts/indexnow.py preparar publico https://oleoemnumeros.com.br ad01178ec692a5a4adf74dc43280bcf5
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: publico
@@ -234,3 +237,7 @@ jobs:
     steps:
       - id: deploy
         uses: actions/deploy-pages@v4
+      - uses: actions/checkout@v4
+      - name: IndexNow, avisar o Bing das páginas que mudaram
+        continue-on-error: true
+        run: python3 scripts/indexnow.py enviar - https://oleoemnumeros.com.br ad01178ec692a5a4adf74dc43280bcf5

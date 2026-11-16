@@ -1003,3 +1003,29 @@ def test_resumo_com_buracos_na_serie():
     assert resumo_dados(ag, "2026-02") is None
     d = resumo_dados(ag, ag["ultimo"])
     assert d is None or isinstance(d["recorde"], bool)
+
+
+def test_busca_do_cabecalho_e_trilha_em_json_ld(base, tmp_path):
+    import json
+    from robo.executar import _leve
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "agregados.json").write_text(json.dumps(_leve(agregar(base)), ensure_ascii=False, default=str), "utf-8")
+    site = tmp_path / "site"
+    gerar(proc, site, teste=False, limpos=True, url="https://oleoemnumeros.com.br")
+    html = (site / "campos" / "campo-exemplo-3" / "index.html").read_text("utf-8")
+    # busca: script com o índice e a raiz relativa; índice cobre as páginas publicadas
+    assert (site / "familia-busca.js").exists()
+    assert 'familia-busca.js?v=' in html and 'data-indice="../../busca-geral.json?v=' in html and 'data-raiz="../../"' in html
+    indice = json.loads((site / "busca-geral.json").read_text("utf-8"))
+    enderecos = {i[1] for i in indice}
+    assert "/campos/campo-exemplo-3/" in enderecos and "/" in enderecos
+    assert all(len(i) == 3 and i[0] and (site / i[1].lstrip("/") / "index.html").exists() for i in indice)
+    # trilha visível repetida em JSON-LD, com endereços absolutos
+    ld = [json.loads(x) for x in __import__("re").findall(r'<script type="application/ld\+json">(.*?)</script>', html)]
+    trilha = next(x for x in ld if x["@type"] == "BreadcrumbList")["itemListElement"]
+    assert [e["name"] for e in trilha][0] == "Campos" and trilha[-1]["item"] == "https://oleoemnumeros.com.br/campos/campo-exemplo-3/"
+    assert all(e["item"].startswith("https://oleoemnumeros.com.br/") and "index.html" not in e["item"] for e in trilha)
+    # título longo dispensa o sufixo com o nome do site
+    titulo = __import__("re").search(r"<title>(.*?)</title>", html).group(1)
+    assert len(titulo) <= 75 and (len(titulo) <= 75 and ("| Óleo em Números" in titulo) == (len(titulo.split(" | ")[0]) <= 55))

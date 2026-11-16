@@ -9,7 +9,10 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
+from html import unescape
+from urllib.parse import urljoin
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -432,6 +435,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     # o endereço do CSS leva o hash do conteúdo: quem abriu o site pouco antes de uma atualização não fica com o estilo antigo
     env.globals["v_css"] = hashlib.md5((AQUI / "estatico" / "estilo.css").read_bytes()).hexdigest()[:8]
     env.globals["v_js"] = hashlib.md5((AQUI / "estatico" / "familia.js").read_bytes()).hexdigest()[:8]
+    env.globals["v_busca"] = hashlib.md5((AQUI / "estatico" / "familia-busca.js").read_bytes()).hexdigest()[:8] + "-" + str(ag.get("gerado_em", ""))[:10]
     env.globals["v_comp"] = hashlib.md5((AQUI / "estatico" / "familia-compartilhar.js").read_bytes()).hexdigest()[:8]
     env.globals["tem_mapa"] = (dados / "geo.json").exists() and (dados / "base_pocos.csv.gz").exists()
 
@@ -459,6 +463,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     for o in ag["operadores"]:
         o["financeiro"] = financeiro.get(o["nome"])
 
+    busca: list = []
+
     def escrever(caminho: str, modelo: str, raiz: str | None = None, **ctx):
         raiz = "../" * caminho.count("/") if raiz is None else raiz
 
@@ -469,11 +475,15 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
             return destino or "./"
 
         html = env.get_template(modelo).render(ag=ag, site=site, caminho=caminho, raiz=raiz, u=u, **ctx)
+        if not (site["teste"] or site["previa"]) and not ctx.get("noindex"):
+            html = com_trilha_ld(html, f"{site['url']}/{caminho}")
         arquivo = saida / (caminho + "index.html" if caminho == "" or caminho.endswith("/") else caminho)
         arquivo.parent.mkdir(parents=True, exist_ok=True)
         arquivo.write_text(html, "utf-8")
         if not caminho.endswith(".html") and not ctx.get("noindex"):
             paginas.append(caminho)
+            if ctx.get("titulo"):   # índice da busca do cabeçalho (familia-busca.js)
+                busca.append([str(ctx["titulo"]).split(" | ")[0], "/" + caminho, TIPO_BUSCA.get(caminho.split("/")[0], "página")])
         return u
 
     mes = mes_extenso(ag["ultimo"])
@@ -735,7 +745,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                      campos_quedas=[c for c in r["quedas"] if c["delta_mes"] and c["delta_mes"] < 0][:5] if d["ultimo"] else [],
                      anterior=meses_resumo[i - 1] if i else None,
                      proximo=meses_resumo[i + 1] if i + 1 < len(meses_resumo) else None,
-                     titulo=f"{manchete} | Resumo de {mes_extenso(per)}",
+                     titulo=manchete if mes_extenso(per) in manchete else f"{manchete} | Resumo de {mes_extenso(per)}",
                      descricao=f"Resumo de {mes_extenso(per)}: produção de petróleo e gás do Brasil, o que mudou no mês, "
                                "operadoras e bacias. Dados oficiais da ANP.")
             itens_resumo.append({"per": per, "mes": mes_extenso(per), "manchete": manchete})
@@ -752,6 +762,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     shutil.copy(AQUI / "estatico" / "estilo.css", saida / "estilo.css")
     shutil.copy(AQUI / "estatico" / "familia.js", saida / "familia.js")
     shutil.copy(AQUI / "estatico" / "familia-compartilhar.js", saida / "familia-compartilhar.js")
+    shutil.copy(AQUI / "estatico" / "familia-busca.js", saida / "familia-busca.js")
+    (saida / "busca-geral.json").write_text(json.dumps(busca, ensure_ascii=False, separators=(",", ":")), "utf-8")
     shutil.copy(AQUI / "estatico" / "og.png", saida / "og.png")
     if M:
         shutil.copytree(AQUI / "estatico" / "leaflet", saida / "leaflet")
@@ -767,6 +779,32 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
               f"User-agent: *\nAllow: /\nDisallow: /dados/pocos/$\nSitemap: {site['url']}/sitemap.xml\n")
     (saida / "robots.txt").write_text(robots, "utf-8")
     return paginas
+
+
+_TRILHA = re.compile(r'<nav class="trilha"[^>]*>(.*?)</nav>', re.S)
+_ELO = re.compile(r'<a href="([^"]*)"[^>]*>(.*?)</a>|<span aria-current="page">(.*?)</span>', re.S)
+
+
+def com_trilha_ld(html: str, endereco: str) -> str:
+    """Repete a trilha visível (nav.trilha) como BreadcrumbList em JSON-LD, para o Google mostrar o caminho no resultado."""
+    m = _TRILHA.search(html)
+    if not m:
+        return html
+    elos = []
+    for href, rotulo, atual in _ELO.findall(m.group(1)):
+        nome = unescape(re.sub(r"<[^>]+>", "", rotulo or atual)).strip()
+        if not nome:
+            continue
+        alvo = urljoin(endereco, href).replace("index.html", "") if href else endereco
+        elos.append({"@type": "ListItem", "position": len(elos) + 1, "name": nome, "item": alvo})
+    if len(elos) < 2:
+        return html
+    ld = json.dumps({"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": elos}, ensure_ascii=False).replace("</", "<\\/")
+    return html.replace("</head>", f'<script type="application/ld+json">{ld}</script>\n</head>', 1)
+
+
+TIPO_BUSCA = {"campos": "campo", "bacias": "bacia", "estados": "estado", "operadoras": "operadora", "resumo": "resumo",
+              "royalties": "royalties", "rankings": "ranking", "refino": "refino", "precos": "preços", "gas": "gás"}
 
 
 def main(argv=None):
