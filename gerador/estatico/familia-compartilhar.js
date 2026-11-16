@@ -410,6 +410,52 @@
     var fonte = info.fonte ? "\n_" + info.fonte.replace(/\s*Atualizado em.*$/, "") + "_" : "";
     return "*" + info.titulo + "*\n```" + corpo + "```" + (resto > 0 ? "\n+ " + resto + " linhas no site" : "") + fonte + "\n" + linkDe(a);
   }
+  // ---------- incorporar em outros sites ----------
+  // O código é um iframe desta mesma página com ?incorporar=<id> (que mostra só o cartão do gráfico)
+  // e, fora do iframe, uma linha de crédito com link para a página: é esse link que traz leitores de volta.
+  function atrib(t) { return String(t).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function codigoEmbed(a, info) {
+    var pagina = location.origin + location.pathname, cartao = caixaDe(a);
+    var nome = info.contexto ? info.contexto + ": " + info.titulo.charAt(0).toLowerCase() + info.titulo.slice(1) : info.titulo;   // "Mês a mês" sozinho não diz nada no site dos outros
+    var alt = Math.max(260, Math.min(1100, Math.round((cartao ? cartao.offsetHeight : 420) + 70)));
+    return '<iframe src="' + pagina + "?incorporar=" + encodeURIComponent(a.id) + '" title="' + atrib(nome) + '" width="100%" height="' + alt +
+      '" style="border:1px solid #d9dde3;border-radius:10px" loading="lazy"></iframe>\n' +
+      '<p style="font-size:13px;margin:6px 0 0">Fonte: <a href="' + pagina + "#" + a.id + '">' + atrib(nome) + "</a>, no " + atrib(NOME) + ".</p>";
+  }
+  function caixaDe(a) {
+    var c = a.el.closest(".card, .cartao, section, article");
+    return c || a.el.closest(".fam-gr, .gr[data-d], .chart, figure, .tabela, .table-wrap") || a.el;
+  }
+  var EMB = null;
+  try { EMB = new URLSearchParams(location.search).get("incorporar"); } catch (e) { }
+  if (EMB) {   // esconde a página até sobrar só o gráfico (com prazo, para nunca ficar em branco)
+    document.documentElement.style.visibility = "hidden";
+    setTimeout(function () { document.documentElement.style.visibility = ""; }, 4000);
+  }
+  var embFeito = false;
+  function modoIncorporado(ultima) {
+    if (!EMB || embFeito) return;
+    var a = null;
+    alvos.forEach(function (x) { if (!a && x.id === EMB) a = x; });
+    if (!a) { if (ultima) document.documentElement.style.visibility = ""; return; }
+    embFeito = true;
+    var manter = caixaDe(a);
+    for (var no = manter; no && no !== document.body; no = no.parentNode) {
+      Array.prototype.forEach.call(no.parentNode.children, function (irmao) {
+        if (irmao !== no && !/^(SCRIPT|STYLE|LINK)$/.test(irmao.tagName)) irmao.classList.add("fam-emb-fora");
+      });
+      if (no !== manter) no.classList.add("fam-emb-via");
+    }
+    var base = document.createElement("base"); base.target = "_blank"; document.head.appendChild(base);
+    var p = document.createElement("p");
+    p.className = "fam-emb-cred";
+    p.innerHTML = 'Fonte: <a href="' + location.origin + location.pathname + "#" + a.id + '" target="_blank" rel="noopener">' + atrib(NOME) + "</a> · veja a página completa";
+    document.body.appendChild(p);
+    document.documentElement.classList.add("fam-emb");
+    document.documentElement.style.visibility = "";
+    conta("incorporado", a);
+  }
+
   function abrirWhatsApp(texto) { window.open("https://wa.me/?text=" + encodeURIComponent(texto), "_blank", "noopener"); }
 
   // ---------- âncoras (link direto para cada gráfico) ----------
@@ -456,7 +502,8 @@
       '<button type="button" class="zap" data-a="txt" hidden>' + ICONES.balao + '<span>Enviar como texto no WhatsApp</span></button>' +
       '<button type="button" data-a="copiar">Copiar o link</button>' +
       '<button type="button" data-a="baixar" disabled>Baixar a imagem</button>' +
-      '</div><p class="fam-sheet-msg" role="status" aria-live="polite"></p></div>';
+      '<button type="button" data-a="embed">Incorporar no seu site ou blog</button>' +
+      '</div><textarea class="fam-sheet-cod" readonly hidden rows="5" aria-label="Código para incorporar"></textarea><p class="fam-sheet-msg" role="status" aria-live="polite"></p></div>';
     document.body.appendChild(f);
     f.addEventListener("click", function (ev) {
       if (ev.target === f || ev.target.closest(".fam-sheet-x")) { fechar(); return; }
@@ -489,6 +536,7 @@
     img.hidden = true; img.removeAttribute("src"); carr.hidden = false; carr.textContent = "Preparando a imagem…";
     botao("img").disabled = true; botao("baixar").disabled = true;
     botao("txt").hidden = a.tipo !== "tabela";
+    var cod = folha.querySelector(".fam-sheet-cod"); cod.hidden = true; cod.value = "";
     msg("");
     folha.hidden = false;
     document.documentElement.classList.add("fam-sheet-aberta");
@@ -542,6 +590,14 @@
     if (k === "copiar") {
       conta("copiar", a);
       copiarTexto(linkDe(a)).then(function () { msg("Link copiado."); }, function () { msg("Não consegui copiar. Endereço: " + linkDe(a)); });
+      return;
+    }
+    if (k === "embed") {
+      conta("incorporar", a);
+      var cx = folha.querySelector(".fam-sheet-cod"), codigo = codigoEmbed(a, info);
+      cx.value = codigo; cx.hidden = false;
+      copiarTexto(codigo).then(function () { msg("Código copiado. Cole no HTML do seu site ou blog; o gráfico se atualiza sozinho."); },
+        function () { cx.focus(); cx.select(); msg("Copie o código acima e cole no HTML do seu site ou blog."); });
       return;
     }
     if (k === "baixar") { conta("baixar", a); if (baixar()) msg("Imagem salva no aparelho."); return; }
@@ -669,6 +725,12 @@
       ".fam-sheet-acoes button[disabled]{opacity:.45;cursor:default}" +
       ".fam-sheet-acoes button:focus-visible,.fam-sheet-x:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}" +
       ".fam-sheet-msg{min-height:20px;margin:10px 0 0;font-size:14px}" +
+      ".fam-sheet-cod{display:block;box-sizing:border-box;width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1px solid rgba(128,128,128,.45);background:rgba(128,128,128,.08);color:inherit;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;resize:vertical}" +
+      ".fam-sheet-cod[hidden]{display:none}" +
+      ".fam-emb-fora,.fam-emb .fam-comp,.fam-emb .fam-comp-btn,.fam-emb .fam-busca-fundo{display:none!important}" +
+      ".fam-emb body{margin:0!important;padding:8px!important;min-height:0!important}" +
+      ".fam-emb .fam-emb-via{display:block!important;margin:0!important;padding:0!important;max-width:none!important;width:auto!important;min-height:0!important;border:0!important;box-shadow:none!important;background:transparent!important}" +
+      ".fam-emb-cred{margin:8px 4px 2px;font-size:13px;opacity:.8}" +
       "@media print{.fam-comp,.fam-comp-btn,.fam-sheet-fundo{display:none!important}}";
     document.head.appendChild(s);
   }
@@ -684,14 +746,15 @@
     medirTopo();
     window.addEventListener("resize", medirTopo);
     iniciar();
+    modoIncorporado(false);
     irParaHash();
-    window.addEventListener("load", function () { iniciar(); irParaHash(); });
+    window.addEventListener("load", function () { iniciar(); modoIncorporado(false); irParaHash(); setTimeout(function () { iniciar(); modoIncorporado(true); }, 900); });
     var main = document.querySelector("main") || document.body;
     if (main && window.MutationObserver) {
       var espera = 0;
       new MutationObserver(function () { clearTimeout(espera); espera = setTimeout(function () { iniciar(); }, 300); }).observe(main, { childList: true, subtree: true });
     }
   }
-  window.famCompartilhar = { iniciar: iniciar, gerarImagem: gerarImagem, alvos: function () { return alvos; }, textoTabela: textoTabela, textoLink: textoLink, infoDe: infoDe };
+  window.famCompartilhar = { iniciar: iniciar, gerarImagem: gerarImagem, alvos: function () { return alvos; }, textoTabela: textoTabela, textoLink: textoLink, infoDe: infoDe, codigoEmbed: codigoEmbed };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", pronto); else pronto();
 })();
