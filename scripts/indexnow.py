@@ -2,7 +2,7 @@
 
   python scripts/indexnow.py preparar <pasta do site> <https://dominio> <chave>
       Compara o miolo (<main>) de cada página com o manifesto da publicação anterior, que fica no próprio
-      site (/indexnow-manifesto.json). Grava na pasta o manifesto novo, a lista do que mudou
+      site (/indexnow-manifesto-2.json). Grava na pasta o manifesto novo, a lista do que mudou
       (/indexnow-novas.json) e o arquivo da chave (/<chave>.txt), que prova que o site é nosso.
   python scripts/indexnow.py enviar <pasta do site ou -> <https://dominio> <chave>
       Depois do deploy: envia a lista. Sem a pasta ("-"), lê a lista já publicada no site.
@@ -14,6 +14,7 @@ import json
 import re
 import sys
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -44,13 +45,13 @@ def preparar(pasta: Path, base: str, chave: str) -> list:
     robots = pasta / "robots.txt"
     fechado = robots.exists() and re.search(r"^Disallow: /\s*$", robots.read_text("utf-8"), re.M)
     try:
-        velho = json.loads(baixar(f"{base}/indexnow-manifesto.json?t={int(time.time())}"))
+        velho = json.loads(baixar(f"{base}/indexnow-manifesto-2.json?t={int(time.time())}"))
     except Exception as e:  # primeira vez, ou site fora do ar: trata tudo como novo
         print(f"IndexNow: sem manifesto anterior ({e}); todas as páginas contam como novas.")
         velho = {}
     mudou = [] if fechado else [c for c, h in novo.items() if velho.get(c) != h]
     mudou.sort(key=lambda c: (c.count("/"), c))          # páginas principais primeiro, se passar do limite
-    (pasta / "indexnow-manifesto.json").write_text(json.dumps(novo, separators=(",", ":")), "utf-8")
+    (pasta / "indexnow-manifesto-2.json").write_text(json.dumps(novo, separators=(",", ":")), "utf-8")
     (pasta / "indexnow-novas.json").write_text(json.dumps(mudou[:LIMITE], separators=(",", ":")), "utf-8")
     (pasta / f"{chave}.txt").write_text(chave, "utf-8")
     print(f"IndexNow: {len(mudou)} de {len(novo)} páginas mudaram" + (" (site fechado aos buscadores: nada será enviado)" if fechado else ""))
@@ -65,11 +66,29 @@ def enviar(pasta, base: str, chave: str) -> int:
         return 0
     corpo = json.dumps({"host": base.split("//", 1)[1], "key": chave, "keyLocation": f"{base}/{chave}.txt",
                         "urlList": [base + c for c in caminhos[:LIMITE]]}).encode("utf-8")
+    # logo depois do deploy o arquivo da chave pode ainda não estar no ar, e aí o envio é recusado (403): espera por ele
+    for _ in range(18):
+        try:
+            if baixar(f"{base}/{chave}.txt?t={int(time.time())}").decode("utf-8").strip() == chave:
+                break
+        except Exception:
+            pass
+        time.sleep(10)
+    else:
+        print("::warning::IndexNow: o arquivo da chave não apareceu no site em 3 minutos; tentando assim mesmo.")
     req = urllib.request.Request("https://api.indexnow.org/indexnow", data=corpo, method="POST",
                                  headers={**AGENTE, "Content-Type": "application/json; charset=utf-8"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        print(f"IndexNow: {len(caminhos[:LIMITE])} endereços enviados, resposta {r.status}.")
-    return len(caminhos)
+    for tentativa in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                print(f"IndexNow: {len(caminhos[:LIMITE])} endereços enviados, resposta {r.status}.")
+            return len(caminhos)
+        except urllib.error.HTTPError as e:
+            print(f"IndexNow: tentativa {tentativa + 1} recusada ({e.code}): {e.read()[:300].decode('utf-8', 'replace')}")
+            if e.code not in (403, 429, 500, 502, 503) or tentativa == 3:
+                raise
+            time.sleep(60)
+    return 0
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ on:
     paths:
       - "gerador/**"
       - "robo/**"
+      - "scripts/**"
       - "requirements.txt"
       - ".github/workflows/atualizar.yml"
 
