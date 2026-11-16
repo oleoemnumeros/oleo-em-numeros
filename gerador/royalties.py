@@ -122,15 +122,17 @@ def preparar(pasta: Path) -> dict | None:
 def resumo_municipio(m: dict, R: dict) -> str:
     nome = f"{m['nome']} ({m['uf']})"
     partes = []
-    if m["ultimo_mes"] > 0:
-        partes.append(f"Em {R['mes_extenso']}, {nome} recebeu {dinheiro(m['ultimo_mes'], False)} em royalties de petróleo e gás.")
-    else:
-        partes.append(f"{nome} não recebeu royalties de petróleo e gás em {R['mes_extenso']}.")
     if m["r12"] > 0:
-        s = f"Nos últimos 12 meses, foram {dinheiro(m['r12'], False)}"
+        s = f"{nome} recebeu {dinheiro(m['r12'], False)} em royalties de petróleo e gás nos últimos 12 meses"
         if m["var12"] is not None:
             s += f", {fmt(abs(m['var12']) * 100, 0)}% {'a mais' if m['var12'] >= 0 else 'a menos'} que nos 12 meses anteriores"
         partes.append(s + ".")
+        if m["ultimo_mes"] > 0:
+            partes.append(f"Só em {R['mes_extenso']}, foram {dinheiro(m['ultimo_mes'], False)}.")
+    elif m["ultimo_mes"] > 0:
+        partes.append(f"Em {R['mes_extenso']}, {nome} recebeu {dinheiro(m['ultimo_mes'], False)} em royalties de petróleo e gás.")
+    else:
+        partes.append(f"{nome} não recebeu royalties de petróleo e gás em {R['mes_extenso']}.")
     if m["pe12"] > 0:
         partes.append(f"Além disso, recebeu {dinheiro(m['pe12'], False)} de participação especial nos últimos quatro trimestres.")
     if m["rank"]:

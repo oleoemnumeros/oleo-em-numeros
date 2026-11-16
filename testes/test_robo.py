@@ -488,7 +488,7 @@ def test_paginas_de_royalties(base, tmp_path):
     assert "royalties/" in paginas and "royalties/rio-de-janeiro/" in paginas
     assert "royalties/rio-de-janeiro/marica/" in paginas and "royalties/bahia/pojuca/" in paginas
     html = (tmp_path / "site" / "royalties" / "rio-de-janeiro" / "marica" / "index.html").read_text("utf-8")
-    assert "Royalties de petróleo de Maricá (RJ)" in html and "Em resumo" in html
+    assert "Quanto Maricá (RJ) recebe de royalties de petróleo" in html and "Em resumo" in html
     assert "É o município que mais recebe" in html
 
 

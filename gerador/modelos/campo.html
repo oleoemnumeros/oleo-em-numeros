@@ -7,6 +7,7 @@
 <div class="chips">
 {% if c.bacia_slug %}<a class="chip" href="{{ u('bacias/' ~ c.bacia_slug ~ '/') }}">{{ titulo_bacia(c.bacia) }}</a>{% else %}<span class="chip">{{ titulo_bacia(c.bacia) }}</span>{% endif %}
 {% if c.estado_slug %}<a class="chip" href="{{ u('estados/' ~ c.estado_slug ~ '/') }}">{{ c.estado.nome }}</a>{% else %}<span class="chip">{{ c.estado.nome }}</span>{% endif %}
+{% if c.estado.uf in slug_royalties_uf %}<a class="chip" href="{{ u('royalties/' ~ slug_royalties_uf[c.estado.uf] ~ '/') }}">Royalties {{ c.estado.de }}</a>{% endif %}
 <span class="chip">{{ 'Terra' if c.ambiente == 'terra' else 'Mar' }}</span>
 <a class="chip" href="{{ u('operadoras/' ~ c.operador_slug ~ '/') }}">{{ c.grupo }}</a>
 </div>

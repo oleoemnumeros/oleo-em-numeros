@@ -450,6 +450,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     PR = preparar_precos(dados)
     env.globals.update(tem_precos=bool(PR))
     env.globals.update(ufs_royalties={e["uf"] for e in R["estados"]} if R else set())
+    env.globals.update(slug_royalties_uf={e["uf"]: e["slug"] for e in R["estados"]} if R else {})
     financeiro = carregar_financeiro(dados, ag)
     flags = {"gas": bool(G), "refino": bool(RF), "precos": bool(PR), "royalties": bool(R), "resultados": bool(financeiro),
              "mapa": bool(env.globals["tem_mapa"])}
@@ -671,6 +672,11 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     # ---------- royalties ----------
     if R:
         prod = {e["uf"]: e["slug"] for e in ag.get("estados", []) if e.get("slug")}
+        campos_uf: dict = {}
+        for c in sorted(ag["campos"], key=lambda x: -(x.get("boe") or 0)):
+            uf_c = (c.get("estado") or {}).get("uf")
+            if uf_c and (c.get("boe") or 0) > 0 and len(campos_uf.setdefault(uf_c, [])) < 6:
+                campos_uf[uf_c].append({"nome": c["nome"], "slug": c["slug"], "boe": c["boe"]})
         valores, unidade = escala(R["brasil"]["serie_total"])
         R["brasil"]["grafico"] = {"valores": valores, "unidade": unidade}
         ult = R["mes_extenso"]
@@ -682,7 +688,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
             valores, unidade = escala(e["serie_mun"])
             e["grafico"] = {"valores": valores, "unidade": unidade}
             escrever(f"royalties/{e['slug']}/", "royalties_estado.html", secao="royalties", R=R, e=e,
-                     prod_estado=prod.get(e["uf"]),
+                     prod_estado=prod.get(e["uf"]), campos_estado=campos_uf.get(e["uf"], []),
                      titulo=f"Royalties de petróleo {e['de']}: municípios e estado",
                      descricao=f"Royalties de petróleo e gás recebidos pelos municípios {e['de']}: "
                                f"{dinheiro(e['mun_total12'], False)} em 12 meses. Ranking, mês a mês e por habitante. Dados da ANP.")
@@ -696,8 +702,9 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
             valores, unidade = escala(m["r"])
             m["grafico"] = {"valores": valores, "unidade": unidade}
             escrever(f"royalties/{m['estado_slug']}/{m['slug']}/", "royalties_municipio.html", secao="royalties", R=R, m=m,
-                     prod_estado=prod.get(m["uf"]),
-                     titulo=f"Royalties de {m['nome']} ({m['uf']}): quanto o município recebe",
+                     prod_estado=prod.get(m["uf"]), campos_estado=campos_uf.get(m["uf"], []),
+                     titulo=(f"Quanto {m['nome']} ({m['uf']}) recebe de royalties: {dinheiro(m['r12'])} em 12 meses" if m["r12"] > 0
+                             else f"Quanto {m['nome']} ({m['uf']}) recebe de royalties de petróleo"),
                      descricao=f"{m['nome']} ({m['uf']}) recebeu {dinheiro(m['r12'], False)} em royalties de petróleo nos "
                                f"últimos 12 meses. Valores mês a mês desde 2018, participação especial e ranking. Dados da ANP.")
 

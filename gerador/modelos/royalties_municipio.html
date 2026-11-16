@@ -3,7 +3,7 @@
 {% block conteudo %}
 <section class="miolo cabeca">
 <nav class="trilha" aria-label="Você está em"><a href="{{ u('royalties/') }}">Royalties</a><span aria-hidden="true"> / </span><a href="{{ u('royalties/' ~ m.estado_slug ~ '/') }}">{{ m.estado_nome }}</a><span aria-hidden="true"> / </span><span aria-current="page">{{ m.nome }}</span></nav>
-<h1>Royalties de petróleo de {{ m.nome }} ({{ m.uf }})</h1>
+<h1>Quanto {{ m.nome }} ({{ m.uf }}) recebe de royalties de petróleo</h1>
 <p class="sub">{% if m.rank %}{{ m.rank }}º município do Brasil em royalties e participação especial · {{ m.rank_uf }}º {{ m.estado_de }} · {% endif %}pagamentos até {{ R.mes_extenso }}</p>
 <div class="kpis kpis-6 kpis-dinheiro">
 {{ kpi('Recebido no mês', dinheiro(m.ultimo_mes), '', 'em ' ~ R.mes_extenso, '', principal=True) }}
@@ -82,6 +82,17 @@
 <h2>Mais sobre {{ m.nome }} ({{ m.uf }})</h2>
 <ul class="familia-links">
 {% for f in m.familia %}<li><a href="{{ f.url }}">{{ f.rotulo }} de {{ m.nome }}</a> <span class="legenda">· {{ f.portal }}: {{ f.descricao }}</span></li>
+{% endfor %}</ul>
+</div>
+</section>
+{% endif %}
+
+{% if campos_estado %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>Maiores campos de petróleo e gás {{ m.estado_de }}</h2>
+<ul class="familia-links">
+{% for f in campos_estado %}<li><a href="{{ u('campos/' ~ f.slug ~ '/') }}">Campo de {{ f.nome }}</a> <span class="legenda">· {{ fmt(f.boe) }} boe/d</span></li>
 {% endfor %}</ul>
 </div>
 </section>

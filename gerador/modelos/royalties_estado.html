@@ -42,6 +42,16 @@
 {% if sem %}<p class="nota">Receberam antes, mas não nos últimos 12 meses: {% for m in sem %}<a href="{{ u('royalties/' ~ e.slug ~ '/' ~ m.slug ~ '/') }}">{{ m.nome }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
 </div>
 </section>
+{% if campos_estado %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>Maiores campos de petróleo e gás {{ e.de }}</h2>
+<ul class="familia-links">
+{% for f in campos_estado %}<li><a href="{{ u('campos/' ~ f.slug ~ '/') }}">Campo de {{ f.nome }}</a> <span class="legenda">· {{ fmt(f.boe) }} boe/d</span></li>
+{% endfor %}</ul>
+</div>
+</section>
+{% endif %}
 <section class="miolo secao">
 <p class="nota">{% if prod_estado %}Veja a <a href="{{ u('estados/' ~ prod_estado ~ '/') }}">produção de petróleo e gás {{ e.de }}</a> · {% endif %}<a href="{{ u('royalties/') }}">Royalties no Brasil</a> · <a href="{{ u('sobre/') }}#royalties">Como calculamos</a></p>
 </section>
