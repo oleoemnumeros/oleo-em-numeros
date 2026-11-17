@@ -975,7 +975,7 @@ def test_paginas_de_resumo(base, tmp_path):
     assert "resumo/" in paginas and f"resumo/{ultimo}/" in paginas
     site = tmp_path / "site"
     html = (site / "resumo" / ultimo / "index.html").read_text("utf-8")
-    assert html.count("<h1") == 1 and "O que mudou" in html and 'data-copiar="post"' in html
+    assert html.count("<h1") == 1 and "Operadoras em destaque" in html and "Para ir além" in html and 'data-copiar="post"' in html
     assert "Produção de petróleo e gás do Brasil" in html and f"/resumo/{ultimo}/" in html
     # link no menu e na home, e o mês mais recente fica no topo da lista
     assert 'href="../../resumo/index.html"' in html or 'href="../../resumo/"' in html
@@ -988,21 +988,105 @@ def test_paginas_de_resumo(base, tmp_path):
 
 def test_resumo_com_buracos_na_serie():
     """Dado real tem meses sem valor (None): máximo, mínimo e variações não podem quebrar."""
-    from gerador.gerar import resumo_dados, resumo_destaques, resumo_manchete
+    from gerador.gerar import resumo_dados, resumo_manchete
+    from gerador.resumo import montar
     # buraco no começo da série (era o que derrubava o site: max() com None no histórico)
     boe = [None, None] + [4000 + i for i in range(12)] + [4100]
     ag = _ag_sintetico(boe)
     ag["brasil"]["varmes_terra"] = None
     ag["rankings"] = {"todos": {"altas": [], "quedas": []}}
     d = resumo_dados(ag, ag["ultimo"])
-    assert d is not None and d["recorde"] and "sobe" in resumo_manchete(d)
-    assert resumo_destaques(ag, d)
+    assert d is not None and d["extremo"]["tipo"] == "maior" and "sobe" in resumo_manchete(d)
+    assert montar(ag, ag["ultimo"], "https://x.test")["x"]
     # buraco no meio e logo antes do mês: sem mês anterior comparável, sem resumo (e sem erro)
     ag = _ag_sintetico([4000 + i for i in range(13)] + [None, 4100, 4120])
     assert resumo_dados(ag, "2026-03") is None
     assert resumo_dados(ag, "2026-02") is None
     d = resumo_dados(ag, ag["ultimo"])
-    assert d is None or isinstance(d["recorde"], bool)
+    assert d is None or d["extremo"] is None or d["extremo"]["tipo"] in ("maior", "menor")
+
+
+def _ag_resumo():
+    """Dados sintéticos com operadoras, bacias e campos para exercitar o texto do resumo."""
+    from gerador.gerar import _mes_antes
+    n = 14
+    periodos = [_mes_antes("2025-01", -i) for i in range(n)]
+
+    def ent(nome, base, ult):
+        boe = [base] * (n - 1) + [ult]
+        return {"nome": nome, "slug": nome.lower().replace(" ", "-"), "serie": {"periodo": periodos, "boe": boe}}
+    total = [5000 + 10 * i for i in range(n - 1)] + [5400]
+    ops = [ent("Grande", 4000, 4350), ent("Média", 300, 330), ent("Subindo", 40, 60), ent("Caindo", 200, 150), ent("Pequena", 2, 3)]
+    # a "Média" passa a "Subindo"? não: aqui "Caindo" perde uma posição para "Subindo"? 150 > 60, então só o valor muda
+    bacias = [ent("Santos", 3000, 3300), ent("Campos", 1000, 990)]
+    campos = [{"nome": f"Campo {i}", "slug": f"campo-{i}", "grupo": "Grande", "delta_mes": 120000 - 30000 * i, "varmes": 0.1 - 0.02 * i, "boe": 500000}
+              for i in range(5)]
+    quedas = [{"nome": f"Cai {i}", "slug": f"cai-{i}", "grupo": "Caindo", "delta_mes": -8000 + 1000 * i, "varmes": -0.05, "boe": 90000} for i in range(5)]
+    return {"ultimo": periodos[-1], "operadores": ops, "bacias": bacias,
+            "brasil": {"serie": {"periodo": periodos, "boe": total, "petroleo": [b * 0.8 for b in total], "gas": [b / 10 for b in total]},
+                       "varmes_terra": -0.02, "boe_terra": 200},
+            "rankings": {"todos": {"altas": campos, "quedas": quedas}}}
+
+
+def test_resumo_extremo_por_sequencia_e_janela():
+    from gerador.resumo import _extremo
+    # maior desde 8 meses atrás (o último valor igual ou maior foi no índice 5, e o atual é o índice 13)
+    v = [10, 11, 12, 13, 14, 20, 1, 2, 3, 4, 5, 6, 7, 19]
+    assert _extremo(v, 13) == {"tipo": "maior", "n": 8, "janela": False}
+    # recorde desde o começo da série (14 meses)
+    assert _extremo(list(range(14)), 13) == {"tipo": "maior", "n": 14, "janela": True}
+    # menor em 6 ou mais meses
+    assert _extremo([3, 9, 9, 9, 9, 9, 9, 9, 4], 8) == {"tipo": "menor", "n": 8, "janela": False}
+    # sequência curta demais: nada a dizer
+    assert _extremo([5, 3, 9, 8, 7, 9, 6], 6) is None
+
+
+def test_resumo_estrutura_do_texto():
+    from gerador.resumo import montar
+    ag = _ag_resumo()
+    R = montar(ag, ag["ultimo"], "https://oleoemnumeros.com.br")
+    assert "milhões de boe/d" in R["abertura"] and "alta de" in R["abertura"] and "sobre" in R["abertura"]
+    # operadoras em destaque: 2 ou 3, sem repetir, e a "Pequena" (abaixo de 10 mil boe/d) fica de fora
+    nomes = [o["nome"] for o in R["ops_destaque"]]
+    assert 2 <= len(nomes) <= 3 and len(set(nomes)) == len(nomes) and "Pequena" not in nomes
+    assert nomes[0] == "Grande" and "Caindo" in nomes
+    assert all(o["texto"].endswith(".") and "mil boe/d" in o["texto"] for o in R["ops_destaque"])
+    # insight: 1 ou 2 frases, citando números
+    assert R["insight"] and R["insight"].count(". ") <= 1 and any(ch.isdigit() for ch in R["insight"])
+    # links: rankings, produção total e campos citados
+    caminhos = [k for k, _ in R["links"]]
+    assert "rankings/" in caminhos and "" in caminhos and "campos/campo-0/" in caminhos
+    # mês antigo: sem campos, mas com abertura e operadoras
+    R0 = montar(ag, ag["brasil"]["serie"]["periodo"][-2], "https://x.test")
+    assert R0 and not R0["altas"] and not R0["quedas"] and R0["abertura"]
+
+
+def test_resumo_mudanca_de_posicao_aparece():
+    from gerador.gerar import _mes_antes
+    from gerador.resumo import montar
+    ag = _ag_resumo()
+    # "Subindo" passa a "Caindo": 60 contra 150 não troca; força a troca
+    for o in ag["operadores"]:
+        if o["nome"] == "Subindo":
+            o["serie"]["boe"][-1] = 400
+    R = montar(ag, ag["ultimo"], "https://x.test")
+    sub = next(o for o in R["ops_destaque"] if o["nome"] == "Subindo")
+    assert "posição" in sub["texto"] and "da 4ª para a 2ª" in sub["texto"]
+
+
+def test_resumo_post_x_cabe_em_280_caracteres():
+    from gerador.resumo import LIMITE_X, _peso_x, montar
+    ag = _ag_resumo()
+    # nomes de campo enormes forçam o corte dos extras
+    for c in ag["rankings"]["todos"]["altas"] + ag["rankings"]["todos"]["quedas"]:
+        c["nome"] = c["nome"] + " " + "Nome muito comprido " * 3
+    R = montar(ag, ag["ultimo"], "https://oleoemnumeros.com.br")
+    url = "https://oleoemnumeros.com.br/resumo/" + ag["ultimo"] + "/"
+    assert _peso_x(R["x"], url) <= LIMITE_X and url in R["x"]
+    R2 = montar(_ag_resumo(), ag["ultimo"], "https://oleoemnumeros.com.br")
+    assert "Campo 0" in R2["x"] and _peso_x(R2["x"], url) <= LIMITE_X
+    # LinkedIn: versão maior, com as três altas e o link
+    assert len(R2["linkedin"]) > len(R2["x"]) and "Campo 2" in R2["linkedin"] and url in R2["linkedin"]
 
 
 def test_busca_do_cabecalho_e_trilha_em_json_ld(base, tmp_path):
@@ -1029,3 +1113,78 @@ def test_busca_do_cabecalho_e_trilha_em_json_ld(base, tmp_path):
     # título longo dispensa o sufixo com o nome do site
     titulo = __import__("re").search(r"<title>(.*?)</title>", html).group(1)
     assert len(titulo) <= 75 and (len(titulo) <= 75 and ("| Óleo em Números" in titulo) == (len(titulo.split(" | ")[0]) <= 55))
+
+
+# ---------------- e-mail do resumo ----------------
+
+def _redes_exemplo():
+    return {"per": "2026-09", "url": "https://oleoemnumeros.com.br/resumo/2026-09/", "manchete": "Produção sobe 1,9% em setembro de 2026",
+            "x": "Post curto para o X https://oleoemnumeros.com.br/resumo/2026-09/", "linkedin": "Texto longo para o LinkedIn."}
+
+
+class _SmtpFalso:
+    enviados: list = []
+    falha: bool = False
+
+    def __init__(self, servidor, porta, context=None, timeout=None):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def login(self, usuario, senha):
+        if self.falha:
+            raise RuntimeError("senha recusada")
+
+    def send_message(self, msg):
+        self.enviados.append(msg)
+
+
+def test_email_do_resumo_envia_uma_vez_por_mes(tmp_path):
+    import json
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import enviar_resumo as e
+    redes = tmp_path / "redes.json"
+    redes.write_text(json.dumps(_redes_exemplo(), ensure_ascii=False), "utf-8")
+    marcador = tmp_path / ".enviado" / "ultimo.txt"
+    env = {"GMAIL_USER": "oleoemnumeros@gmail.com", "GMAIL_APP_PASSWORD": "abcd efgh ijkl mnop"}
+    _SmtpFalso.enviados, _SmtpFalso.falha = [], False
+    assert e.principal(redes, marcador, env, _SmtpFalso) == 0
+    assert len(_SmtpFalso.enviados) == 1 and marcador.read_text() == "2026-09"
+    m = _SmtpFalso.enviados[0]
+    assert m["Subject"] == "post para redes sociais - oleo em números" and m["To"] == "oleoemnumeros@gmail.com"
+    corpo = m.get_content()
+    assert "VERSÃO PARA O X" in corpo and "Post curto para o X" in corpo and "Texto longo para o LinkedIn." in corpo
+    # segunda execução do mesmo mês (a diária): não reenvia
+    assert e.principal(redes, marcador, env, _SmtpFalso) == 0 and len(_SmtpFalso.enviados) == 1
+    # mês novo: envia de novo
+    novo = _redes_exemplo() | {"per": "2026-10"}
+    redes.write_text(json.dumps(novo, ensure_ascii=False), "utf-8")
+    e.principal(redes, marcador, env, _SmtpFalso)
+    assert len(_SmtpFalso.enviados) == 2 and marcador.read_text() == "2026-10"
+
+
+def test_email_do_resumo_nao_derruba_a_publicacao(tmp_path):
+    import json
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import enviar_resumo as e
+    redes = tmp_path / "redes.json"
+    redes.write_text(json.dumps(_redes_exemplo(), ensure_ascii=False), "utf-8")
+    marcador = tmp_path / "m" / "ultimo.txt"
+    # sem segredos: avisa, não envia e não grava marcador (quando os segredos existirem, o envio acontece)
+    _SmtpFalso.enviados, _SmtpFalso.falha = [], False
+    assert e.principal(redes, marcador, {}, _SmtpFalso) == 0 and not _SmtpFalso.enviados and not marcador.exists()
+    # senha recusada: termina com sucesso e deixa o marcador de fora, para tentar de novo
+    _SmtpFalso.falha = True
+    env = {"GMAIL_USER": "a@gmail.com", "GMAIL_APP_PASSWORD": "x"}
+    assert e.principal(redes, marcador, env, _SmtpFalso) == 0 and not marcador.exists()
+    # sem arquivo de texto (resumo indisponível): nada a fazer
+    assert e.principal(tmp_path / "nao-existe.json", marcador, env, _SmtpFalso) == 0
+    _SmtpFalso.falha = False

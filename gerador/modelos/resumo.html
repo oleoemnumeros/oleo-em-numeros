@@ -2,9 +2,9 @@
 {% from "_macros.html" import kpi, var_classe %}
 {% block conteudo %}
 <section class="miolo cabeca">
-<p class="olho">Resumo do mês · {{ mes_extenso(d.per) }}</p>
+<p class="olho">Resumo da Produção – {{ mes_extenso(d.per) }}</p>
 <h1>{{ manchete }}</h1>
-<p class="sub">{% if d.boe_12 is not none %}{{ fmt_var(d.boe_12) }} em 12 meses. {% endif %}Dados oficiais da ANP. O que mudou, quem mais cresceu e quem mais caiu.</p>
+<p class="sub">{{ R.abertura }}</p>
 <div class="kpis">
 {{ kpi('Produção total', fmt(d.boe / 1000, 2), 'milhões boe/d', fmt_var(d.boe_mes) ~ ' no mês', var_classe(d.boe_mes), principal=True) }}
 {% if d.petroleo is not none %}{{ kpi('Petróleo', fmt(d.petroleo / 1000, 2), 'milhões bbl/d', fmt_var(d.petroleo_mes) ~ ' no mês', var_classe(d.petroleo_mes)) }}{% endif %}
@@ -13,14 +13,49 @@
 </div>
 </section>
 
+{% if campos_altas or campos_quedas %}
+<section class="miolo secao grade-2">
+{% for titulo_c, lista in (('Maiores altas', campos_altas), ('Maiores quedas', campos_quedas)) %}
+<div class="cartao">
+<h2>{{ titulo_c }}</h2>
+<p class="legenda">Campos, variação sobre {{ mes_extenso(d.ant) }}</p>
+{% if lista %}
+<div class="tabela">
+<table>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Campo</th><th>Operadora</th><th class="n">Variação (boe/d)</th><th class="n">Variação (%)</th></tr></thead>
+<tbody>
+{% for c in lista %}
+<tr><td>{{ loop.index }}</td><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.grupo }}</td><td class="n {{ var_classe(c.delta_mes) }}">{{ '+' if c.delta_mes > 0 }}{{ fmt(c.delta_mes) }}</td><td class="n {{ var_classe(c.varmes) }}">{{ fmt_var(c.varmes) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}<p class="legenda">Nenhum campo {{ 'cresceu' if loop.first else 'caiu' }} neste mês.</p>{% endif %}
+</div>
+{% endfor %}
+</section>
+{% endif %}
+
+{% if R.ops_destaque %}
 <section class="miolo secao">
 <div class="cartao">
-<h2>O que mudou</h2>
+<h2>Operadoras em destaque</h2>
+<p class="legenda">Os movimentos mais relevantes do mês entre as operadoras</p>
 <ul class="destaques-mes">
-{% for x in destaques %}<li>{{ x.texto }}{% if x.link %} <a href="{{ u(x.link[0]) }}">{{ x.link[1] }}</a>{% endif %}</li>
+{% for o in R.ops_destaque %}<li>{{ o.texto }} <a href="{{ u('operadoras/' ~ o.slug ~ '/') }}">Ver operadora</a></li>
 {% endfor %}</ul>
 </div>
 </section>
+{% endif %}
+
+{% if R.insight %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>Em resumo</h2>
+<p class="insight-mes">{{ R.insight }}</p>
+</div>
+</section>
+{% endif %}
 
 <section class="miolo secao">
 <div class="cartao">
@@ -67,35 +102,25 @@
 </section>
 {% endif %}
 
-{% if campos_altas or campos_quedas %}
-<section class="miolo secao grade-2">
-{% for titulo_c, lista in (('Campos que mais cresceram', campos_altas), ('Campos que mais caíram', campos_quedas)) %}
+<section class="miolo secao">
 <div class="cartao">
-<h2>{{ titulo_c }}</h2>
-<p class="legenda">Variação sobre {{ mes_extenso(d.ant) }}, em boe/d</p>
-{% if lista %}
-<div class="tabela">
-<table>
-<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Campo</th><th>Empresa</th><th class="n">Variação (boe/d)</th><th class="n">Produção (boe/d)</th></tr></thead>
-<tbody>
-{% for c in lista %}
-<tr><td>{{ loop.index }}</td><td><a href="{{ u('campos/' ~ c.slug ~ '/') }}">{{ c.nome }}</a></td><td>{{ c.grupo }}</td><td class="n {{ var_classe(c.delta_mes) }}">{{ '+' if c.delta_mes > 0 }}{{ fmt(c.delta_mes) }}</td><td class="n">{{ fmt(c.boe) }}</td></tr>
-{% endfor %}
-</tbody>
-</table>
+<h2>Para ir além</h2>
+<ul class="links-resumo">
+{% for caminho, rotulo in R.links %}<li><a href="{{ u(caminho) }}">{{ rotulo }}</a></li>
+{% endfor %}</ul>
 </div>
-{% else %}<p class="legenda">Nenhum campo {{ 'cresceu' if loop.first else 'caiu' }} neste mês.</p>{% endif %}
-</div>
-{% endfor %}
 </section>
-{% endif %}
 
 <section class="miolo secao">
 <div class="cartao">
 <h2>Compartilhe este resumo</h2>
-<p class="legenda">Texto pronto para WhatsApp, LinkedIn ou e-mail.</p>
-<textarea id="post" class="fam-post" readonly rows="11">{{ post }}</textarea>
-<div><button type="button" class="fam-btn" data-copiar="post"><span>Copiar texto</span></button> <span class="legenda" data-copiar-msg aria-live="polite"></span></div>
+<p class="legenda">Textos prontos: uma versão curta, para o X, e uma maior, para o LinkedIn, WhatsApp ou e-mail.</p>
+<h3>Para o X</h3>
+<textarea id="post-x" class="fam-post" readonly rows="6">{{ post_x }}</textarea>
+<div><button type="button" class="fam-btn" data-copiar="post-x"><span>Copiar texto do X</span></button> <span class="legenda" data-copiar-msg aria-live="polite"></span></div>
+<h3>Para o LinkedIn</h3>
+<textarea id="post" class="fam-post" readonly rows="16">{{ post }}</textarea>
+<div><button type="button" class="fam-btn" data-copiar="post"><span>Copiar texto do LinkedIn</span></button> <span class="legenda" data-copiar-msg aria-live="polite"></span></div>
 </div>
 </section>
 
