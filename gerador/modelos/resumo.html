@@ -112,8 +112,8 @@
 </section>
 
 <section class="miolo secao">
-<div class="cartao">
-<h2>Compartilhe este resumo</h2>
+<details class="cartao compartilhe-resumo">
+<summary><h2>Compartilhe este resumo</h2></summary>
 <p class="legenda">Textos prontos: uma versão curta, para o X, e uma maior, para o LinkedIn, WhatsApp ou e-mail.</p>
 <h3>Para o X</h3>
 <textarea id="post-x" class="fam-post" readonly rows="6">{{ post_x }}</textarea>
@@ -121,7 +121,7 @@
 <h3>Para o LinkedIn</h3>
 <textarea id="post" class="fam-post" readonly rows="16">{{ post }}</textarea>
 <div><button type="button" class="fam-btn" data-copiar="post"><span>Copiar texto do LinkedIn</span></button> <span class="legenda" data-copiar-msg aria-live="polite"></span></div>
-</div>
+</details>
 </section>
 
 <section class="miolo secao">

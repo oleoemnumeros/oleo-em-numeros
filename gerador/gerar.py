@@ -276,9 +276,7 @@ def carregar_noticias(pasta: Path, ag: dict):
 
 # ---------------- geração ----------------
 
-def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, url: str | None = None,
-          redes: Path | None = None) -> list[str]:
-    """`redes`: se vier, grava aí (JSON) os textos do X e do LinkedIn do resumo do mês mais recente, para o envio por e-mail."""
+def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, url: str | None = None) -> list[str]:
     ag = carregar(dados)
     site = {
         "nome": "Óleo em Números",
@@ -607,9 +605,6 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                      descricao=f"Resumo de {mes_extenso(per)}: produção de petróleo e gás do Brasil, maiores altas e quedas, "
                                "operadoras em destaque e bacias. Dados oficiais da ANP.")
             itens_resumo.append({"per": per, "mes": mes_extenso(per), "manchete": R["manchete"]})
-            if per == ag["ultimo"] and redes:
-                redes.write_text(json.dumps({"per": per, "url": f"{site['url']}/resumo/{per}/", "manchete": R["manchete"],
-                                             "x": R["x"], "linkedin": R["linkedin"]}, ensure_ascii=False, indent=1), "utf-8")
         except Exception as e:  # noqa: BLE001 - um mês com dado estranho não derruba o site
             print(f"AVISO: resumo de {per} não gerado ({type(e).__name__}: {e}).")
     if itens_resumo:
@@ -675,9 +670,8 @@ def main(argv=None):
     p.add_argument("--teste", action="store_true")
     p.add_argument("--links-limpos", action="store_true")
     p.add_argument("--url")
-    p.add_argument("--redes", type=Path, help="arquivo JSON onde gravar os textos do X e do LinkedIn do mês mais recente")
     a = p.parse_args(argv)
-    paginas = gerar(a.dados, a.saida, teste=a.teste, limpos=a.links_limpos, url=a.url, redes=a.redes)
+    paginas = gerar(a.dados, a.saida, teste=a.teste, limpos=a.links_limpos, url=a.url)
     print(f"{len(paginas)} páginas geradas em {a.saida}")
 
 

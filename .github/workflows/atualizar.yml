@@ -220,7 +220,7 @@ jobs:
           SITE_URL: ${{ vars.SITE_URL }}
           SITE_CONTATO: ${{ vars.SITE_CONTATO }}
           SITE_PREVIA: ${{ vars.SITE_PREVIA || '0' }}   # '1' volta a faixa "em validação" e o noindex
-        run: python -m gerador.gerar --links-limpos --redes redes.json
+        run: python -m gerador.gerar --links-limpos
 
       - name: IndexNow, o que mudou nesta publicação
         run: python scripts/indexnow.py preparar publico https://oleoemnumeros.com.br ad01178ec692a5a4adf74dc43280bcf5
@@ -228,13 +228,6 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: publico
-
-      # textos do X e do LinkedIn do resumo do mês: seguem para o job de publicação, que os manda por e-mail
-      - uses: actions/upload-artifact@v4
-        with:
-          name: resumo-redes
-          path: redes.json
-          if-no-files-found: ignore
 
   publicar:
     needs: atualizar
@@ -249,35 +242,3 @@ jobs:
       - name: IndexNow, avisar o Bing das páginas que mudaram
         continue-on-error: true
         run: python3 scripts/indexnow.py enviar - https://oleoemnumeros.com.br ad01178ec692a5a4adf74dc43280bcf5
-
-      # e-mail com os textos do resumo, só depois do site no ar e só uma vez por mês (o marcador fica em cache).
-      # Precisa dos segredos GMAIL_USER e GMAIL_APP_PASSWORD; sem eles, avisa e segue. Nunca derruba a publicação.
-      - name: Textos do resumo
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: resumo-redes
-          path: redes
-
-      - name: Recupera o marcador do e-mail
-        uses: actions/cache/restore@v4
-        with:
-          path: .enviado
-          key: resumo-enviado-${{ github.run_id }}
-          restore-keys: resumo-enviado-
-
-      - name: E-mail para as redes sociais
-        id: email
-        continue-on-error: true
-        env:
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          EMAIL_DESTINO: ${{ vars.EMAIL_DESTINO }}
-        run: python3 scripts/enviar_resumo.py --redes redes/redes.json --marcador .enviado/ultimo.txt
-
-      - name: Guarda o marcador do e-mail
-        if: steps.email.outputs.enviado == 'sim'
-        uses: actions/cache/save@v4
-        with:
-          path: .enviado
-          key: resumo-enviado-${{ github.run_id }}
