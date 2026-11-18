@@ -145,6 +145,16 @@ def test_gera_site(base, tmp_path):
     assert sug.count("<h1") == 1 and "[Óleo em Números] Sugestão ou crítica" in sug
     assert "sugestoes/" in html and "Sugestões e críticas" in html
     assert "sugestoes/" in (tmp_path / "site" / "sitemap.xml").read_text("utf-8")
+    # privacidade e contato: páginas próprias, com e-mail do portal e links no rodapé
+    priv = (tmp_path / "site" / "privacidade" / "index.html").read_text("utf-8")
+    for trecho in ("Política de privacidade", "GoatCounter", "Google AdSense", "adssettings.google.com", "Lei nº 13.709/2018", "OpenStreetMap", "Última atualização"):
+        assert trecho in priv
+    assert priv.count("<h1") == 1 and "{{" not in priv and "__" not in priv.split("</main>")[0]
+    cont = (tmp_path / "site" / "contato" / "index.html").read_text("utf-8")
+    assert "mailto:" in cont and "sugestoes/" in cont and cont.count("<h1") == 1 and "__" not in cont.split("</main>")[0]
+    assert "privacidade/" in html and "contato/" in html
+    sitemap = (tmp_path / "site" / "sitemap.xml").read_text("utf-8")
+    assert "privacidade/" in sitemap and "contato/" in sitemap
     # imagem de prévia do link (WhatsApp, Instagram, X, LinkedIn)
     assert '<meta property="og:image" content="' in html and html.count('og.png"') == 1
     assert '<meta name="twitter:card" content="summary_large_image">' in html

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="miolo cabeca texto">
+<h1>Política de privacidade</h1>
+<p class="sub" style="font-size: 19px; color: var(--tinta)">Esta página explica quais dados o {{ site.nome }} coleta, por que coleta e quais são os seus direitos. Em resumo: não pedimos cadastro, não vendemos dados e não usamos cookies de rastreamento próprios.</p>
+<p class="legenda" style="font-size: 14px; color: var(--cinza)">Última atualização: 18 de novembro de 2026.</p>
+
+<h2>Quem somos</h2>
+<p>O {{ site.nome }} faz parte da Família em Números, um grupo de portais independentes que organizam dados públicos do Brasil. Não temos ligação com órgãos do governo nem com as empresas citadas nos dados. Para qualquer assunto de privacidade, escreva para <a href="mailto:{{ site.contato }}">{{ site.contato }}</a>.</p>
+
+<h2>O que coletamos e para quê</h2>
+<ul>
+<li><strong>Estatísticas de visitas.</strong> Usamos o GoatCounter, um contador sem cookies que guarda dados agregados, como a página aberta, o site de origem, o tipo de aparelho e de navegador e o país. Ele não identifica quem visita. Serve para saber quais páginas são úteis.</li>
+<li><strong>Mensagens.</strong> Se você usar o formulário de <a href="{{ u('sugestoes/') }}">Sugestões e críticas</a> ou escrever para o e-mail do portal, recebemos o que você escrever e, se informar, o seu nome e o seu e-mail. Usamos só para ler e responder. O formulário é entregue pelo serviço FormSubmit (formsubmit.co).</li>
+<li><strong>Dados técnicos de acesso.</strong> O site é hospedado no GitHub Pages, que, como qualquer servidor, pode registrar o endereço IP de quem acessa. As fontes de letra vêm do Google Fonts, que também recebe o endereço IP de quem abre a página. Nas páginas com mapa, as imagens de fundo vêm do OpenStreetMap, que também recebe o endereço IP de quem abre a página.</li>
+</ul>
+
+<h2>Anúncios</h2>
+<p>Podemos exibir anúncios do Google AdSense para custear o projeto. Quando houver anúncios, o Google e os seus parceiros podem usar cookies e identificadores do navegador para mostrar anúncios com base nas suas visitas a este e a outros sites. Você pode gerenciar ou desativar a personalização em <a href="https://adssettings.google.com" rel="noopener" target="_blank">adssettings.google.com</a>, saber mais em <a href="https://policies.google.com/technologies/ads?hl=pt-BR" rel="noopener" target="_blank">como o Google usa dados de sites parceiros</a> e bloquear cookies nas configurações do seu navegador. Os anúncios não mudam os números mostrados nem a forma como os dados são organizados.</p>
+
+<h2>Cookies e armazenamento no navegador</h2>
+<p>O {{ site.nome }} não define cookies de rastreamento. Para lembrar uma preferência, como o período escolhido nos gráficos, o site usa o armazenamento local do seu navegador. Essa informação fica no seu aparelho e não é enviada a nós. Se houver anúncios, os cookies serão os do Google, descritos acima.</p>
+
+<h2>O que publicamos</h2>
+<p>Os números vêm de bases públicas e aparecem de forma agregada (país, estado, município, empresa, campo, aeroporto ou rota, por exemplo). O site não pede nem publica dados pessoais de pessoas físicas.</p>
+
+<h2>Compartilhamento</h2>
+<p>Não vendemos nem alugamos dados. Os serviços citados acima (GoatCounter, FormSubmit, GitHub, Google e, nos mapas, OpenStreetMap) recebem apenas o que é necessário para funcionar.</p>
+
+<h2>Seus direitos</h2>
+<p>Pela Lei Geral de Proteção de Dados (Lei nº 13.709/2018), você pode pedir a confirmação de que tratamos dados seus, o acesso, a correção ou a eliminação deles, entre outros direitos. Escreva para <a href="mailto:{{ site.contato }}">{{ site.contato }}</a>. Guardamos as mensagens só pelo tempo necessário para responder e as apagamos quando você pedir.</p>
+
+<h2>Mudanças nesta página</h2>
+<p>Podemos atualizar este texto. A data da última atualização fica no topo. Dúvidas? Veja a página de <a href="{{ u('contato/') }}">contato</a>.</p>
+</section>
+{% endblock %}
