@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="miolo cabeca texto">
+<h1>Contato</h1>
+<p class="sub" style="font-size: 19px; color: var(--tinta)">Encontrou um erro, tem uma sugestão ou quer falar com a gente? Escreva para <a href="mailto:{{ site.contato }}">{{ site.contato }}</a> ou use o <a href="{{ u('sugestoes/') }}">formulário de sugestões e críticas</a>. Lemos todas as mensagens e respondemos quando você deixa um e-mail para retorno.</p>
+
+<h2>Sobre o que você pode escrever</h2>
+<ul>
+<li><strong>Erro em um dado ou página.</strong> Envie o endereço da página e o número que parece errado. Conferimos na fonte oficial e corrigimos.</li>
+<li><strong>Sugestões.</strong> Um dado que faz falta, uma página nova ou uma melhoria no site.</li>
+<li><strong>Imprensa e parcerias.</strong> Uso dos dados em reportagens, estudos e projetos. Os dados são públicos, mas gostamos de saber onde são usados.</li>
+<li><strong>Privacidade.</strong> Pedidos sobre dados pessoais, conforme a <a href="{{ u('privacidade/') }}">política de privacidade</a>.</li>
+</ul>
+
+<h2>Importante</h2>
+<p>O {{ site.nome }} é um projeto independente, sem ligação com órgãos do governo nem com as empresas citadas nos dados. Não conseguimos ajudar com assuntos internos da ANP ou de uma operadora. Para isso, procure diretamente o órgão ou a empresa.</p>
+<p class="legenda" style="font-size: 14px; color: var(--cinza)">O {{ site.nome }} faz parte da Família em Números, um grupo de portais que organizam dados públicos do Brasil.</p>
+</section>
+{% endblock %}

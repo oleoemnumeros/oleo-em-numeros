@@ -584,6 +584,10 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
              descricao="De onde vêm os dados do Óleo em Números e como os números são calculados.")
     escrever("sugestoes/", "sugestoes.html", secao="sugestoes", titulo="Sugestões e críticas",
              descricao="Envie uma sugestão, crítica ou correção para o Óleo em Números. A mensagem chega por e-mail e é lida por uma pessoa.")
+    escrever("contato/", "contato.html", secao="contato", titulo="Contato",
+             descricao="Fale com o Óleo em Números: e-mail, formulário de sugestões, erros em dados, imprensa e parcerias.")
+    escrever("privacidade/", "privacidade.html", secao="privacidade", titulo="Política de privacidade",
+             descricao="Como o Óleo em Números trata dados: o que coleta, anúncios do Google AdSense, cookies e seus direitos pela LGPD.")
     try:
         meses_resumo = resumo_meses(ag)
     except Exception as e:  # noqa: BLE001
