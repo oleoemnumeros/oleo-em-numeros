@@ -19,10 +19,11 @@
   var PILHA = 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
   var NS = "http://www.w3.org/2000/svg";
   var PORTAIS = {
-    "oleoemnumeros.com.br": ["Óleo em Números", "#F59E0B"],
-    "comexemnumeros.com.br": ["Comex em Números", "#37C0A5"],
-    "vooemnumeros.com.br": ["Voo em Números", "#A58BF0"],
-    "economiaemnumeros.com.br": ["Economia em Números", "#7EA3FF"]
+    // mesmas cores do rodapé "Família em Números" (PORTAIS nos geradores): azul petróleo, azul do mar, azul celeste, amarelo ouro
+    "oleoemnumeros.com.br": ["Óleo em Números", "#17758C"],
+    "comexemnumeros.com.br": ["Comex em Números", "#1F85D0"],
+    "vooemnumeros.com.br": ["Voo em Números", "#4FB8EE"],
+    "economiaemnumeros.com.br": ["Economia em Números", "#D9A514"]
   };
   var host = location.hostname.replace(/^www\./, "");
   var metaNome = document.querySelector('meta[property="og:site_name"]');

@@ -1,5 +1,6 @@
 /* Família em Números: recursos comuns a todos os portais.
-   Hoje: botão visível "Baixar tabela (CSV)" em toda tabela de dados.
+   Hoje: botão visível "Baixar tabela (CSV)" em toda tabela de dados, botão "Copiar texto" dos textos prontos
+   e, ao lado de "Copiar texto do X", o botão "Publicar no X", que abre o X com o texto e o link já preenchidos.
    O mesmo arquivo vale para os quatro portais; não coloque nada específico de um site aqui. */
 (function () {
   "use strict";
@@ -88,8 +89,32 @@
     } catch (e) { alvo.select(); aviso("Selecione o texto e copie."); }
   });
 
+  // botão "Publicar no X": vai ao lado de <button data-copiar="post-x"> e abre o X com o texto do <textarea id="post-x">.
+  // No celular, abre o aplicativo do X se ele estiver instalado. O LinkedIn não aceita texto preenchido pelo link,
+  // por isso lá continua só o "Copiar texto".
+  function botoesX() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-copiar="post-x"]'), function (b) {
+      var alvo = document.getElementById("post-x");
+      if (!alvo || !limpo(alvo.value) || b.parentNode.querySelector("[data-publicar-x]")) return;
+      var a = document.createElement("a");
+      a.className = "fam-btn";
+      a.setAttribute("data-publicar-x", "");
+      a.href = "https://x.com/intent/tweet?text=" + encodeURIComponent(alvo.value.trim());
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.style.textDecoration = "none";
+      a.innerHTML = "<span>Publicar no X</span>";
+      a.addEventListener("click", function () {
+        try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: "publicar-x", title: document.title, event: true }); } catch (e) { /* contador é opcional */ }
+      });
+      b.insertAdjacentElement("afterend", a);
+      b.insertAdjacentText("afterend", " ");
+    });
+  }
+
   function pronto() {
     iniciar();
+    botoesX();
     // tabelas que a página monta depois (buscas, abas): uma checagem leve quando o conteúdo muda
     var main = document.querySelector("main");
     if (main && window.MutationObserver) {
