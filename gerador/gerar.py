@@ -18,10 +18,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from markupsafe import Markup
 
 from robo import config
 from robo.agregar import PREP_BACIA
-from robo.util import MESES, fmt, fmt_inteligente, fmt_pp, fmt_var, mes_extenso, sem_acento, slug
+from robo.util import MESES, MESES_CURTOS, fmt, fmt_inteligente, fmt_pp, fmt_var, mes_curto, mes_extenso, sem_acento, slug
 
 from .graficos import linha
 from .financeiro import carregar_financeiro, reais
@@ -32,6 +33,7 @@ from .resumo import _mes_antes, manchete as resumo_manchete, montar as montar_re
 from .mapa import gerar_mapa
 from .pocos import gerar_pocos
 from .royalties import dinheiro, escala, preparar as preparar_royalties, resumo_municipio
+from .familia_card import TEXTO_COMPARTILHE, bloco_imagem, gera_card, sem_imagem, seta
 from .familia import carregar as carregar_familia, chave_cidade, continuar as continuar_cartoes
 
 AQUI = Path(__file__).resolve().parent
@@ -275,6 +277,27 @@ def carregar_noticias(pasta: Path, ag: dict):
 
 
 # ---------------- geração ----------------
+
+def card_resumo(ag: dict, d: dict, destino: Path, site_url: str) -> bool:
+    """Imagem do resumo (resumo/AAAA-MM/card.png): produção total, petróleo e gás, com as barras dos últimos 13 meses."""
+    per, ant = d["per"], d["ant"]
+
+    def var(v):
+        if v is None:
+            return "", None
+        return f"{seta(round(v * 100, 1))} {fmt(abs(v) * 100, 1)}% sobre {mes_curto(ant)}", (None if round(v * 100, 1) == 0 else v > 0)
+    serie = ag["brasil"]["serie"]
+    idx = serie["periodo"].index(per)
+    janela = list(zip(serie["periodo"], serie["boe"]))[max(0, idx - 12):idx + 1]
+    barras = [(MESES_CURTOS[int(p[5:]) - 1], [v / 1000 if v is not None else None]) for p, v in janela]
+    host = site_url.split("//")[-1]
+    return gera_card(destino, "Óleo em Números", "#17758C", f"Produção de petróleo e gás · {mes_extenso(per)}",
+                     [n for n in (("Petróleo e gás (boe/d)", f"{fmt(d['boe'] / 1000, 2)} mi", *var(d["boe_mes"])),
+                                  ("Petróleo (barris/d)", f"{fmt(d['petroleo'] / 1000, 2)} mi", *var(d["petroleo_mes"])) if d.get("petroleo") else None,
+                                  ("Gás natural (m³/d)", f"{fmt(d['gas'], 1)} mi", *var(d["gas_mes"])) if d.get("gas") else None) if n],
+                     barras, None, f"Milhões de boe/d, mês a mês · Fonte: ANP · {host}/resumo/{per}/",
+                     [fmt(v[0], 2) if v[0] is not None else "" for _, v in barras])
+
 
 LLMS_TXT = '# Óleo em Números\n\n> Dados públicos de petróleo e gás do Brasil da ANP e da CVM, organizados por poço, campo, bacia, estado e operadora, além de royalties, preços de combustíveis, refino e gás natural.\n\nProdução total em boe (barril de óleo equivalente) e produção operada: 100% do campo fica com a operadora, como a ANP publica. Dados de produção têm defasagem de cerca de dois meses.\n\n## Principais páginas\n- [Resumo do mês](__BASE__/resumo/): produção nacional, ranking e variações\n- [Campos](__BASE__/campos/): produção, poços e operadora de cada campo\n- [Bacias](__BASE__/bacias/)\n- [Estados](__BASE__/estados/)\n- [Operadoras](__BASE__/operadoras/): produção por empresa e grupo econômico\n- [Poços](__BASE__/pocos/): série mensal de produção de cada poço desde 2018\n- [Royalties](__BASE__/royalties/): valores recebidos por estados e municípios\n- [Preços dos combustíveis](__BASE__/precos/): gasolina, etanol, diesel e GNV por município\n- [Refino](__BASE__/refino/): petróleo processado e derivados por refinaria\n- [Gás natural](__BASE__/gas/) e [queima de gás](__BASE__/gas/queima/)\n- [Resultados das empresas listadas](__BASE__/resultados/): dados da CVM\n- [Mapa](__BASE__/mapa/): campos e poços\n- [Notícias](__BASE__/noticias/)\n- [Sobre e metodologia](__BASE__/sobre/): fontes, defasagens e fórmulas\n\n## Fontes e atualização\n- ANP (dados abertos), CVM (ITR e DFP) e IBGE (população). Atualização automática, em geral mensal.\n- Preços de combustíveis cobrem cerca de 400 municípios pesquisados pela ANP e mostram só médias, nunca postos.\n\n## Como citar\n- Cite o nome do portal e o link da página usada. Os dados são públicos e os links levam à fonte oficial.\n- Cada página mostra o período dos dados. Informe o período ao usar um número.\n- O portal é independente e não tem ligação com governo, empresas ou instituições financeiras.\n\n## Família em Números\nPortais independentes de dados públicos do Brasil: Óleo em Números (https://oleoemnumeros.com.br), Comex em Números (https://comexemnumeros.com.br), Voo em Números (https://vooemnumeros.com.br) e Economia em Números (https://economiaemnumeros.com.br).\n\n## Contato\n- Erros, sugestões e pedidos de dados: __BASE__/contato/\n'
 
@@ -602,7 +625,12 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
             R = montar_resumo(ag, per, site["url"])
             d = R["d"]
             idx = ag["brasil"]["serie"]["periodo"].index(per)
+            tem_img = card_resumo(ag, d, saida / "resumo" / per / "card.png", site["url"])
+            img_html = Markup(bloco_imagem(f"oleo-em-numeros-resumo-{per}.png",
+                                           f"Produção de petróleo e gás do Brasil em {mes_extenso(per)}") if tem_img else "")
             escrever(f"resumo/{per}/", "resumo.html", secao="resumo", R=R, d=d, manchete=R["manchete"],
+                     img_html=img_html, texto_compartilhe=TEXTO_COMPARTILHE,
+                     og_imagem=f"{site['url']}/resumo/{per}/card.png" if tem_img else None,
                      post=R["linkedin"], post_x=R["x"],
                      serie_boe=ag["brasil"]["serie"]["boe"][:idx + 1], serie_per=ag["brasil"]["serie"]["periodo"][:idx + 1],
                      campos_altas=R["altas"], campos_quedas=R["quedas"],
