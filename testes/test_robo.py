@@ -1,5 +1,6 @@
 """Testes do robô e do gerador com dados fictícios nos dois formatos da ANP."""
 import io
+import re
 import zipfile
 
 import pytest
@@ -991,6 +992,13 @@ def test_paginas_de_resumo(base, tmp_path):
     html = (site / "resumo" / ultimo / "index.html").read_text("utf-8")
     assert html.count("<h1") == 1 and "Operadoras em destaque" in html and "Para ir além" in html and 'data-copiar="post"' in html
     assert "Produção de petróleo e gás do Brasil" in html and f"/resumo/{ultimo}/" in html
+    # kit de redes sociais: texto do X cabe em 280 (link conta 23) e o script comum põe o botão "Publicar no X"
+    import html as _h
+    x = _h.unescape(re.search(r'<textarea id="post-x"[^>]*>(.*?)</textarea>', html, re.S).group(1))
+    assert 0 < len(re.sub(r"https?://\S+", "x" * 23, x)) <= 280 and 'data-copiar="post-x"' in html
+    js = (site / "familia.js").read_text("utf-8")
+    assert "https://x.com/intent/tweet?text=" in js and "data-publicar-x" in js
+    assert '"#17758C"' in (site / "familia-compartilhar.js").read_text("utf-8")
     # link no menu e na home, e o mês mais recente fica no topo da lista
     assert 'href="../../resumo/index.html"' in html or 'href="../../resumo/"' in html
     home = (site / "index.html").read_text("utf-8")
