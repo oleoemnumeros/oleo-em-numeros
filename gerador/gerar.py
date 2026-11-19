@@ -276,6 +276,9 @@ def carregar_noticias(pasta: Path, ag: dict):
 
 # ---------------- geração ----------------
 
+LLMS_TXT = '# Óleo em Números\n\n> Dados públicos de petróleo e gás do Brasil da ANP e da CVM, organizados por poço, campo, bacia, estado e operadora, além de royalties, preços de combustíveis, refino e gás natural.\n\nProdução total em boe (barril de óleo equivalente) e produção operada: 100% do campo fica com a operadora, como a ANP publica. Dados de produção têm defasagem de cerca de dois meses.\n\n## Principais páginas\n- [Resumo do mês](__BASE__/resumo/): produção nacional, ranking e variações\n- [Campos](__BASE__/campos/): produção, poços e operadora de cada campo\n- [Bacias](__BASE__/bacias/)\n- [Estados](__BASE__/estados/)\n- [Operadoras](__BASE__/operadoras/): produção por empresa e grupo econômico\n- [Poços](__BASE__/pocos/): série mensal de produção de cada poço desde 2018\n- [Royalties](__BASE__/royalties/): valores recebidos por estados e municípios\n- [Preços dos combustíveis](__BASE__/precos/): gasolina, etanol, diesel e GNV por município\n- [Refino](__BASE__/refino/): petróleo processado e derivados por refinaria\n- [Gás natural](__BASE__/gas/) e [queima de gás](__BASE__/gas/queima/)\n- [Resultados das empresas listadas](__BASE__/resultados/): dados da CVM\n- [Mapa](__BASE__/mapa/): campos e poços\n- [Notícias](__BASE__/noticias/)\n- [Sobre e metodologia](__BASE__/sobre/): fontes, defasagens e fórmulas\n\n## Fontes e atualização\n- ANP (dados abertos), CVM (ITR e DFP) e IBGE (população). Atualização automática, em geral mensal.\n- Preços de combustíveis cobrem cerca de 400 municípios pesquisados pela ANP e mostram só médias, nunca postos.\n\n## Como citar\n- Cite o nome do portal e o link da página usada. Os dados são públicos e os links levam à fonte oficial.\n- Cada página mostra o período dos dados. Informe o período ao usar um número.\n- O portal é independente e não tem ligação com governo, empresas ou instituições financeiras.\n\n## Família em Números\nPortais independentes de dados públicos do Brasil: Óleo em Números (https://oleoemnumeros.com.br), Comex em Números (https://comexemnumeros.com.br), Voo em Números (https://vooemnumeros.com.br) e Economia em Números (https://economiaemnumeros.com.br).\n\n## Contato\n- Erros, sugestões e pedidos de dados: __BASE__/contato/\n'
+
+
 def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, url: str | None = None) -> list[str]:
     ag = carregar(dados)
     site = {
@@ -638,6 +641,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     robots = ("User-agent: *\nDisallow: /\n" if (teste or site["previa"]) else
               f"User-agent: *\nAllow: /\nDisallow: /dados/pocos/$\nSitemap: {site['url']}/sitemap.xml\n")
     (saida / "robots.txt").write_text(robots, "utf-8")
+    if not (teste or site["previa"]):
+        (saida / "llms.txt").write_text(LLMS_TXT.replace("__BASE__", site["url"]), "utf-8")
     return paginas
 
 

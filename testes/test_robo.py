@@ -585,6 +585,9 @@ def test_operadora_nao_identificada_fica_fora_do_ranking_e_404_usa_a_raiz(base, 
     assert lista.index("nao-identificado") > lista.index("<td>1</td>")
     erro = (tmp_path / "site" / "404.html").read_text("utf-8")
     assert 'href="/estilo.css?v=' in erro and 'rel="canonical"' not in erro and "noindex" in erro
+    # llms.txt: só no site real, com links absolutos do domínio
+    llms = (tmp_path / "site" / "llms.txt").read_text("utf-8")
+    assert llms.startswith("# Óleo em Números") and "__BASE__" not in llms and "/campos/)" in llms
 
 
 def _zip_shape(pasta, nome, tipo, campos, registros, formas):
