@@ -1002,6 +1002,10 @@ def test_paginas_de_resumo(base, tmp_path):
     assert 0 < len(re.sub(r"https?://\S+", "x" * 23, x)) <= 280 and 'data-copiar="post-x"' in html
     js = (site / "familia.js").read_text("utf-8")
     assert "https://x.com/intent/tweet?text=" in js and "data-publicar-x" in js
+    # imagem do resumo (padrão da família): card.png ao lado da página, prévia do link e botão "Baixar imagem"
+    from PIL import Image
+    assert Image.open(site / "resumo" / ultimo / "card.png").size == (1200, 630)
+    assert f'resumo/{ultimo}/card.png">' in html and "Baixar imagem" in html and 'href="card.png" download=' in html
     assert '"#17758C"' in (site / "familia-compartilhar.js").read_text("utf-8")
     # link no menu e na home, e o mês mais recente fica no topo da lista
     assert 'href="../../resumo/index.html"' in html or 'href="../../resumo/"' in html
