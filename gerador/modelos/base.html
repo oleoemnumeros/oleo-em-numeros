@@ -86,7 +86,7 @@
   {"nome": "Economia em Números", "tema": "Macroeconomia", "url": "https://economiaemnumeros.com.br/", "cor": "#D9A514"},
 ] %}
 <div class="miolo familia">
-<p class="familia-titulo"><b>Família em Números</b> · portais independentes que organizam dados públicos do Brasil · <a href="https://www.linkedin.com/company/familiaemnumeros/" rel="noopener" target="_blank">Siga no LinkedIn</a></p>
+<p class="familia-titulo"><b>Família em Números</b> · portais independentes que organizam dados públicos do Brasil · <a href="https://x.com/familianumeros" rel="noopener" target="_blank">Siga no X</a> · <a href="https://www.linkedin.com/company/familiaemnumeros/" rel="noopener" target="_blank">Siga no LinkedIn</a></p>
 <ul>
 {% for f in familia %}{% if f.nome == site.nome %}<li><span class="ponto" style="background:{{ f.cor }}"></span><span><b>{{ f.nome }}</b> {{ f.tema }}</span> <em>você está aqui</em></li>
 {% else %}<li><a href="{{ f.url }}"><span class="ponto" style="background:{{ f.cor }}"></span><span><b>{{ f.nome }}</b> {{ f.tema }}</span></a></li>
