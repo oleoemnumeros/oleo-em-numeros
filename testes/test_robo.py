@@ -153,6 +153,7 @@ def test_gera_site(base, tmp_path):
     cont = (tmp_path / "site" / "contato" / "index.html").read_text("utf-8")
     assert "mailto:" in cont and "sugestoes/" in cont and cont.count("<h1") == 1 and "__" not in cont.split("</main>")[0]
     assert "privacidade/" in html and "contato/" in html
+    assert 'href="https://x.com/familianumeros"' in html and "Siga no X" in html
     sitemap = (tmp_path / "site" / "sitemap.xml").read_text("utf-8")
     assert "privacidade/" in sitemap and "contato/" in sitemap
     # imagem de prévia do link (WhatsApp, Instagram, X, LinkedIn)
