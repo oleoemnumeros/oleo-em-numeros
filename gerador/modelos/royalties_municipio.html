@@ -87,6 +87,16 @@
 </section>
 {% endif %}
 
+{% if preco %}{% set gp = preco.p.GASOLINA.k %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>Preço dos combustíveis em {{ m.nome }} ({{ m.uf }})</h2>
+<p>Em {{ mes_extenso(gp.mes) }}, a gasolina comum custou em média <strong>R$ {{ fmt(gp.valor, 2) }}</strong> por litro{% if preco.p.ETANOL is defined %}, o etanol R$ {{ fmt(preco.p.ETANOL.k.valor, 2) }}{% endif %}{% if preco.p['DIESEL S10'] is defined %} e o diesel S10 R$ {{ fmt(preco.p['DIESEL S10'].k.valor, 2) }}{% endif %}.{% if preco.vs_uf is not none %} É {{ fmt(preco.vs_uf | abs * 100, 1) }}% {{ 'acima' if preco.vs_uf >= 0 else 'abaixo' }} da média {{ m.estado_de }}.{% endif %} <a href="{{ u(preco_path) }}">Ver o preço da gasolina, do etanol e do diesel em {{ m.nome }}</a></p>
+<p class="nota">Média do município no levantamento de preços da ANP. O site mostra só médias, nunca o preço de um posto.</p>
+</div>
+</section>
+{% endif %}
+
 {% if campos_estado %}
 <section class="miolo secao">
 <div class="cartao">

@@ -591,13 +591,20 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         indice = sorted([m["nome"], m["uf"], f"/royalties/{m['estado_slug']}/{m['slug']}/"] for m in R["municipios"])
         (saida / "royalties").mkdir(parents=True, exist_ok=True)
         (saida / "royalties" / "indice.json").write_text(json.dumps(indice, ensure_ascii=False, separators=(",", ":")), "utf-8")
+        # preço dos combustíveis do mesmo município (só quando o nome é único no estado: não arriscamos ligar a cidade errada)
+        nomes_preco: dict = {}
+        for x in (PR["municipios"] if PR else []):
+            nomes_preco.setdefault((x["uf"], slug(x["nome"])), []).append(x)
         for m in R["municipios"]:
             m["familia"] = familia.get(chave_cidade(m["nome"], m["uf"]), [])
+            cand = nomes_preco.get((m["uf"], slug(m["nome"])), [])
+            preco = cand[0] if len(cand) == 1 else None
             m["resumo"] = resumo_municipio(m, R)
             valores, unidade = escala(m["r"])
             m["grafico"] = {"valores": valores, "unidade": unidade}
             escrever(f"royalties/{m['estado_slug']}/{m['slug']}/", "royalties_municipio.html", secao="royalties", R=R, m=m,
                      prod_estado=prod.get(m["uf"]), campos_estado=campos_uf.get(m["uf"], []),
+                     preco=preco, preco_path=f"precos/{preco['estado_slug']}/{preco['slug']}/" if preco else None,
                      titulo=(f"Quanto {m['nome']} ({m['uf']}) recebe de royalties: {dinheiro(m['r12'])} em 12 meses" if m["r12"] > 0
                              else f"Quanto {m['nome']} ({m['uf']}) recebe de royalties de petróleo"),
                      descricao=f"{m['nome']} ({m['uf']}) recebeu {dinheiro(m['r12'], False)} em royalties de petróleo nos "

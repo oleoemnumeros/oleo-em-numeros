@@ -945,6 +945,36 @@ def test_precos_paginas_so_com_dados_sem_posto_e_com_busca(base, tmp_path):
     assert "SECRETO" not in todo and "SEGREDO" not in todo and "BANDEIRA" not in todo
 
 
+def test_royalties_do_municipio_mostram_o_preco_e_ligam_a_pagina_de_precos(base, tmp_path, monkeypatch):
+    """Município com preço de combustível ganha o quadro e o link; sem preço, a página de royalties fica como era."""
+    import json
+    from robo import royalties as RY
+    from robo.executar import _leve
+    from robo.precos import processar, resumir
+    from gerador.gerar import gerar
+    monkeypatch.setenv("OLEO_SEM_REDE", "1")
+    proc = tmp_path / "proc"
+    (proc / "familia").mkdir(parents=True)
+    (proc / "royalties.json").write_text(json.dumps(RY.montar(_pasta_royalties(tmp_path)), ensure_ascii=False), "utf-8")
+    (proc / "agregados.json").write_text(json.dumps(_leve(agregar(base)), ensure_ascii=False, default=str), "utf-8")
+    agg = tmp_path / "agg"
+    agg.mkdir()
+    for mes in ("2026-09", "2026-10"):
+        csv = tmp_path / f"{mes}.csv"
+        _csv_precos(csv, mes)
+        csv.write_text(csv.read_text("utf-8").replace(";SP;SAO PAULO;", ";RJ;MARICA;"), "utf-8")   # Maricá tem royalties; Pojuca fica sem preço
+        resumir(csv).to_csv(agg / f"{mes}.csv.gz", index=False, compression="gzip")
+    processar(agg, proc / "precos.json")
+    gerar(proc, tmp_path / "site", teste=True)
+    marica = (tmp_path / "site" / "royalties" / "rio-de-janeiro" / "marica" / "index.html").read_text("utf-8")
+    assert "Preço dos combustíveis em Maricá (RJ)" in marica and "R$ 6,15" in marica
+    assert 'href="../../../precos/rio-de-janeiro/marica/index.html"' in marica
+    assert (tmp_path / "site" / "precos" / "rio-de-janeiro" / "marica" / "index.html").exists()
+    pojuca = (tmp_path / "site" / "royalties" / "bahia" / "pojuca" / "index.html").read_text("utf-8")
+    assert "Preço dos combustíveis em" not in pojuca
+    assert "SECRETO" not in marica and "BANDEIRA" not in marica
+
+
 def test_continue_explorando_so_liga_a_paginas_que_existem_e_nunca_a_propria():
     from gerador.familia import continuar
     sem = continuar("precos", "precos/", {})
