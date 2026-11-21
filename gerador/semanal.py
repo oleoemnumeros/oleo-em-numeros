@@ -141,6 +141,50 @@ def montar(S: dict, i: int, site_url: str) -> dict:
             "tem_ano": w12 is not None, "ano_antes": w12["fim"] if w12 else None}
 
 
+def por_municipio(S: dict, n: int = 8) -> dict:
+    """Preços da semana mais recente em cada município pesquisado, com a semana anterior e as últimas n semanas.
+    Chave: (UF, slug do município), a mesma das páginas de preço por município."""
+    semanas = [w for w in S["semanas"] if w.get("municipios")]
+    if not semanas:
+        return {}
+    w, w0 = semanas[-1], (semanas[-2] if len(semanas) > 1 else None)
+    out = {}
+    for chave, precos in w["municipios"].items():
+        uf, sl = chave.split("/", 1)
+        ant = (w0 or {}).get("municipios", {}).get(chave, {})
+        hist = [{"fim": x["fim"], "precos": x["municipios"].get(chave, {})} for x in semanas[-n:]]
+        out[(uf, sl)] = {"inicio": w["inicio"], "fim": w["fim"], "periodo": f"{dia_curto(w['inicio'])} a {dia(w['fim'])}",
+                         "precos": {p: precos.get(p) for p in PRINCIPAIS},
+                         "dif": {p: (precos[p] - ant[p]) if precos.get(p) is not None and ant.get(p) is not None else None
+                                 for p in PRINCIPAIS},
+                         "hist": [h for h in reversed(hist) if h["precos"].get("Gasolina comum")]}
+    return out
+
+
+def ranking_municipios(S: dict, i: int, n: int = 10) -> dict | None:
+    """Gasolina nos municípios na semana i: mais caras, mais baratas, maiores altas e quedas."""
+    w = S["semanas"][i]
+    if not w.get("municipios"):
+        return None
+    w0 = S["semanas"][i - 1] if i else {}
+    linhas = []
+    for chave, precos in w["municipios"].items():
+        g = precos.get("Gasolina comum")
+        if g is None:
+            continue
+        a = w0.get("municipios", {}).get(chave, {}).get("Gasolina comum")
+        uf, sl = chave.split("/", 1)
+        linhas.append({"uf": uf, "slug": sl, "preco": g, "dif": None if a is None else g - a})
+    if not linhas:
+        return None
+    caras = sorted(linhas, key=lambda x: -x["preco"])[:n]
+    baratas = sorted(linhas, key=lambda x: x["preco"])[:n]
+    mov = [x for x in linhas if x["dif"] is not None]
+    altas = [x for x in sorted(mov, key=lambda x: -x["dif"]) if round(x["dif"], 2) > 0][:n]
+    quedas = [x for x in sorted(mov, key=lambda x: x["dif"]) if round(x["dif"], 2) < 0][:n]
+    return {"caras": caras, "baratas": baratas, "altas": altas, "quedas": quedas, "total": len(linhas)}
+
+
 def card(S: dict, i: int, destino: Path, site_url: str) -> bool:
     """Imagem do resumo semanal: gasolina, etanol e diesel S10, com as barras da gasolina nas últimas 13 semanas."""
     semanas, w = S["semanas"], S["semanas"][i]

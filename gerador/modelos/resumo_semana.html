@@ -80,6 +80,33 @@ Os valores comparam com a semana anterior{% if W.tem_ano %} e com a mesma semana
 </section>
 {% endif %}
 
+{% if W.municipios %}
+<section class="miolo secao">
+<div class="cartao">
+<div class="linha-titulo"><h2>Municípios</h2>{% if tem_precos %}<a href="{{ u('precos/') }}">Todas as cidades</a>{% endif %}</div>
+<p class="legenda">Gasolina comum nos {{ W.municipios.total }} municípios pesquisados na semana de {{ W.periodo }}</p>
+<div class="grade-2">
+{% for titulo, lista, campo in [('Mais cara', W.municipios.caras, 'preco'), ('Mais barata', W.municipios.baratas, 'preco'),
+                                 ('Maiores altas na semana', W.municipios.altas, 'dif'), ('Maiores quedas na semana', W.municipios.quedas, 'dif')] %}
+{% if lista %}
+<div>
+<h3>{{ titulo }}</h3>
+<div class="tabela"><table>
+<thead><tr><th>Município</th><th class="n">Gasolina</th><th class="n">Na semana</th></tr></thead>
+<tbody>
+{% for x in lista %}<tr><td>{% if x.link %}<a href="{{ u(x.link) }}">{{ x.nome }}</a>{% else %}{{ x.nome }}{% endif %} <span class="legenda">{{ x.uf }}</span></td>
+<td class="n">R$ {{ fmt(x.preco, 2) }}</td>
+<td class="n {{ var_classe(x.dif, True) }}">{% if x.dif is none %}—{% elif (x.dif|abs) < 0.005 %}estável{% else %}{{ '+' if x.dif > 0 else '−' }}R$ {{ fmt(x.dif|abs, 2) }}{% endif %}</td></tr>
+{% endfor %}</tbody>
+</table></div>
+</div>
+{% endif %}
+{% endfor %}
+</div>
+</div>
+</section>
+{% endif %}
+
 <section class="miolo secao">
 <details class="cartao compartilhe-resumo">
 <summary><h2>Compartilhe este resumo</h2></summary>

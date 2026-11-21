@@ -944,6 +944,18 @@ def test_precos_paginas_so_com_dados_sem_posto_e_com_busca(base, tmp_path):
     todo = "".join(p.read_text("utf-8") for p in (site / "precos").rglob("index.html"))
     assert "SECRETO" not in todo and "SEGREDO" not in todo and "BANDEIRA" not in todo
 
+    # com o levantamento semanal, a página da cidade ganha o bloco "Nesta semana" e o título com o preço da semana
+    sem = {"semanas": [
+        {"inicio": "2026-11-01", "fim": "2026-11-07", "brasil": {"Gasolina comum": {"preco": 6.2}},
+         "municipios": {"SP/sao-paulo": {"Gasolina comum": 6.10, "Etanol": 4.2}}},
+        {"inicio": "2026-11-08", "fim": "2026-11-14", "brasil": {"Gasolina comum": {"preco": 6.21}},
+         "municipios": {"SP/sao-paulo": {"Gasolina comum": 6.14, "Etanol": 4.25}}}], "ultima": "2026-11-14"}
+    (proc / "precos_semanais.json").write_text(json.dumps(sem), "utf-8")
+    gerar(proc, tmp_path / "s3", limpos=True)
+    mun = (tmp_path / "s3" / "precos" / "sao-paulo" / "sao-paulo" / "index.html").read_text("utf-8")
+    assert "Nesta semana" in mun and "Preço da gasolina em São Paulo (SP) nesta semana: R$ 6,14" in mun
+    assert "alta de 4 centavos na semana" in mun and "14/11/2026" in mun
+
 
 def test_royalties_do_municipio_mostram_o_preco_e_ligam_a_pagina_de_precos(base, tmp_path, monkeypatch):
     """Município com preço de combustível ganha o quadro e o link; sem preço, a página de royalties fica como era."""
@@ -1188,9 +1200,12 @@ def _planilha_semanal(caminho, ini, fim, gasolina, etanol, diesel, uf_gas):
     est += [[ini, fim, "NORDESTE", nome, "ETANOL HIDRATADO", 300, "R$/l", etanol, 0.2, 4, 5, 0.03] for nome in uf_gas]
     cap = [[ini, fim, "NORDESTE", nome, cid, "GASOLINA COMUM", 50, "R$/l", v, 0.2, v - 0.5, v + 0.5, 0.03]
            for (nome, v), cid in zip(uf_gas.items(), ("SALVADOR", "RECIFE", "SAO PAULO"))]
+    mun = cap + [[ini, fim, "NORDESTE", "BAHIA", "FEIRA DE SANTANA", "GASOLINA COMUM", 30, "R$/l", gasolina - 0.4, 0.1, 5, 7, 0.02],
+                 [ini, fim, "NORDESTE", "BAHIA", "FEIRA DE SANTANA", "ETANOL HIDRATADO", 30, "R$/l", etanol, 0.1, 4, 5, 0.02]]
     topo = [["AGÊNCIA NACIONAL DO PETRÓLEO, GÁS NATURAL E BIOCOMBUSTÍVEIS - ANP"], [], [], [], [], ["INTERVALO DE TEMPO: SEMANAL"], [], [], []]
     with pd.ExcelWriter(caminho) as xw:
         for aba, cols, dados in (("CAPITAIS", ["DATA INICIAL", "DATA FINAL", "REGIAO", "ESTADO", "MUNICIPIO"] + cols_br[3:], cap),
+                                 ("MUNICIPIOS", ["DATA INICIAL", "DATA FINAL", "REGIAO", "ESTADO", "MUNICÍPIO"] + cols_br[3:], mun),
                                  ("ESTADOS", ["DATA INICIAL", "DATA FINAL", "REGIAO", "ESTADOS"] + cols_br[3:], est),
                                  ("BRASIL", cols_br, linhas)):
             pd.DataFrame(topo).to_excel(xw, sheet_name=aba, header=False, index=False)
@@ -1211,6 +1226,7 @@ def test_resumo_semanal_dos_combustiveis(base, tmp_path):
         r = resumir(x)
         assert r["fim"] == fim and r["brasil"]["Gasolina comum"]["preco"] == g and r["estados"]["BA"]["Gasolina comum"] == pytest.approx(g + 0.2)
         assert "Salvador/BA" in r["capitais"] and r["brasil"]["Gás de cozinha (13 kg)"]["preco"] == 110.5
+        assert r["municipios"]["BA/feira-de-santana"]["Gasolina comum"] == pytest.approx(g - 0.4)
         (semanas / f"{fim}.json").write_text(json.dumps(r), "utf-8")
     proc = tmp_path / "proc"
     proc.mkdir()
@@ -1227,5 +1243,9 @@ def test_resumo_semanal_dos_combustiveis(base, tmp_path):
     assert "#" not in x and len(re.sub(r"https?://\S+", "x" * 23, x)) <= 280
     assert "Bahia" in html and "Salvador/BA" in html
     assert "semana até 07/11" in html                               # navegação para a semana anterior
+    assert "Municípios" in html and "Feira de Santana" in html          # ranking das cidades
+    from gerador.semanal import carregar, por_municipio
+    pm = por_municipio(carregar(proc))[("BA", "feira-de-santana")]
+    assert pm["fim"] == "2026-11-14" and pm["dif"]["Gasolina comum"] == pytest.approx(0.03) and len(pm["hist"]) == 2
     idx = (site / "resumo" / "index.html").read_text("utf-8")
     assert "Resumos semanais" in idx and "resumo/semana/2026-11-14/" in idx and "Resumos mensais" in idx
