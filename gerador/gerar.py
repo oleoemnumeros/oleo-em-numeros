@@ -33,6 +33,7 @@ from .semanal import SEMANAS_NO_SITE, dia, dia_curto
 from .semanal import card as card_semana
 from .semanal import carregar as carregar_semanal
 from .semanal import montar as montar_semana
+from .semanal import centavos, por_municipio, ranking_municipios
 from .refino import preparar as preparar_refino
 from .resumo import _mes_antes, manchete as resumo_manchete, montar as montar_resumo, resumo_dados, resumo_meses  # noqa: F401
 from .mapa import gerar_mapa
@@ -342,6 +343,9 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     RF = preparar_refino(dados)
     env.globals.update(tem_refino=bool(RF))
     PR = preparar_precos(dados)
+    S = carregar_semanal(dados)                       # preços da semana (levantamento semanal da ANP)
+    SEM = por_municipio(S) if S else {}
+    NOMES_MUN = {(m["uf"], slug(m["nome"])): m for m in (PR or {}).get("municipios", [])}
     env.globals.update(tem_precos=bool(PR))
     env.globals.update(ufs_royalties={e["uf"] for e in R["estados"]} if R else set())
     env.globals.update(slug_royalties_uf={e["uf"]: e["slug"] for e in R["estados"]} if R else {})
@@ -565,10 +569,18 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                                   f"{': abaixo de 70%, ele costuma compensar.' if m['razao_ult'] < 70 else '.'}")
                 if "DIESEL S10" in b:
                     partes.append(f"O diesel S10 saiu a R$ {fmt(b['DIESEL S10']['k']['valor'], 2)}.")
+                sem = SEM.get((m["uf"], slug(m["nome"])))
+                titulo_m = f"Preço da gasolina em {m['nome']} ({m['uf']}): média, etanol e diesel"
+                if sem and sem["precos"].get("Gasolina comum"):
+                    g_s, d_s = sem["precos"]["Gasolina comum"], sem["dif"]["Gasolina comum"]
+                    frase = f"Na semana de {sem['periodo']}, a gasolina comum custou em média R$ {fmt(g_s, 2)} em {m['nome']}"
+                    if d_s is not None and round(abs(d_s) * 100):
+                        frase += f", {'alta' if d_s > 0 else 'queda'} de {centavos(d_s)} na semana"
+                    partes.insert(0, frase + ".")
+                    titulo_m = f"Preço da gasolina em {m['nome']} ({m['uf']}) nesta semana: R$ {fmt(g_s, 2)}"
                 escrever(f"precos/{e['slug']}/{m['slug']}/", "precos_municipio.html", secao="precos", P=PR, m=m, resumo=" ".join(partes),
-                         royalties_path=roy.get((m["uf"], slug(m["nome"]))),
-                         titulo=f"Preço da gasolina em {m['nome']} ({m['uf']}): média, etanol e diesel",
-                         descricao=" ".join(partes)[:300])
+                         royalties_path=roy.get((m["uf"], slug(m["nome"]))), sem=sem, dia=dia,
+                         titulo=titulo_m, descricao=" ".join(partes)[:300])
     # ---------- royalties ----------
     if R:
         prod = {e["uf"]: e["slug"] for e in ag.get("estados", []) if e.get("slug")}
@@ -656,7 +668,6 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
             print(f"AVISO: resumo de {per} não gerado ({type(e).__name__}: {e}).")
     # resumo semanal: preços dos combustíveis nos postos (levantamento semanal da ANP)
     semanas_itens = []
-    S = carregar_semanal(dados)
     if S:
         sem = S["semanas"]
         inicio = max(0, len(sem) - SEMANAS_NO_SITE)
@@ -668,6 +679,14 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                 for e in W["estados"]:
                     e["nome"] = UFS.get(e["uf"], ("", e["uf"]))[1]
                     e["slug"] = slug(e["nome"]) if e["uf"] in UFS else None
+                RM = ranking_municipios(S, i)
+                if RM:   # nome bonito e link para a página de preço da cidade, quando ela existe
+                    for lista in (RM["caras"], RM["baratas"], RM["altas"], RM["quedas"]):
+                        for x in lista:
+                            pm = NOMES_MUN.get((x["uf"], x["slug"]))
+                            x["nome"] = pm["nome"] if pm else x["slug"].replace("-", " ").title().replace(" De ", " de ").replace(" Do ", " do ").replace(" Da ", " da ").replace(" Dos ", " dos ").replace(" Das ", " das ")
+                            x["link"] = f"precos/{pm['estado_slug']}/{pm['slug']}/" if pm and PR else None
+                W["municipios"] = RM
                 tem_img = card_semana(S, i, saida / "resumo" / "semana" / fim / "card.png", site["url"])
                 img_html = Markup(bloco_imagem(f"oleo-em-numeros-combustiveis-{fim}.png",
                                                f"Preços dos combustíveis nos postos na semana até {dia(fim)}") if tem_img else "")

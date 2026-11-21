@@ -2,7 +2,7 @@
 
 Toda semana a ANP publica uma planilha com os preços médios de revenda do Brasil, das regiões, dos estados, das
 capitais e dos municípios pesquisados. O robô baixa as planilhas novas (desde ANO_INICIAL), guarda de cada uma só o
-resumo do Brasil, dos estados e das capitais em dados/precos/semanal/AAAA-MM-DD.json (a data é o último dia da semana)
+resumo do Brasil, dos estados, das capitais e dos municípios em dados/precos/semanal/AAAA-MM-DD.json (a data é o último dia da semana)
 e junta tudo em dados/processados/precos_semanais.json, que o gerador usa no resumo semanal do site.
 
 Uso:
@@ -23,11 +23,12 @@ import pandas as pd
 
 from . import config
 from .baixar import _Links, _get, _sessao
-from .util import sem_acento
+from .util import sem_acento, slug
 
 PAGINA = ("https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/"
           "levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas")
 PASTA = config.DADOS / "precos" / "semanal"
+MUNICIPIOS_SEMANAS = 13      # semanas com preço por município no arquivo que vai para o site
 ANO_INICIAL = 2025           # 2025 em diante: dá a comparação com a mesma semana do ano anterior
 ORCAMENTO_S = 10 * 60        # tempo máximo baixando por execução; o resto fica para a próxima
 PRODUTOS = {                 # nome na planilha -> nome no site
@@ -145,7 +146,8 @@ def resumir(caminho: Path) -> dict:
         return {"preco": num("PRECO MEDIO REVENDA"), "min": num("PRECO MINIMO REVENDA"), "max": num("PRECO MAXIMO REVENDA"),
                 "postos": int(num("NUMERO DE POSTOS") or 0)}
 
-    out = {"inicio": ini.date().isoformat(), "fim": fim.date().isoformat(), "brasil": {}, "estados": {}, "capitais": {}}
+    out = {"inicio": ini.date().isoformat(), "fim": fim.date().isoformat(), "brasil": {}, "estados": {}, "capitais": {},
+           "municipios": {}}
     for _, r in br.iterrows():
         p = _produto(r["PRODUTO"])
         if p and pd.notna(r[pm]):
@@ -167,7 +169,19 @@ def resumir(caminho: Path) -> dict:
             if p and uf and cm and pd.notna(r[pm]):
                 cidade = CAPITAL.get(uf) or str(r[cm]).strip().title()
                 out["capitais"].setdefault(f"{cidade}/{uf}", {})[p] = linha(r)["preco"]
+    mun = _aba(xl, "MUNICIPIOS")
+    if mun is not None:   # chave "UF/slug-do-municipio", a mesma das páginas de preço por município
+        ce = next((c for c in mun.columns if c.startswith("ESTADO")), None)
+        cm = next((c for c in mun.columns if c.startswith("MUNICIPIO")), None)
+        for _, r in mun.iterrows():
+            p = _produto(r["PRODUTO"])
+            uf = UF.get(sem_acento(str(r[ce])).upper().strip()) if ce else None
+            if p and uf and cm and pd.notna(r[pm]) and pd.notna(r[cm]):
+                out["municipios"].setdefault(f"{uf}/{slug(str(r[cm]).strip())}", {})[p] = linha(r)["preco"]
     return out
+
+
+VERSAO = 2   # sobe quando o resumo de cada semana passa a guardar algo novo (2: municípios); as semanas antigas são baixadas de novo
 
 
 def baixar(destino: Path = PASTA) -> int:
@@ -175,6 +189,8 @@ def baixar(destino: Path = PASTA) -> int:
     destino.mkdir(parents=True, exist_ok=True)
     vistos_arq = destino / "vistos.json"
     vistos = json.loads(vistos_arq.read_text("utf-8")) if vistos_arq.exists() else {}
+    if vistos.get("_versao") != VERSAO:
+        vistos = {"_versao": VERSAO}
     s, t0, novos = _sessao(), time.time(), 0
     for nome, url in sorted(fontes().items(), key=lambda kv: kv[0], reverse=True):
         if nome in vistos:
@@ -203,6 +219,8 @@ def processar(pasta: Path = PASTA, saida: Path | None = None) -> dict | None:
     semanas = [w for w in semanas if w.get("brasil")]
     if not semanas:
         return None
+    for w in semanas[:-MUNICIPIOS_SEMANAS]:   # no arquivo do site, municípios só das últimas semanas (fica leve)
+        w.pop("municipios", None)
     r = {"semanas": semanas, "ultima": semanas[-1]["fim"]}
     if saida:
         saida.parent.mkdir(parents=True, exist_ok=True)

@@ -16,6 +16,35 @@
 </div>
 </section>
 
+{% if sem %}
+<section class="miolo secao">
+<div class="cartao">
+<div class="linha-titulo"><h2>Nesta semana</h2><a href="{{ u('resumo/semana/' ~ sem.fim ~ '/') }}">Resumo da semana no Brasil</a></div>
+<p class="legenda">Preço médio nos postos de {{ m.nome }} na semana de {{ sem.periodo }} · levantamento semanal da ANP</p>
+<div class="kpis">
+{% for p, nome in [('Gasolina comum', 'Gasolina comum'), ('Etanol', 'Etanol'), ('Diesel S10', 'Diesel S10')] %}{% if sem.precos[p] %}
+{{ kpi(nome, 'R$ ' ~ fmt(sem.precos[p], 2), 'por litro',
+   ('estável na semana' if sem.dif[p] is not none and (sem.dif[p]|abs) < 0.005 else ((('+' if sem.dif[p] > 0 else '−') ~ 'R$ ' ~ fmt(sem.dif[p]|abs, 2) ~ ' na semana') if sem.dif[p] is not none else None)),
+   var_classe(sem.dif[p], True), principal=loop.first) }}
+{% endif %}{% endfor %}
+</div>
+{% if sem.hist|length > 1 %}
+<div class="tabela">
+<table>
+<thead><tr><th>Semana até</th><th class="n">Gasolina</th><th class="n">Etanol</th><th class="n">Diesel S10</th></tr></thead>
+<tbody>
+{% for h in sem.hist %}<tr><td>{{ dia(h.fim) }}</td><td class="n">{{ ('R$ ' ~ fmt(h.precos['Gasolina comum'], 2)) if h.precos['Gasolina comum'] else '—' }}</td>
+<td class="n">{{ ('R$ ' ~ fmt(h.precos['Etanol'], 2)) if h.precos['Etanol'] else '—' }}</td>
+<td class="n">{{ ('R$ ' ~ fmt(h.precos['Diesel S10'], 2)) if h.precos['Diesel S10'] else '—' }}</td></tr>
+{% endfor %}</tbody>
+</table>
+</div>
+{% endif %}
+<p class="nota">A média da semana usa só os postos pesquisados naquela semana; a média do mês, abaixo, junta todas as coletas do mês.</p>
+</div>
+</section>
+{% endif %}
+
 <section class="miolo secao grade-2">
 <div class="cartao">
 <h2>Gasolina comum</h2>
