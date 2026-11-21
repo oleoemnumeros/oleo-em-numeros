@@ -1035,6 +1035,8 @@ def test_paginas_de_resumo(base, tmp_path):
     # imagem do resumo (padrão da família): card.png ao lado da página, prévia do link e botão "Baixar imagem"
     from PIL import Image
     assert Image.open(site / "resumo" / ultimo / "card.png").size == (1200, 630)
+    assert Image.open(site / "resumo" / ultimo / "card-instagram.png").size == (1080, 1350)   # Instagram
+    assert 'id="post-ig"' in html and 'data-compartilhar-ig="card-instagram.png"' in html and "#" not in x   # X sem hashtags
     assert f'resumo/{ultimo}/card.png">' in html and "Baixar imagem" in html and 'href="card.png" download=' in html
     assert '"#17758C"' in (site / "familia-compartilhar.js").read_text("utf-8")
     # link no menu e na home, e o mês mais recente fica no topo da lista
