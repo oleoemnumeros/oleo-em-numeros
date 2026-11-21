@@ -315,10 +315,10 @@ def post_x(site_url: str, d: dict, altas: list[dict], quedas: list[dict]) -> str
     if altas and quedas:
         campos = (f"Altas: {altas[0]['nome']} ({_sinal(altas[0]['delta_mes'] / 1000, 0)} mil boe/d). "
                   f"Quedas: {quedas[0]['nome']} ({_sinal(quedas[0]['delta_mes'] / 1000, 0)} mil boe/d).")
-    tags = "#petroleo #ANP"
+    tags = ""   # posts do X sem hashtags
     for usa in ((1, 1, 1), (1, 1, 0), (1, 0, 1), (1, 0, 0), (0, 0, 0)):
         corpo = [cabeca] + ([extremo] if usa[0] and extremo else []) + ([campos] if usa[1] and campos else [])
-        texto = " ".join(corpo) + f"\n\n{url}" + (f"\n{tags}" if usa[2] else "")
+        texto = " ".join(corpo) + f"\n\n{url}" + (f"\n{tags}" if usa[2] and tags else "")
         if _peso_x(texto, url) <= LIMITE_X:
             return texto
     return f"{cabeca}\n\n{url}"

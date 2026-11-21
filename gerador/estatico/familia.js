@@ -1,6 +1,7 @@
 /* Família em Números: recursos comuns a todos os portais.
    Hoje: botão visível "Baixar tabela (CSV)" em toda tabela de dados, botão "Copiar texto" dos textos prontos
    e, ao lado de "Copiar texto do X", o botão "Publicar no X", que abre o X com o texto e o link já preenchidos.
+   Instagram: monta a legenda (#post-ig) a partir do texto do LinkedIn e liga o botão "Compartilhar no Instagram".
    O mesmo arquivo vale para os quatro portais; não coloque nada específico de um site aqui. */
 (function () {
   "use strict";
@@ -112,9 +113,42 @@
     });
   }
 
+  // Instagram: link na legenda não é clicável, então o endereço vira só o site, com "link na bio" no fim
+  function legendaInstagram() {
+    var ig = document.getElementById("post-ig");
+    if (!ig || limpo(ig.value)) return;
+    var base = document.getElementById("post") || document.getElementById("post-x");
+    if (!base) return;
+    var t = base.value.replace(/https?:\/\/(www\.)?([^\/\s]+)\S*/g, "$2").replace(/[ \t]+\n/g, "\n").trim();
+    ig.value = t + "\n\nLink na bio.";
+  }
+
+  // "Compartilhar no Instagram": no celular, abre a tela de compartilhar do sistema com a imagem (o Instagram aparece
+  // na lista) e copia a legenda antes, porque o Instagram não aceita texto vindo de fora. Sem suporte, o botão fica escondido.
+  function compartilharInstagram() {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-compartilhar-ig]"), function (b) {
+      if (!navigator.share || !navigator.canShare || !window.fetch || !window.File) return;
+      var arquivo = null;
+      fetch(b.getAttribute("data-compartilhar-ig")).then(function (r) { return r.ok ? r.blob() : null; }).then(function (bl) {
+        if (!bl) return;
+        arquivo = new File([bl], b.getAttribute("data-nome") || "imagem.png", { type: "image/png" });
+        try { if (navigator.canShare({ files: [arquivo] })) b.hidden = false; } catch (e) { /* sem suporte a arquivos */ }
+      }).catch(function () {});
+      b.addEventListener("click", function () {
+        if (!arquivo) return;
+        var ig = document.getElementById("post-ig"), msg = b.parentNode.querySelector("[data-copiar-msg]");
+        try { if (ig && navigator.clipboard) navigator.clipboard.writeText(ig.value).then(function () { if (msg) msg.textContent = "Legenda copiada: cole no Instagram."; }, function () {}); } catch (e) { /* segue sem copiar */ }
+        navigator.share({ files: [arquivo] }).catch(function () {});
+        try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: "compartilhar-instagram", title: document.title, event: true }); } catch (e) { /* contador é opcional */ }
+      });
+    });
+  }
+
   function pronto() {
     iniciar();
     botoesX();
+    legendaInstagram();
+    compartilharInstagram();
     // tabelas que a página monta depois (buscas, abas): uma checagem leve quando o conteúdo muda
     var main = document.querySelector("main");
     if (main && window.MutationObserver) {
