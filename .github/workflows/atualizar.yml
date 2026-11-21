@@ -176,6 +176,25 @@ jobs:
           path: dados/precos/agg
           key: precos-${{ github.run_id }}
 
+      # preços da semana (ANP, levantamento semanal): o robô confere todo dia se saiu semana nova;
+      # só o resumo de cada semana fica em cache. Falha aqui nunca trava o site.
+      - name: Recupera as semanas de preços
+        uses: actions/cache/restore@v4
+        with:
+          path: dados/precos/semanal
+          key: precos-semanal-${{ github.run_id }}
+          restore-keys: precos-semanal-
+
+      - name: Preços da semana (ANP)
+        run: python -m robo.precos_semanais || { echo "::warning::Download das semanas de preços falhou; usando as semanas guardadas."; python -m robo.precos_semanais --sem-baixar || echo "::warning::O site sai sem o resumo semanal."; }
+
+      - name: Guarda as semanas de preços
+        if: always() && hashFiles('dados/precos/semanal/*.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: dados/precos/semanal
+          key: precos-semanal-${{ github.run_id }}
+
       - name: Guarda os arquivos baixados
         if: always() && steps.modo.outputs.baixar == 'sim'
         uses: actions/cache/save@v4
