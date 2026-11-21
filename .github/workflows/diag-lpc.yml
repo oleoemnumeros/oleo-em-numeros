@@ -1,0 +1,28 @@
+name: Diagnóstico temporário - levantamento semanal de preços (ANP)
+on:
+  push:
+    branches: [diag-lpc]
+permissions:
+  contents: write
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Baixar a página e as planilhas semanais
+        run: |
+          mkdir -p diag && cd diag
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
+          curl -sSL -A "$UA" "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas" -o pagina.html || true
+          wc -c pagina.html
+          grep -oE 'href="[^"]+"' pagina.html | grep -iE 'xls|semanal|lpc|resumo' | sort -u > links.txt || true
+          cat links.txt
+          n=0
+          for u in $(grep -iE 'xlsx?' links.txt | sed 's/^href="//;s/"$//' | head -6); do
+            n=$((n+1)); curl -sSL -A "$UA" "$u" -o "arq$n.xlsx" || true; echo "$n $u" >> baixados.txt
+          done
+          ls -la
+      - name: Guardar no ramo
+        run: |
+          git config user.name "diag"; git config user.email "diag@users.noreply.github.com"
+          git add diag && git commit -m "diag: arquivos baixados" && git push
