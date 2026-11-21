@@ -1,4 +1,4 @@
-name: Diagnóstico temporário - levantamento semanal de preços (ANP)
+name: Diagnóstico temporário - balança semanal (MDIC)
 on:
   push:
     branches: [diag-lpc]
@@ -9,20 +9,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Baixar a página e as planilhas semanais
+      - name: Baixar páginas do MDIC
         run: |
-          mkdir -p diag && cd diag
+          rm -rf diag; mkdir -p diag2 && cd diag2
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
-          curl -sSL -A "$UA" "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas" -o pagina.html || true
-          wc -c pagina.html
-          grep -oE 'href="[^"]+"' pagina.html | grep -iE 'xls|semanal|lpc|resumo' | sort -u > links.txt || true
-          cat links.txt
-          n=0
-          for u in $(grep -iE 'xlsx?' links.txt | sed 's/^href="//;s/"$//' | head -6); do
-            n=$((n+1)); curl -sSL -A "$UA" "$u" -o "arq$n.xlsx" || true; echo "$n $u" >> baixados.txt
-          done
+          curl -sSL -A "$UA" "https://www.gov.br/mdic/pt-br/assuntos/noticias/2026-periodo-eleitoral/julho/mdic-divulga-balanca-comercial-da-1a-semana-julho-de-2026" -o noticia.html || true
+          grep -oE 'href="[^"]+"' noticia.html | grep -iE 'semana|balanca|\.pdf|\.xls|release' | sort -u > links_noticia.txt || true
+          curl -sSL -A "$UA" "https://balanca.economia.gov.br/balanca/semanal/" -o semanal.html || true
+          grep -oE 'href="[^"]+"' semanal.html | sort -u | head -200 > links_semanal.txt || true
+          curl -sSL -A "$UA" "https://www.gov.br/mdic/pt-br/assuntos/comercio-exterior/estatisticas/balanca-comercial-brasileira-semanal" -o pag_semanal.html || true
+          grep -oE 'href="[^"]+"' pag_semanal.html | grep -iE 'semana|\.pdf|\.xls|csv' | sort -u | head -200 > links_pag_semanal.txt || true
+          curl -sSL -A "$UA" "https://www.gov.br/mdic/pt-br/search?SearchableText=balan%C3%A7a+comercial+semana&sort_on=Date&sort_order=reverse" -o busca.html || true
+          grep -oE 'href="[^"]+divulga-balanca-comercial[^"]+"' busca.html | sort -u | head -40 > links_busca.txt || true
+          for f in noticia.html semanal.html pag_semanal.html busca.html; do echo "$f $(wc -c < $f)"; done
+          wc -l *.txt
+          for u in $(grep -iE '\.(pdf|xlsx?|csv)' links_noticia.txt links_pag_semanal.txt | sed 's/.*href="//;s/"$//' | head -3); do curl -sSL -A "$UA" -O "$u" || true; done
           ls -la
       - name: Guardar no ramo
         run: |
           git config user.name "diag"; git config user.email "diag@users.noreply.github.com"
-          git add diag && git commit -m "diag: arquivos baixados" && git push
+          git add -A diag2 && git commit -m "diag: MDIC" && git push
