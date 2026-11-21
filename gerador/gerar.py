@@ -27,7 +27,12 @@ from robo.util import MESES, MESES_CURTOS, fmt, fmt_inteligente, fmt_pp, fmt_var
 from .graficos import linha
 from .financeiro import carregar_financeiro, reais
 from .gas import preparar as preparar_gas
+from .precos import UFS
 from .precos import preparar as preparar_precos
+from .semanal import SEMANAS_NO_SITE, dia, dia_curto
+from .semanal import card as card_semana
+from .semanal import carregar as carregar_semanal
+from .semanal import montar as montar_semana
 from .refino import preparar as preparar_refino
 from .resumo import _mes_antes, manchete as resumo_manchete, montar as montar_resumo, resumo_dados, resumo_meses  # noqa: F401
 from .mapa import gerar_mapa
@@ -649,11 +654,41 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
             itens_resumo.append({"per": per, "mes": mes_extenso(per), "manchete": R["manchete"]})
         except Exception as e:  # noqa: BLE001 - um mês com dado estranho não derruba o site
             print(f"AVISO: resumo de {per} não gerado ({type(e).__name__}: {e}).")
-    if itens_resumo:
+    # resumo semanal: preços dos combustíveis nos postos (levantamento semanal da ANP)
+    semanas_itens = []
+    S = carregar_semanal(dados)
+    if S:
+        sem = S["semanas"]
+        inicio = max(0, len(sem) - SEMANAS_NO_SITE)
+        publicadas = [w["fim"] for w in sem[inicio:]]
+        for i in range(inicio, len(sem)):
+            fim = sem[i]["fim"]
+            try:
+                W = montar_semana(S, i, site["url"])
+                for e in W["estados"]:
+                    e["nome"] = UFS.get(e["uf"], ("", e["uf"]))[1]
+                    e["slug"] = slug(e["nome"]) if e["uf"] in UFS else None
+                tem_img = card_semana(S, i, saida / "resumo" / "semana" / fim / "card.png", site["url"])
+                img_html = Markup(bloco_imagem(f"oleo-em-numeros-combustiveis-{fim}.png",
+                                               f"Preços dos combustíveis nos postos na semana até {dia(fim)}") if tem_img else "")
+                k = publicadas.index(fim)
+                escrever(f"resumo/semana/{fim}/", "resumo_semana.html", secao="resumo", W=W, img_html=img_html,
+                         texto_compartilhe=TEXTO_COMPARTILHE, dia_curto=dia_curto,
+                         og_imagem=f"{site['url']}/resumo/semana/{fim}/card.png" if tem_img else None,
+                         anterior=publicadas[k - 1] if k else None,
+                         proximo=publicadas[k + 1] if k + 1 < len(publicadas) else None,
+                         titulo=f"{W['manchete']} | Combustíveis, semana até {dia(fim)}",
+                         descricao=f"Preço médio da gasolina, do etanol e do diesel nos postos do Brasil na semana de {W['periodo']}: "
+                                   "estados, capitais e variação na semana. Dados da ANP.")
+                semanas_itens.append({"fim": fim, "periodo": W["periodo"], "manchete": W["manchete"]})
+            except Exception as e:  # noqa: BLE001 - uma semana com dado estranho não derruba o site
+                print(f"AVISO: resumo semanal de {fim} não gerado ({type(e).__name__}: {e}).")
+    if itens_resumo or semanas_itens:
         escrever("resumo/", "resumos.html", secao="resumo", itens=list(reversed(itens_resumo)),
-                 titulo="Resumos mensais da produção de petróleo e gás",
-                 descricao="Resumo mensal da produção de petróleo e gás do Brasil: manchete, o que mudou, operadoras e bacias. "
-                           "Dados oficiais da ANP.")
+                 semanas=list(reversed(semanas_itens)),
+                 titulo="Resumos da semana e do mês: combustíveis e produção de petróleo e gás",
+                 descricao="Resumo semanal dos preços dos combustíveis nos postos e resumo mensal da produção de petróleo e gás "
+                           "do Brasil. Dados oficiais da ANP.")
     escrever("404.html", "nao_encontrada.html", raiz="/", secao="", titulo="Página não encontrada",
              descricao="Página não encontrada.", noindex=True, erro=True)
 

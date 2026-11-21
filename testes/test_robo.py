@@ -1175,3 +1175,57 @@ def test_busca_do_cabecalho_e_trilha_em_json_ld(base, tmp_path):
     # título longo dispensa o sufixo com o nome do site
     titulo = __import__("re").search(r"<title>(.*?)</title>", html).group(1)
     assert len(titulo) <= 75 and (len(titulo) <= 75 and ("| Óleo em Números" in titulo) == (len(titulo.split(" | ")[0]) <= 55))
+
+
+def _planilha_semanal(caminho, ini, fim, gasolina, etanol, diesel, uf_gas):
+    """Planilha no formato do resumo semanal da ANP: 9 linhas de cabeçalho e as abas BRASIL, ESTADOS e CAPITAIS."""
+    import pandas as pd
+    cols_br = ["DATA INICIAL", "DATA FINAL", "BRASIL", "PRODUTO", "NÚMERO DE POSTOS PESQUISADOS", "UNIDADE DE MEDIDA",
+               "PREÇO MÉDIO REVENDA", "DESVIO PADRÃO REVENDA", "PREÇO MÍNIMO REVENDA", "PREÇO MÁXIMO REVENDA", "COEF DE VARIAÇÃO REVENDA"]
+    linhas = [[ini, fim, "BRASIL", p, 5000, "R$/l", v, 0.3, v - 1, v + 1.5, 0.05]
+              for p, v in (("GASOLINA COMUM", gasolina), ("ETANOL HIDRATADO", etanol), ("OLEO DIESEL S10", diesel), ("GLP", 110.5))]
+    est = [[ini, fim, "NORDESTE", nome, "GASOLINA COMUM", 300, "R$/l", v, 0.2, v - 0.5, v + 0.5, 0.03] for nome, v in uf_gas.items()]
+    est += [[ini, fim, "NORDESTE", nome, "ETANOL HIDRATADO", 300, "R$/l", etanol, 0.2, 4, 5, 0.03] for nome in uf_gas]
+    cap = [[ini, fim, "NORDESTE", nome, cid, "GASOLINA COMUM", 50, "R$/l", v, 0.2, v - 0.5, v + 0.5, 0.03]
+           for (nome, v), cid in zip(uf_gas.items(), ("SALVADOR", "RECIFE", "SAO PAULO"))]
+    topo = [["AGÊNCIA NACIONAL DO PETRÓLEO, GÁS NATURAL E BIOCOMBUSTÍVEIS - ANP"], [], [], [], [], ["INTERVALO DE TEMPO: SEMANAL"], [], [], []]
+    with pd.ExcelWriter(caminho) as xw:
+        for aba, cols, dados in (("CAPITAIS", ["DATA INICIAL", "DATA FINAL", "REGIAO", "ESTADO", "MUNICIPIO"] + cols_br[3:], cap),
+                                 ("ESTADOS", ["DATA INICIAL", "DATA FINAL", "REGIAO", "ESTADOS"] + cols_br[3:], est),
+                                 ("BRASIL", cols_br, linhas)):
+            pd.DataFrame(topo).to_excel(xw, sheet_name=aba, header=False, index=False)
+            pd.DataFrame(dados, columns=cols).to_excel(xw, sheet_name=aba, startrow=9, index=False)
+
+
+def test_resumo_semanal_dos_combustiveis(base, tmp_path):
+    import json
+    import re
+    from PIL import Image
+    from robo.executar import _leve
+    from robo.precos_semanais import processar, resumir
+    semanas = tmp_path / "semanas"
+    semanas.mkdir()
+    for k, (ini, fim, g) in enumerate((("2026-11-01", "2026-11-07", 6.51), ("2026-11-08", "2026-11-14", 6.54))):
+        x = tmp_path / f"s{k}.xlsx"
+        _planilha_semanal(x, ini, fim, g, 4.10 + k * 0.01, 7.30, {"BAHIA": g + 0.2, "PERNAMBUCO": g - 0.1 * k, "SAO PAULO": g - 0.3})
+        r = resumir(x)
+        assert r["fim"] == fim and r["brasil"]["Gasolina comum"]["preco"] == g and r["estados"]["BA"]["Gasolina comum"] == pytest.approx(g + 0.2)
+        assert "Salvador/BA" in r["capitais"] and r["brasil"]["Gás de cozinha (13 kg)"]["preco"] == 110.5
+        (semanas / f"{fim}.json").write_text(json.dumps(r), "utf-8")
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "agregados.json").write_text(json.dumps(_leve(agregar(base)), ensure_ascii=False, default=str), "utf-8")
+    assert processar(semanas, proc / "precos_semanais.json")["ultima"] == "2026-11-14"
+    site = tmp_path / "site"
+    gerar(proc, site, teste=False, limpos=True, url="https://oleoemnumeros.com.br")
+    pg = site / "resumo" / "semana" / "2026-11-14"
+    html = (pg / "index.html").read_text("utf-8")
+    assert "Gasolina sobe 3 centavos e vai a R$ 6,54 na semana" in html
+    assert 'content="https://oleoemnumeros.com.br/resumo/semana/2026-11-14/card.png"' in html
+    assert Image.open(pg / "card.png").size == (1200, 630) and Image.open(pg / "card-instagram.png").size == (1080, 1350)
+    x = re.search(r'<textarea id="post-x"[^>]*>(.*?)</textarea>', html, re.S).group(1)
+    assert "#" not in x and len(re.sub(r"https?://\S+", "x" * 23, x)) <= 280
+    assert "Bahia" in html and "Salvador/BA" in html
+    assert "semana até 07/11" in html                               # navegação para a semana anterior
+    idx = (site / "resumo" / "index.html").read_text("utf-8")
+    assert "Resumos semanais" in idx and "resumo/semana/2026-11-14/" in idx and "Resumos mensais" in idx

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, var_classe %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<p class="olho">Resumo da semana – combustíveis nos postos, {{ W.periodo }}</p>
+<h1>{{ W.manchete }}</h1>
+<p class="sub">Preço médio de revenda no Brasil na semana de {{ W.periodo }}, pelo levantamento semanal da ANP nos postos.
+Os valores comparam com a semana anterior{% if W.tem_ano %} e com a mesma semana de um ano antes{% endif %}.</p>
+<div class="kpis">
+{% for b in W.principais %}{{ kpi(b.produto, 'R$ ' ~ fmt(b.preco, 2), 'por ' ~ b.unidade,
+   ('estável na semana' if b.dif is not none and (b.dif|abs) < 0.005 else ((('+' if b.dif > 0 else '−') ~ 'R$ ' ~ fmt(b.dif|abs, 2) ~ ' na semana') if b.dif is not none else None)),
+   var_classe(b.dif, True), principal=loop.first) }}
+{% endfor %}</div>
+</section>
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Brasil</h2>
+<p class="legenda">Preço médio de revenda, semana de {{ W.periodo }}</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Combustível</th><th class="n">Preço médio</th><th class="n">Semana anterior</th><th class="n">Na semana</th>{% if W.tem_ano %}<th class="n">Em 12 meses</th>{% endif %}<th class="n">Mínimo</th><th class="n">Máximo</th></tr></thead>
+<tbody>
+{% for b in W.brasil %}
+<tr><td>{{ b.produto }} <span class="legenda">({{ b.unidade }})</span></td><td class="n"><strong>R$ {{ fmt(b.preco, 2) }}</strong></td>
+<td class="n">{{ ('R$ ' ~ fmt(b.ant, 2)) if b.ant is not none else '—' }}</td>
+<td class="n {{ var_classe(b.var, True) }}">{{ fmt_var(b.var) if b.var is not none else '—' }}</td>
+{% if W.tem_ano %}<td class="n {{ var_classe(b.var12, True) }}">{{ fmt_var(b.var12) if b.var12 is not none else '—' }}</td>{% endif %}
+<td class="n">{{ ('R$ ' ~ fmt(b.min, 2)) if b.min is not none else '—' }}</td><td class="n">{{ ('R$ ' ~ fmt(b.max, 2)) if b.max is not none else '—' }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">Média dos postos pesquisados pela ANP na semana. O mínimo e o máximo são de um posto só; o site não mostra postos nem endereços.</p>
+</div>
+</section>
+
+{% if W.estados %}
+<section class="miolo secao">
+<div class="cartao">
+<div class="linha-titulo"><h2>Estados</h2>{% if tem_precos %}<a href="{{ u('precos/') }}">Preço por município</a>{% endif %}</div>
+<p class="legenda">Do estado com a gasolina mais cara para o mais barato</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Estado</th><th class="n">Gasolina</th><th class="n">Na semana</th><th class="n">Etanol</th><th class="n">Diesel S10</th></tr></thead>
+<tbody>
+{% for e in W.estados %}
+<tr><td>{% if tem_precos and e.slug %}<a href="{{ u('precos/' ~ e.slug ~ '/') }}">{{ e.nome }}</a>{% else %}{{ e.nome }}{% endif %}</td>
+<td class="n"><strong>R$ {{ fmt(e.precos['Gasolina comum'], 2) }}</strong></td>
+<td class="n {{ var_classe(e.dif, True) }}">{% if e.dif is none %}—{% elif (e.dif|abs) < 0.005 %}estável{% else %}{{ '+' if e.dif > 0 else '−' }}R$ {{ fmt(e.dif|abs, 2) }}{% endif %}</td>
+<td class="n">{{ ('R$ ' ~ fmt(e.precos['Etanol'], 2)) if e.precos['Etanol'] else '—' }}</td>
+<td class="n">{{ ('R$ ' ~ fmt(e.precos['Diesel S10'], 2)) if e.precos['Diesel S10'] else '—' }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+{% endif %}
+
+{% if W.capitais %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>Capitais</h2>
+<p class="legenda">Da gasolina mais cara para a mais barata</p>
+<div class="tabela">
+<table>
+<thead><tr><th>Capital</th><th class="n">Gasolina</th><th class="n">Na semana</th><th class="n">Etanol</th><th class="n">Diesel S10</th></tr></thead>
+<tbody>
+{% for c in W.capitais %}
+<tr><td>{{ c.nome }}</td><td class="n"><strong>R$ {{ fmt(c.precos['Gasolina comum'], 2) }}</strong></td>
+<td class="n {{ var_classe(c.dif, True) }}">{% if c.dif is none %}—{% elif (c.dif|abs) < 0.005 %}estável{% else %}{{ '+' if c.dif > 0 else '−' }}R$ {{ fmt(c.dif|abs, 2) }}{% endif %}</td>
+<td class="n">{{ ('R$ ' ~ fmt(c.precos['Etanol'], 2)) if c.precos['Etanol'] else '—' }}</td>
+<td class="n">{{ ('R$ ' ~ fmt(c.precos['Diesel S10'], 2)) if c.precos['Diesel S10'] else '—' }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+{% endif %}
+
+<section class="miolo secao">
+<details class="cartao compartilhe-resumo">
+<summary><h2>Compartilhe este resumo</h2></summary>
+<p class="legenda">{{ texto_compartilhe }}</p>
+{{ img_html }}
+<h3>Para o X</h3>
+<textarea id="post-x" class="fam-post" readonly rows="6">{{ W.post_x }}</textarea>
+<div><button type="button" class="fam-btn" data-copiar="post-x"><span>Copiar texto do X</span></button> <span class="legenda" data-copiar-msg aria-live="polite"></span></div>
+<h3>Para o LinkedIn</h3>
+<textarea id="post" class="fam-post" readonly rows="14">{{ W.post }}</textarea>
+<div><button type="button" class="fam-btn" data-copiar="post"><span>Copiar texto do LinkedIn</span></button> <span class="legenda" data-copiar-msg aria-live="polite"></span></div>
+</details>
+</section>
+
+<section class="miolo secao">
+<nav class="resumo-nav" aria-label="Outras semanas">
+{% if anterior %}<a href="{{ u('resumo/semana/' ~ anterior ~ '/') }}">← semana até {{ dia_curto(anterior) }}</a>{% else %}<span></span>{% endif %}
+<a href="{{ u('resumo/') }}">Todos os resumos</a>
+{% if proximo %}<a href="{{ u('resumo/semana/' ~ proximo ~ '/') }}">semana até {{ dia_curto(proximo) }} →</a>{% else %}<span></span>{% endif %}
+</nav>
+<p class="nota">Fonte: ANP, Levantamento de Preços de Combustíveis (resumo semanal). A pesquisa cobre cerca de 400 municípios e todas as capitais.</p>
+</section>
+{% endblock %}

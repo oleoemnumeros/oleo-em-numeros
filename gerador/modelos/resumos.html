@@ -1,15 +1,28 @@
 {% extends "base.html" %}
 {% block conteudo %}
 <section class="miolo cabeca">
-<p class="olho">Resumos mensais</p>
-<h1>A produção de petróleo e gás, mês a mês</h1>
-<p class="sub">Todo mês, quando a ANP publica a produção, sai aqui um resumo com a manchete, o que mudou e o ranking de operadoras e bacias.</p>
+<p class="olho">Resumos</p>
+<h1>O que mudou na semana e no mês</h1>
+<p class="sub">Toda semana, quando a ANP publica a pesquisa de preços nos postos, sai um resumo dos combustíveis. Todo mês, quando ela publica a produção, sai um resumo com a manchete, o que mudou e o ranking de operadoras e bacias.</p>
 </section>
+{% if semanas %}
 <section class="miolo secao">
 <div class="cartao">
+<h2>Resumos semanais: combustíveis nos postos</h2>
+<ul class="lista-resumos">
+{% for r in semanas %}<li><a href="{{ u('resumo/semana/' ~ r.fim ~ '/') }}"><b>{{ r.periodo }}</b><span>{{ r.manchete }}</span></a></li>
+{% endfor %}</ul>
+</div>
+</section>
+{% endif %}
+{% if itens %}
+<section class="miolo secao">
+<div class="cartao">
+<h2>Resumos mensais: produção de petróleo e gás</h2>
 <ul class="lista-resumos">
 {% for r in itens %}<li><a href="{{ u('resumo/' ~ r.per ~ '/') }}"><b>{{ r.mes }}</b><span>{{ r.manchete }}</span></a></li>
 {% endfor %}</ul>
 </div>
 </section>
+{% endif %}
 {% endblock %}
