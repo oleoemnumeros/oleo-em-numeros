@@ -1,22 +1,35 @@
-name: Diagnóstico temporário - planilha semanal 2026 (ANP) 2
+name: Diagnóstico temporário - acesso ao gov.br (ANP)
 on:
   push:
     branches: [diag-lpc]
-permissions:
-  contents: write
 jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          rm -rf diag diag2; mkdir -p diag3 && cd diag3
-          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
-          B="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arquivos-lpc/2026"
-          curl -sSL --retry 10 --retry-all-errors --retry-delay 15 -A "$UA" "$B/resumo_semanal_lpc_2026_11_08-2026_11_14.xlsx" -o s46.xlsx || true
-          curl -sSL --retry 10 --retry-all-errors --retry-delay 15 -A "$UA" "$B/resumo_semanal_lpc_2026_11_01-2026_11_07.xlsx" -o s45.xlsx || true
-          curl -sSL -A "$UA" -w "mdic %{http_code}\n" "https://www.gov.br/mdic/pt-br" -o /dev/null || true
-          ls -la
-      - run: |
-          git config user.name "diag"; git config user.email "diag@users.noreply.github.com"
-          git add -A && git commit -m "diag: 2026" && git push
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -q requests pandas openpyxl
+      - name: Testes de acesso
+        run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
+          P="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas"
+          echo "IP do runner: $(curl -s https://api.ipify.org)"
+          for i in 1 2 3; do curl -s -o /dev/null -w "ANP página (curl) tentativa $i: %{http_code} %{size_download}B %{time_total}s\n" -A "$UA" --max-time 40 "$P" || echo "curl falhou $i (código $?)"; sleep 5; done
+          curl -s -o /dev/null -w "gov.br raiz: %{http_code}\n" -A "$UA" --max-time 30 https://www.gov.br/ || echo "raiz falhou $?"
+          curl -s -o /dev/null -w "gov.br/anp: %{http_code}\n" -A "$UA" --max-time 30 https://www.gov.br/anp/pt-br || echo "anp falhou $?"
+          curl -s -o /dev/null -w "dados.gov.br: %{http_code}\n" -A "$UA" --max-time 30 "https://dados.gov.br/dados/conjuntos-dados/serie-historica-de-precos-de-combustiveis-e-de-glp" || echo "dados.gov.br falhou $?"
+          curl -s -o /tmp/j.txt -w "r.jina.ai: %{http_code} %{size_download}B\n" --max-time 60 "https://r.jina.ai/$P" || echo "jina falhou $?"
+          grep -o "resumo_semanal_lpc[^) ]*xlsx" /tmp/j.txt | sort -u | tail -3 || true
+          X="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arquivos-lpc/2026/resumo_semanal_lpc_2026_11_08-2026_11_14.xlsx"
+          curl -s -o /tmp/x.xlsx -w "planilha direta: %{http_code} %{size_download}B\n" -A "$UA" --max-time 60 "$X" || echo "planilha falhou $?"
+          python - <<'P'
+          import requests, time
+          s = requests.Session(); s.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0 Safari/537.36"
+          for i in range(2):
+              try:
+                  r = s.get("https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas", timeout=40)
+                  print("requests:", r.status_code, len(r.content)); break
+              except Exception as e:
+                  print("requests falhou:", type(e).__name__, e); time.sleep(10)
+          P
