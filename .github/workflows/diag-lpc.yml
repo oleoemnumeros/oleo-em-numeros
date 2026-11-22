@@ -1,4 +1,4 @@
-name: Diagnóstico temporário - acesso ao gov.br (ANP)
+name: Diagnóstico temporário - caminhos alternativos para o gov.br
 on:
   push:
     branches: [diag-lpc]
@@ -6,30 +6,14 @@ jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install -q requests pandas openpyxl
-      - name: Testes de acesso
+      - name: Testes
         run: |
-          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
-          P="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas"
-          echo "IP do runner: $(curl -s https://api.ipify.org)"
-          for i in 1 2 3; do curl -s -o /dev/null -w "ANP página (curl) tentativa $i: %{http_code} %{size_download}B %{time_total}s\n" -A "$UA" --max-time 40 "$P" || echo "curl falhou $i (código $?)"; sleep 5; done
-          curl -s -o /dev/null -w "gov.br raiz: %{http_code}\n" -A "$UA" --max-time 30 https://www.gov.br/ || echo "raiz falhou $?"
-          curl -s -o /dev/null -w "gov.br/anp: %{http_code}\n" -A "$UA" --max-time 30 https://www.gov.br/anp/pt-br || echo "anp falhou $?"
-          curl -s -o /dev/null -w "dados.gov.br: %{http_code}\n" -A "$UA" --max-time 30 "https://dados.gov.br/dados/conjuntos-dados/serie-historica-de-precos-de-combustiveis-e-de-glp" || echo "dados.gov.br falhou $?"
-          curl -s -o /tmp/j.txt -w "r.jina.ai: %{http_code} %{size_download}B\n" --max-time 60 "https://r.jina.ai/$P" || echo "jina falhou $?"
-          grep -o "resumo_semanal_lpc[^) ]*xlsx" /tmp/j.txt | sort -u | tail -3 || true
           X="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arquivos-lpc/2026/resumo_semanal_lpc_2026_11_08-2026_11_14.xlsx"
-          curl -s -o /tmp/x.xlsx -w "planilha direta: %{http_code} %{size_download}B\n" -A "$UA" --max-time 60 "$X" || echo "planilha falhou $?"
-          python - <<'P'
-          import requests, time
-          s = requests.Session(); s.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0 Safari/537.36"
-          for i in range(2):
-              try:
-                  r = s.get("https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas", timeout=40)
-                  print("requests:", r.status_code, len(r.content)); break
-              except Exception as e:
-                  print("requests falhou:", type(e).__name__, e); time.sleep(10)
-          P
+          E=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$X")
+          echo "IP: $(curl -s https://api.ipify.org)"
+          curl -s -o /dev/null -w "direto: %{http_code}\n" --max-time 20 "$X" || echo "direto falhou $?"
+          curl -s -o a.xlsx -w "allorigins: %{http_code} %{size_download}B\n" --max-time 90 "https://api.allorigins.win/raw?url=$E" || echo "allorigins falhou $?"; head -c 2 a.xlsx | xxd | head -1
+          curl -s -o b.xlsx -w "codetabs: %{http_code} %{size_download}B\n" --max-time 90 "https://api.codetabs.com/v1/proxy/?quest=$X" || echo "codetabs falhou $?"; head -c 2 b.xlsx | xxd | head -1
+          curl -s -o c.xlsx -w "corsproxy: %{http_code} %{size_download}B\n" --max-time 90 "https://corsproxy.io/?url=$E" || echo "corsproxy falhou $?"; head -c 2 c.xlsx | xxd | head -1
+          curl -s -o d.html -w "dados.gov.br conjunto: %{http_code} %{size_download}B\n" --max-time 60 "https://dados.gov.br/dados/conjuntos-dados/serie-historica-de-precos-de-combustiveis-e-de-glp"
+          grep -oE 'https?://[^" ]+\.(xlsx|csv|zip)' d.html | head -5 || true
