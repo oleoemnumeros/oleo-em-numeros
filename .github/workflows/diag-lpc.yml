@@ -1,4 +1,4 @@
-name: Diagnóstico temporário - guardar saída do leitor
+name: Diagnóstico temporário - produção pelo leitor
 on:
   push:
     branches: [diag-lpc]
@@ -9,13 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Baixar via leitor
+      - name: Ler páginas e um arquivo de produção
         run: |
-          mkdir -p diag4
-          X="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arquivos-lpc/2026/resumo_semanal_lpc_2026_11_08-2026_11_14.xlsx"
-          P="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas"
-          curl -s -o diag4/semana.txt --max-time 120 "https://r.jina.ai/$X"
-          curl -s -o diag4/pagina.txt --max-time 120 "https://r.jina.ai/$P"
-          ls -la diag4
-          git config user.name diag; git config user.email diag@users.noreply.github.com
-          git add diag4 && git commit -m "diag4" && git push
+          mkdir -p diag5 && cd diag5
+          for P in "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/producao-de-petroleo-e-gas-natural-por-poco" "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/serie-historica-de-precos-de-combustiveis" "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/participacoes-governamentais"; do
+            n=$(echo "$P" | sed 's#.*/##'); curl -s -o "$n.html" -w "$n html: %{http_code} %{size_download}B\n" --max-time 120 -H "X-Return-Format: html" "https://r.jina.ai/$P"
+          done
+          grep -oE 'href="[^"]+\.(zip|csv|xlsx?)"' producao-de-petroleo-e-gas-natural-por-poco.html | sed 's/href="//;s/"$//' | sort -u > links_producao.txt
+          wc -l links_producao.txt; tail -5 links_producao.txt
+          U=$(grep -E '\.csv$' links_producao.txt | grep -E '2026' | tail -1); echo "testando $U"
+          [ -n "$U" ] && curl -s -o prod.txt -w "csv pelo leitor: %{http_code} %{size_download}B %{time_total}s\n" --max-time 300 -H "X-Return-Format: text" "https://r.jina.ai/$U"
+          head -c 600 prod.txt 2>/dev/null; echo
+          cd ..; git config user.name diag; git config user.email diag@users.noreply.github.com
+          rm -f diag5/prod.txt; git add diag5 && git commit -m diag5 && git push
