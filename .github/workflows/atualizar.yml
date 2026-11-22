@@ -38,6 +38,10 @@ jobs:
   atualizar:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      # ponte para o gov.br quando ele bloqueia o GitHub (robo/rede.py); sem os segredos, o robô segue sem ela
+      RELAY_URL: ${{ secrets.RELAY_URL }}
+      RELAY_TOKEN: ${{ secrets.RELAY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
