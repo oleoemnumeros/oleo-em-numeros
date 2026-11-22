@@ -36,11 +36,15 @@ def main(argv=None) -> int:
 
     if not a.sem_baixar and a.brutos == config.BRUTOS:
         from .baixar import baixar_tudo
-        r = baixar_tudo(a.brutos)
-        print(f"Baixados: {len(r['novos'])} novos, {len(r['sem_mudanca'])} sem mudança, "
-              f"{len(r['fora_do_periodo'])} fora do período.")
-        for nome in r["novos"]:
-            print(f"  novo: {nome}")
+        try:
+            r = baixar_tudo(a.brutos)
+            print(f"Baixados: {len(r['novos'])} novos, {len(r['sem_mudanca'])} sem mudança, "
+                  f"{len(r['fora_do_periodo'])} fora do período.")
+            for nome in r["novos"]:
+                print(f"  novo: {nome}")
+        except Exception as e:  # noqa: BLE001 - gov.br fora do ar ou bloqueando: segue com os arquivos já guardados
+            print(f"::warning::Download da ANP falhou ({type(e).__name__}: {e}). Sigo com os arquivos já guardados; "
+                  "configure a ponte (RELAY_URL) se o gov.br continuar bloqueando o GitHub.")
 
     a.saida.mkdir(parents=True, exist_ok=True)
     base, leitura = consolidar(a.brutos)
