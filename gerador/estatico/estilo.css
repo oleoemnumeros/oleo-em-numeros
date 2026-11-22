@@ -26,6 +26,8 @@ h1, h2, h3 { font-family: var(--titulo); letter-spacing: -0.01em; }
 
 /* Cabeçalho */
 .topo { position: sticky; top: 0; z-index: 1100; background: var(--cartao); border-bottom: 1px solid var(--borda); }
+.info-bar { background: var(--cor-claro); color: var(--cor-texto); font-size: 13px; }
+.info-bar .miolo { padding-top: 7px; padding-bottom: 7px; }
 .topo .miolo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-top: 14px; padding-bottom: 14px; }
 .marca { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--tinta); }
 .marca span { font-family: var(--titulo); font-weight: 700; font-size: 20px; }

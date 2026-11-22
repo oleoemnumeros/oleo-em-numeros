@@ -55,6 +55,7 @@
 </nav>
 </div>
 </header>
+<div class="info-bar"><div class="miolo">Site atualizado automaticamente em {{ atualizado_em }}. Fonte: ANP.</div></div>
 <main id="conteudo" tabindex="-1">
 {% block conteudo %}{% endblock %}
 {% set cartoes = continuar(secao, caminho) if not erro else [] %}
