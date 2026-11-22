@@ -1,4 +1,4 @@
-name: Diagnóstico temporário - caminhos alternativos para o gov.br
+name: Diagnóstico temporário - leitor jina para planilhas
 on:
   push:
     branches: [diag-lpc]
@@ -9,11 +9,7 @@ jobs:
       - name: Testes
         run: |
           X="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arquivos-lpc/2026/resumo_semanal_lpc_2026_11_08-2026_11_14.xlsx"
-          E=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$X")
-          echo "IP: $(curl -s https://api.ipify.org)"
-          curl -s -o /dev/null -w "direto: %{http_code}\n" --max-time 20 "$X" || echo "direto falhou $?"
-          curl -s -o a.xlsx -w "allorigins: %{http_code} %{size_download}B\n" --max-time 90 "https://api.allorigins.win/raw?url=$E" || echo "allorigins falhou $?"; head -c 2 a.xlsx | xxd | head -1
-          curl -s -o b.xlsx -w "codetabs: %{http_code} %{size_download}B\n" --max-time 90 "https://api.codetabs.com/v1/proxy/?quest=$X" || echo "codetabs falhou $?"; head -c 2 b.xlsx | xxd | head -1
-          curl -s -o c.xlsx -w "corsproxy: %{http_code} %{size_download}B\n" --max-time 90 "https://corsproxy.io/?url=$E" || echo "corsproxy falhou $?"; head -c 2 c.xlsx | xxd | head -1
-          curl -s -o d.html -w "dados.gov.br conjunto: %{http_code} %{size_download}B\n" --max-time 60 "https://dados.gov.br/dados/conjuntos-dados/serie-historica-de-precos-de-combustiveis-e-de-glp"
-          grep -oE 'https?://[^" ]+\.(xlsx|csv|zip)' d.html | head -5 || true
+          curl -s -o j.txt -w "jina planilha: %{http_code} %{size_download}B\n" --max-time 120 "https://r.jina.ai/$X" || echo "falhou $?"
+          head -c 1500 j.txt; echo; grep -c "GASOLINA" j.txt || true
+          curl -s -o k.bin -w "jina binário: %{http_code} %{size_download}B\n" --max-time 120 -H "X-Respond-With: raw" "https://r.jina.ai/$X" || echo "falhou $?"; head -c 4 k.bin | xxd | head -1
+          curl -s -o /dev/null -w "direto agora: %{http_code}\n" --max-time 20 "$X" || echo "direto falhou $?"
