@@ -156,6 +156,8 @@ def test_gera_site(base, tmp_path):
     assert "privacidade/" in html and "contato/" in html
     assert 'href="https://x.com/familianumeros"' in html and "Siga no X" in html
     assert 'href="https://www.instagram.com/familiaemnumeros/"' in html and "Siga no Instagram" in html
+    assert re.search(r'class="info-bar".*Site atualizado automaticamente em \d{2}/\d{2}/\d{4}', html)
+    assert html.index('class="info-bar"') < html.index("<main")   # fora do miolo que o IndexNow compara
     # menu no padrão da família: Início, Resumos, temas, lugares, ferramentas e Como funciona por último
     home = (tmp_path / "site" / "index.html").read_text("utf-8")
     menu = re.findall(r">([^<>]+)</a>", home[home.index('<nav class="nav"'):home.index("</nav>")])

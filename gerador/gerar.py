@@ -324,6 +324,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                        titulo_bacia=titulo_bacia, pct=pct, DESCONHECIDO=DESCONHECIDO)
 
     # o endereço do CSS leva o hash do conteúdo: quem abriu o site pouco antes de uma atualização não fica com o estilo antigo
+    # fora do <main>: a data muda todo dia sem a página contar como alterada para o IndexNow
+    env.globals["atualizado_em"] = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y")
     env.globals["v_css"] = hashlib.md5((AQUI / "estatico" / "estilo.css").read_bytes()).hexdigest()[:8]
     env.globals["v_js"] = hashlib.md5((AQUI / "estatico" / "familia.js").read_bytes()).hexdigest()[:8]
     env.globals["v_busca"] = hashlib.md5((AQUI / "estatico" / "familia-busca.js").read_bytes()).hexdigest()[:8] + "-" + str(ag.get("gerado_em", ""))[:10]
