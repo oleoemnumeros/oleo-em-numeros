@@ -1,15 +1,21 @@
-name: Diagnóstico temporário - leitor jina para planilhas
+name: Diagnóstico temporário - guardar saída do leitor
 on:
   push:
     branches: [diag-lpc]
+permissions:
+  contents: write
 jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - name: Testes
+      - uses: actions/checkout@v4
+      - name: Baixar via leitor
         run: |
+          mkdir -p diag4
           X="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arquivos-lpc/2026/resumo_semanal_lpc_2026_11_08-2026_11_14.xlsx"
-          curl -s -o j.txt -w "jina planilha: %{http_code} %{size_download}B\n" --max-time 120 "https://r.jina.ai/$X" || echo "falhou $?"
-          head -c 1500 j.txt; echo; grep -c "GASOLINA" j.txt || true
-          curl -s -o k.bin -w "jina binário: %{http_code} %{size_download}B\n" --max-time 120 -H "X-Respond-With: raw" "https://r.jina.ai/$X" || echo "falhou $?"; head -c 4 k.bin | xxd | head -1
-          curl -s -o /dev/null -w "direto agora: %{http_code}\n" --max-time 20 "$X" || echo "direto falhou $?"
+          P="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas"
+          curl -s -o diag4/semana.txt --max-time 120 "https://r.jina.ai/$X"
+          curl -s -o diag4/pagina.txt --max-time 120 "https://r.jina.ai/$P"
+          ls -la diag4
+          git config user.name diag; git config user.email diag@users.noreply.github.com
+          git add diag4 && git commit -m "diag4" && git push
