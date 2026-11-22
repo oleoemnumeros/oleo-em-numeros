@@ -1249,3 +1249,31 @@ def test_resumo_semanal_dos_combustiveis(base, tmp_path):
     assert pm["fim"] == "2026-11-14" and pm["dif"]["Gasolina comum"] == pytest.approx(0.03) and len(pm["hist"]) == 2
     idx = (site / "resumo" / "index.html").read_text("utf-8")
     assert "Resumos semanais" in idx and "resumo/semana/2026-11-14/" in idx and "Resumos mensais" in idx
+
+
+def test_precos_semanais_pelo_leitor_quando_o_gov_br_bloqueia(monkeypatch, tmp_path):
+    """Com o gov.br recusando a conexão, o robô acha as planilhas e lê cada uma pelo texto do leitor (r.jina.ai)."""
+    from robo import precos_semanais as ps
+    from pathlib import Path
+    texto = (Path(__file__).parent / "dados" / "leitor_resumo_semanal.txt").read_text("utf-8")
+    nome = "resumo_semanal_lpc_2026_11_08-2026_11_14.xlsx"
+    r = ps.resumir_texto(texto, nome)
+    assert (r["inicio"], r["fim"]) == ("2026-11-08", "2026-11-14")
+    assert r["brasil"]["Gasolina comum"]["preco"] == 6.48 and r["brasil"]["Gasolina comum"]["postos"] == 4504
+    assert r["estados"]["MS"]["Gasolina comum"] == 6.4 and r["capitais"]["Campo Grande/MS"]["Etanol"] == 3.98
+    assert r["municipios"]["BA/feira-de-santana"]["Gasolina comum"] == 6.27 and "SP/sao-paulo" in r["municipios"]
+
+    def bloqueado(*a, **k):
+        raise RuntimeError("Falha ao baixar: Connection reset by peer")
+    pagina = f"[Resumo]({'https://www.gov.br/anp/pt-br/x/arquivos-lpc/2026/' + nome})\n[Velha](https://www.gov.br/anp/pt-br/x/arquivos-lpc/2022/resumo_semanal_lpc_2022.xlsx)"
+    lidos = []
+
+    def leitor(url):
+        lidos.append(url)
+        return pagina if url == ps.PAGINA else texto
+    monkeypatch.setattr(ps, "_get", bloqueado)
+    monkeypatch.setattr(ps, "_leitor", leitor)
+    monkeypatch.setattr(ps, "_SO_LEITOR", False)
+    monkeypatch.setattr(ps.time, "sleep", lambda s: None)
+    assert ps.baixar(tmp_path) == 1                                    # só a de 2025 em diante
+    assert (tmp_path / "2026-11-14.json").exists() and lidos[0] == ps.PAGINA

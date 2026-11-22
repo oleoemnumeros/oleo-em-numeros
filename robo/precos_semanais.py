@@ -5,6 +5,9 @@ capitais e dos municípios pesquisados. O robô baixa as planilhas novas (desde 
 resumo do Brasil, dos estados, das capitais e dos municípios em dados/precos/semanal/AAAA-MM-DD.json (a data é o último dia da semana)
 e junta tudo em dados/processados/precos_semanais.json, que o gerador usa no resumo semanal do site.
 
+Se o gov.br recusar a conexão (ele às vezes bloqueia os servidores do GitHub), o robô lê a página e as planilhas
+pelo leitor público r.jina.ai, que devolve cada aba como texto, e monta o mesmo resumo a partir dele.
+
 Uso:
     python -m robo.precos_semanais                # baixa as semanas que faltam e processa
     python -m robo.precos_semanais --sem-baixar   # só processa o que já está guardado
@@ -47,12 +50,38 @@ CAPITAL = {"AC": "Rio Branco", "AL": "Maceió", "AP": "Macapá", "AM": "Manaus",
            "SC": "Florianópolis", "SP": "São Paulo", "SE": "Aracaju", "TO": "Palmas"}
 
 
+LEITOR = "https://r.jina.ai/"   # leitor público usado quando o gov.br bloqueia o acesso direto
+_SO_LEITOR = False             # vira True quando o acesso direto falha nesta execução
+
+
+def _leitor(url: str) -> str:
+    import requests
+    erro = ""
+    for i in range(3):
+        try:
+            r = requests.get(LEITOR + url, timeout=180, headers={"Accept": "text/plain"})
+            if r.status_code == 200 and r.text.strip():
+                return r.text
+            erro = f"HTTP {r.status_code}"
+        except requests.RequestException as e:
+            erro = str(e)
+        time.sleep(10 * (i + 1))
+    raise RuntimeError(f"Leitor também falhou para {url}: {erro}")
+
+
 def fontes() -> dict[str, str]:
     """Planilhas de resumo semanal na página da ANP: nome do arquivo -> URL (as de ANO_INICIAL em diante)."""
-    p = _Links()
-    p.feed(_get(_sessao(), PAGINA).text)
+    global _SO_LEITOR
+    try:
+        p = _Links()
+        p.feed(_get(_sessao(), PAGINA, tentativas=2).text)
+        links = p.links
+    except RuntimeError as e:
+        print(f"Acesso direto ao gov.br falhou ({e}); lendo pela r.jina.ai.")
+        _SO_LEITOR = True
+        links = re.findall(r"\((https?://www\.gov\.br/anp/[^)\s]+?\.xlsx?)\)", _leitor(PAGINA))
     out = {}
-    for h in p.links:
+    for h in links:
         u = re.sub(r"/@@download/file$", "", urljoin(PAGINA, h.strip()))
         nome = unquote(u).rsplit("/", 1)[-1]
         ano = re.search(r"/arquivos-lpc/(\d{4})/", u)
@@ -184,6 +213,74 @@ def resumir(caminho: Path) -> dict:
 VERSAO = 2   # sobe quando o resumo de cada semana passa a guardar algo novo (2: municípios); as semanas antigas são baixadas de novo
 
 
+_LINHA = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4}) (\d{1,2})/(\d{1,2})/(\d{4}) (.+?) "
+                    r"(ETANOL HIDRATADO|GASOLINA ADITIVADA|GASOLINA COMUM|GLP|GNV|OLEO DIESEL S10|OLEO DIESEL)\s+(\d+) (R\$/\S+) "
+                    r"([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)\s*$")
+_REGIOES = ("CENTRO OESTE ", "CENTRO-OESTE ", "NORDESTE ", "NORTE ", "SUDESTE ", "SUL ")
+_ESTADOS_LONGOS = sorted(UF, key=len, reverse=True)
+
+
+def _data_txt(m: str, d: str, a: str, esperado: str | None):
+    """O leitor mostra a data como mês/dia/ano; confere com a data do nome do arquivo quando dá."""
+    import datetime as _dt
+    mdy = _dt.date(int(a), int(m), int(d)) if int(m) <= 12 else None
+    dmy = _dt.date(int(a), int(d), int(m)) if int(d) <= 12 else None
+    if esperado and dmy and dmy.isoformat() == esperado:
+        return dmy
+    return mdy or dmy
+
+
+def _estado_e_resto(meio: str):
+    s = sem_acento(meio).upper().strip()
+    for r in _REGIOES:
+        if s.startswith(r):
+            s = s[len(r):]
+            break
+    for nome in _ESTADOS_LONGOS:
+        if s == nome or s.startswith(nome + " "):
+            return UF[nome], s[len(nome):].strip()
+    return None, s
+
+
+def resumir_texto(texto: str, nome_arquivo: str = "") -> dict:
+    """O mesmo resumo de `resumir`, a partir do texto que o leitor devolve (uma seção "# [Sheet N: _ABA_]" por aba)."""
+    datas = re.findall(r"(\d{4})[-_](\d{2})[-_](\d{1,2})", nome_arquivo)
+    esp_ini = f"{datas[0][0]}-{datas[0][1]}-{int(datas[0][2]):02d}" if datas else None
+    esp_fim = f"{datas[-1][0]}-{datas[-1][1]}-{int(datas[-1][2]):02d}" if len(datas) > 1 else None
+    out = {"inicio": None, "fim": None, "brasil": {}, "estados": {}, "capitais": {}, "municipios": {}}
+    aba = None
+    for linha in texto.splitlines():
+        cab = re.match(r"^#\s*\[Sheet \d+:\s*_?([A-ZÇÃÕÁÉÍÓÚÂÊÔ ]+?)_?\]", linha.strip())
+        if cab:
+            aba = sem_acento(cab.group(1)).upper().strip()
+            continue
+        m = _LINHA.match(linha.strip())
+        if not m or not aba:
+            continue
+        g = m.groups()
+        ini, fim = _data_txt(g[0], g[1], g[2], esp_ini), _data_txt(g[3], g[4], g[5], esp_fim)
+        out["inicio"], out["fim"] = out["inicio"] or ini.isoformat(), out["fim"] or fim.isoformat()
+        p = _produto(g[7])
+        if not p:
+            continue
+        reg = {"preco": round(float(g[10]), 3), "min": round(float(g[12]), 3), "max": round(float(g[13]), 3), "postos": int(g[8])}
+        if aba == "BRASIL":
+            out["brasil"][p] = reg
+            continue
+        uf, resto = _estado_e_resto(g[6])
+        if not uf:
+            continue
+        if aba == "ESTADOS":
+            out["estados"].setdefault(uf, {})[p] = reg["preco"]
+        elif aba == "CAPITAIS":
+            out["capitais"].setdefault(f"{CAPITAL.get(uf) or resto.title()}/{uf}", {})[p] = reg["preco"]
+        elif aba == "MUNICIPIOS" and resto:
+            out["municipios"].setdefault(f"{uf}/{slug(resto)}", {})[p] = reg["preco"]
+    if not out["brasil"] or not out["fim"]:
+        raise ValueError(f"{nome_arquivo or 'texto'}: não achei a aba BRASIL no texto do leitor")
+    return out
+
+
 def baixar(destino: Path = PASTA) -> int:
     """Baixa e resume as semanas que ainda não estão guardadas. Devolve quantas entraram."""
     destino.mkdir(parents=True, exist_ok=True)
@@ -199,10 +296,18 @@ def baixar(destino: Path = PASTA) -> int:
             print("Orçamento de tempo esgotado; o resto fica para a próxima execução.")
             break
         try:
-            with tempfile.TemporaryDirectory() as tmp:
-                arq = Path(tmp) / nome
-                arq.write_bytes(_get(s, url).content)
-                r = resumir(arq)
+            r = None
+            if not _SO_LEITOR:
+                try:
+                    with tempfile.TemporaryDirectory() as tmp:
+                        arq = Path(tmp) / nome
+                        arq.write_bytes(_get(s, url, tentativas=2).content)
+                        r = resumir(arq)
+                except RuntimeError:
+                    pass
+            if r is None:
+                r = resumir_texto(_leitor(url), nome)
+                time.sleep(4)   # o leitor gratuito aceita poucas leituras por minuto
             (destino / f"{r['fim']}.json").write_text(json.dumps(r, ensure_ascii=False), "utf-8")
             vistos[nome] = r["fim"]
             novos += 1
