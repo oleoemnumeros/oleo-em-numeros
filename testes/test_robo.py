@@ -155,6 +155,7 @@ def test_gera_site(base, tmp_path):
     assert "mailto:" in cont and "sugestoes/" in cont and cont.count("<h1") == 1 and "__" not in cont.split("</main>")[0]
     assert "privacidade/" in html and "contato/" in html
     assert 'href="https://x.com/familianumeros"' in html and "Siga no X" in html
+    assert 'href="https://www.instagram.com/familiaemnumeros/"' in html and "Siga no Instagram" in html
     # menu no padrão da família: Início, Resumos, temas, lugares, ferramentas e Como funciona por último
     home = (tmp_path / "site" / "index.html").read_text("utf-8")
     menu = re.findall(r">([^<>]+)</a>", home[home.index('<nav class="nav"'):home.index("</nav>")])
