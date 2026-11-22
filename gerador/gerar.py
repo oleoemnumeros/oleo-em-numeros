@@ -601,7 +601,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
             e["grafico"] = {"valores": valores, "unidade": unidade}
             escrever(f"royalties/{e['slug']}/", "royalties_estado.html", secao="royalties", R=R, e=e,
                      prod_estado=prod.get(e["uf"]), campos_estado=campos_uf.get(e["uf"], []),
-                     titulo=f"Royalties de petróleo {e['de']}: municípios e estado",
+                     titulo=f"Royalties de petróleo {e['de']} em {R['ultimo'][:4]}: quanto cada município recebe",
                      descricao=f"Royalties de petróleo e gás recebidos pelos municípios {e['de']}: "
                                f"{dinheiro(e['mun_total12'], False)} em 12 meses. Ranking, mês a mês e por habitante. Dados da ANP.")
         familia = carregar_familia(Path(dados) / "familia", rede=not teste and os.environ.get("OLEO_SEM_REDE") != "1")
@@ -622,8 +622,8 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
             escrever(f"royalties/{m['estado_slug']}/{m['slug']}/", "royalties_municipio.html", secao="royalties", R=R, m=m,
                      prod_estado=prod.get(m["uf"]), campos_estado=campos_uf.get(m["uf"], []),
                      preco=preco, preco_path=f"precos/{preco['estado_slug']}/{preco['slug']}/" if preco else None,
-                     titulo=(f"Quanto {m['nome']} ({m['uf']}) recebe de royalties: {dinheiro(m['r12'])} em 12 meses" if m["r12"] > 0
-                             else f"Quanto {m['nome']} ({m['uf']}) recebe de royalties de petróleo"),
+                     titulo=(f"Quanto {m['nome']} ({m['uf']}) recebe de royalties em {R['ultimo'][:4]}: {dinheiro(m['r12'])} em 12 meses"
+                             if m["r12"] > 0 else f"Quanto {m['nome']} ({m['uf']}) recebe de royalties de petróleo em {R['ultimo'][:4]}"),
                      descricao=f"{m['nome']} ({m['uf']}) recebeu {dinheiro(m['r12'], False)} em royalties de petróleo nos "
                                f"últimos 12 meses. Valores mês a mês desde 2018, participação especial e ranking. Dados da ANP.")
 
