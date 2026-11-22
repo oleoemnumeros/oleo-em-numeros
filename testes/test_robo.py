@@ -1277,3 +1277,34 @@ def test_precos_semanais_pelo_leitor_quando_o_gov_br_bloqueia(monkeypatch, tmp_p
     monkeypatch.setattr(ps.time, "sleep", lambda s: None)
     assert ps.baixar(tmp_path) == 1                                    # só a de 2025 em diante
     assert (tmp_path / "2026-11-14.json").exists() and lidos[0] == ps.PAGINA
+
+
+def test_rede_usa_a_ponte_ou_o_leitor_quando_o_gov_br_recusa(monkeypatch):
+    import requests
+    from robo import rede
+    chamadas = []
+
+    class Resp:
+        status_code, text, content, url = 200, "<a href='/x/arquivo.zip'>z</a>", b"PK", ""
+
+    def falso(self, method, url, *a, **k):
+        chamadas.append((url, k.get("headers", {})))
+        if not url.startswith(("https://ponte", rede.LEITOR)):            # conexão direta: sempre recusada
+            raise requests.ConnectionError("Connection reset by peer")
+        return Resp()
+    monkeypatch.setattr(rede, "_original", falso)
+    rede.instalar()
+    pagina = "https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/producao"
+    arquivo = "https://www.gov.br/anp/x/producao-por-poco-2026.zip"
+    monkeypatch.delenv("RELAY_URL", raising=False)
+    assert requests.get(pagina).text.startswith("<a")                          # página: leitor r.jina.ai
+    assert chamadas[-1][0] == rede.LEITOR + pagina and chamadas[-1][1]["X-Return-Format"] == "html"
+    with pytest.raises(RuntimeError, match="ponte"):
+        requests.get(arquivo)                                                 # arquivo sem ponte: falha clara
+    monkeypatch.setenv("RELAY_URL", "https://ponte.exemplo.workers.dev")
+    monkeypatch.setenv("RELAY_TOKEN", "segredo")
+    assert requests.get(arquivo).content == b"PK"                             # com a ponte: bytes do arquivo
+    assert chamadas[-1][0].startswith("https://ponte.exemplo.workers.dev/?url=https%3A%2F%2Fwww.gov.br")
+    assert chamadas[-1][1]["X-Token"] == "segredo"
+    with pytest.raises(requests.ConnectionError):
+        requests.get("https://outro-site.com.br/a")                           # outros destinos: erro normal
