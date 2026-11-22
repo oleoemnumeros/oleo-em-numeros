@@ -1299,7 +1299,7 @@ def test_rede_usa_a_ponte_ou_o_leitor_quando_o_gov_br_recusa(monkeypatch):
     monkeypatch.delenv("RELAY_URL", raising=False)
     assert requests.get(pagina).text.startswith("<a")                          # página: leitor r.jina.ai
     assert chamadas[-1][0] == rede.LEITOR + pagina and chamadas[-1][1]["X-Return-Format"] == "html"
-    with pytest.raises(RuntimeError, match="ponte"):
+    with pytest.raises(rede.PonteNecessaria, match="ponte"):
         requests.get(arquivo)                                                 # arquivo sem ponte: falha clara
     monkeypatch.setenv("RELAY_URL", "https://ponte.exemplo.workers.dev")
     monkeypatch.setenv("RELAY_TOKEN", "segredo")
@@ -1308,3 +1308,15 @@ def test_rede_usa_a_ponte_ou_o_leitor_quando_o_gov_br_recusa(monkeypatch):
     assert chamadas[-1][1]["X-Token"] == "segredo"
     with pytest.raises(requests.ConnectionError):
         requests.get("https://outro-site.com.br/a")                           # outros destinos: erro normal
+
+
+def test_royalties_seguem_com_os_arquivos_guardados_quando_o_gov_br_falha(monkeypatch, tmp_path):
+    import requests
+    from robo import royalties
+    (tmp_path / "mun_2025.csv").write_text("guardado", "utf-8")
+
+    def recusa(*a, **k):
+        raise requests.ConnectionError("Connection reset by peer")
+    monkeypatch.setattr(royalties, "_get", recusa)
+    assert royalties.baixar(tmp_path) == {}                                 # não quebra: nada novo para baixar
+    assert (tmp_path / "mun_2025.csv").read_text("utf-8") == "guardado"     # o que estava guardado fica

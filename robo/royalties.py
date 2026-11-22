@@ -72,12 +72,22 @@ def _links(url: str) -> list[tuple[str, str]]:
             for h, t in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S)]
 
 
+def _links_ou_nada(url: str) -> list[tuple[str, str]]:
+    """Links da página; se o gov.br não responder, nenhum (o robô segue com os arquivos já guardados)."""
+    try:
+        return _links(url)
+    except requests.RequestException as e:
+        print(f"Royalties: não consegui ler {url} ({type(e).__name__}); sigo com os arquivos já guardados.")
+        return []
+
+
 def baixar(pasta: Path = PASTA) -> dict:
-    """Baixa o que falta. Anos fechados ficam no cache; o ano corrente e o anterior são rebaixados."""
+    """Baixa o que falta. Anos fechados ficam no cache; o ano corrente e o anterior são rebaixados.
+    Se o gov.br estiver fora do ar ou bloqueando, não baixa nada e o site sai com os arquivos já guardados."""
     pasta.mkdir(parents=True, exist_ok=True)
     hoje = date.today().year
     alvo = {}
-    for texto, h in _links(PAGINA_DADOS):
+    for texto, h in _links_ou_nada(PAGINA_DADOS):
         m = re.search(r"royalties[-_]municipios?[-_](\d{4})\.csv$", h)
         if m and int(m.group(1)) >= ANO_INICIAL:
             alvo[f"mun_{m.group(1)}.csv"] = h
@@ -89,7 +99,7 @@ def baixar(pasta: Path = PASTA) -> dict:
         if h.endswith("pe_estado.csv"):
             alvo["pe_estado.csv"] = h
     anos_csv = {int(n[4:8]) for n in alvo if n.startswith("mun_")}
-    for texto, h in _links(PAGINA_ROYALTIES):
+    for texto, h in _links_ou_nada(PAGINA_ROYALTIES):
         m = re.search(r"valor-mensal-dos-royalties-dos-beneficiarios/(\d{4})/[^/]+\.xlsx$", h)
         # o arquivo do ano inteiro tem o link "Janeiro a Dezembro"; há outros (educação e saúde) na mesma pasta
         if m and int(m.group(1)) > max(anos_csv or {0}) and ("janeiro" in texto.lower() or "jan-dez" in h):

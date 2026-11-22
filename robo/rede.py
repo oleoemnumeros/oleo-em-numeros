@@ -23,6 +23,10 @@ DESTINOS = {"www.gov.br", "ftp.ibge.gov.br"}          # só estes passam pelo ca
 LEITOR = "https://r.jina.ai/"
 _ARQUIVO = re.compile(r"\.(zip|csv|xlsx?|pdf|txt|json|geojson|kml|kmz|rar|7z|gz)(\?|$)", re.I)
 _original = requests.sessions.Session.request
+
+
+class PonteNecessaria(requests.ConnectionError):
+    """Arquivo do gov.br que só passa pela ponte do projeto. É um erro de conexão: os robôs já sabem lidar com ele."""
 _avisados: set[str] = set()
 
 
@@ -55,7 +59,7 @@ def _request(self, method, url, *args, **kw):
             raise
         r = _alternativo(self, str(url), kw)
         if r is None:
-            raise RuntimeError(f"gov.br recusou a conexão e o arquivo precisa da ponte do projeto (RELAY_URL): {url}") from erro
+            raise PonteNecessaria(f"gov.br recusou a conexão e o arquivo precisa da ponte do projeto (RELAY_URL): {url}") from erro
         return r
 
 
