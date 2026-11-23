@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="miolo cabeca">
+<h1>Ranking dos royalties por município: quem mais recebeu em {{ R.mes_extenso }}</h1>
+<p class="sub">{{ fmt(lista|length) }} municípios que receberam royalties de petróleo e gás da ANP em {{ R.mes_extenso }}, do maior para o menor valor. {% if lista %}{{ lista[0].nome }} ({{ lista[0].uf }}) lidera, com {{ dinheiro(lista[0].ultimo_mes) }} no mês.{% endif %}</p>
+</section>
+
+<section class="miolo secao">
+<div class="cartao principal">
+<h2>Royalties pagos em {{ R.mes_extenso }}</h2>
+<p class="legenda">Royalties do mês, comparação com o mês anterior e total dos últimos 12 meses (royalties + participação especial)</p>
+<div class="tabela">
+<table>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Município</th><th class="n">No mês</th><th class="n">Mês anterior</th><th class="n">12 meses</th></tr></thead>
+<tbody>
+{% for m in lista %}
+<tr><td>{{ loop.index }}</td><td><a href="{{ u('royalties/' ~ m.estado_slug ~ '/' ~ m.slug ~ '/') }}">{{ m.nome }}</a> <span class="legenda">{{ m.uf }}</span></td><td class="n"><strong>{{ dinheiro(m.ultimo_mes) }}</strong></td><td class="n">{{ dinheiro(m.r[-2]) if m.r|length > 1 else '–' }}</td><td class="n">{{ dinheiro(m.total12) }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="nota">Fonte: ANP. Royalties de concessão e de partilha pagos no mês. A participação especial é trimestral e entra só no total de 12 meses. Veja também o <a href="{{ u('royalties/') }}">ranking de 12 meses e por estado</a>.</p>
+</div>
+</section>
+{% endblock %}
