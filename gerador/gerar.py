@@ -594,6 +594,13 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         valores, unidade = escala(R["brasil"]["serie_total"])
         R["brasil"]["grafico"] = {"valores": valores, "unidade": unidade}
         ult = R["mes_extenso"]
+        # ranking do mês: liga todas as fichas de município numa página só (busca "royalties por município <mês>")
+        lista_mes = sorted((m for m in R["municipios"] if m["ultimo_mes"] > 0), key=lambda m: -m["ultimo_mes"])
+        escrever("royalties/ranking/", "royalties_ranking.html", secao="royalties", R=R, lista=lista_mes,
+                 titulo=f"Ranking dos royalties por município em {ult}: quem mais recebeu",
+                 descricao=(f"Os {len(lista_mes)} municípios que receberam royalties de petróleo em {ult}, do maior para o menor. "
+                            + (f"{lista_mes[0]['nome']} ({lista_mes[0]['uf']}) lidera com {dinheiro(lista_mes[0]['ultimo_mes'])}. " if lista_mes else "")
+                            + "Dados da ANP."))
         escrever("royalties/", "royalties_brasil.html", secao="royalties", R=R, B=R["brasil"],
                  titulo="Royalties de petróleo por município e estado",
                  descricao=f"Quanto cada município e cada estado recebe de royalties de petróleo e participação especial, "

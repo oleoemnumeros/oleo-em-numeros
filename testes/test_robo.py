@@ -509,6 +509,11 @@ def test_paginas_de_royalties(base, tmp_path):
     html = (tmp_path / "site" / "royalties" / "rio-de-janeiro" / "marica" / "index.html").read_text("utf-8")
     assert "Quanto Maricá (RJ) recebe de royalties de petróleo" in html and "Em resumo" in html
     assert "É o município que mais recebe" in html
+    # ranking do mês liga todas as fichas numa página
+    assert "royalties/ranking/" in paginas
+    rk = (tmp_path / "site" / "royalties" / "ranking" / "index.html").read_text("utf-8")
+    assert "Ranking dos royalties por município" in rk and "royalties/rio-de-janeiro/marica/" in rk
+    assert "royalties/ranking/" in (tmp_path / "site" / "royalties" / "index.html").read_text("utf-8")
 
 
 def test_links_da_familia_por_municipio(base, tmp_path, monkeypatch):
