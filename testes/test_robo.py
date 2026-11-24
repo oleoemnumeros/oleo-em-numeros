@@ -961,7 +961,7 @@ def test_precos_paginas_so_com_dados_sem_posto_e_com_busca(base, tmp_path):
     (proc / "precos_semanais.json").write_text(json.dumps(sem), "utf-8")
     gerar(proc, tmp_path / "s3", limpos=True)
     mun = (tmp_path / "s3" / "precos" / "sao-paulo" / "sao-paulo" / "index.html").read_text("utf-8")
-    assert "Nesta semana" in mun and "Preço da gasolina em São Paulo (SP) nesta semana: R$ 6,14" in mun
+    assert "Nesta semana" in mun and "Preço da gasolina em São Paulo (SP) hoje: R$ 6,14 (média da semana)" in mun
     assert "alta de 4 centavos na semana" in mun and "14/11/2026" in mun
 
 

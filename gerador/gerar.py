@@ -585,7 +585,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                     if d_s is not None and round(abs(d_s) * 100):
                         frase += f", {'alta' if d_s > 0 else 'queda'} de {centavos(d_s)} na semana"
                     partes.insert(0, frase + ".")
-                    titulo_m = f"Preço da gasolina em {m['nome']} ({m['uf']}) nesta semana: R$ {fmt(g_s, 2)}"
+                    titulo_m = f"Preço da gasolina em {m['nome']} ({m['uf']}) hoje: R$ {fmt(g_s, 2)} (média da semana)"
                 escrever(f"precos/{e['slug']}/{m['slug']}/", "precos_municipio.html", secao="precos", P=PR, m=m, resumo=" ".join(partes),
                          royalties_path=roy.get((m["uf"], slug(m["nome"]))), sem=sem, dia=dia,
                          titulo=titulo_m, descricao=" ".join(partes)[:300], nome_busca=f"{m['nome']} ({m['uf']})")
