@@ -1,7 +1,7 @@
 {% macro kpi(rotulo, numero, unidade, variacao=None, classe='', principal=False) -%}
 <div class="kpi{{ ' principal' if principal }}">
 <div class="rot">{{ rotulo }}</div>
-<div class="val"><span class="num">{{ numero }}</span><span class="uni">{{ unidade }}</span></div>
+<div class="val"><span class="num">{{ numero }}</span> <span class="uni">{{ unidade }}</span></div>
 {% if variacao and not variacao.startswith('—') %}<div class="var {{ classe }}">{{ variacao }}</div>{% endif %}
 </div>
 {%- endmacro %}
