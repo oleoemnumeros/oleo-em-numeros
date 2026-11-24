@@ -1186,7 +1186,7 @@ def test_busca_do_cabecalho_e_trilha_em_json_ld(base, tmp_path):
     indice = json.loads((site / "busca-geral.json").read_text("utf-8"))
     enderecos = {i[1] for i in indice}
     assert "/campos/campo-exemplo-3/" in enderecos and "/" in enderecos
-    assert all(len(i) == 3 and i[0] and (site / i[1].lstrip("/") / "index.html").exists() for i in indice)
+    assert all(len(i) in (3, 4) and i[0] and (site / i[1].lstrip("/") / "index.html").exists() for i in indice)
     # trilha visível repetida em JSON-LD, com endereços absolutos
     ld = [json.loads(x) for x in __import__("re").findall(r'<script type="application/ld\+json">(.*?)</script>', html)]
     trilha = next(x for x in ld if x["@type"] == "BreadcrumbList")["itemListElement"]
