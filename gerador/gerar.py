@@ -379,7 +379,11 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         if not caminho.endswith(".html") and not ctx.get("noindex"):
             paginas.append(caminho)
             if ctx.get("titulo"):   # índice da busca do cabeçalho (familia-busca.js)
-                busca.append([str(ctx["titulo"]).split(" | ")[0], "/" + caminho, TIPO_BUSCA.get(caminho.split("/")[0], "página")])
+                tit = str(ctx["titulo"]).split(" | ")[0]
+                # nome curto na lista (ex.: "São Francisco do Conde (BA)"); o título completo segue no 4º campo, só para casar a busca
+                curto = ctx.get("nome_busca")
+                busca.append([curto, "/" + caminho, TIPO_BUSCA.get(caminho.split("/")[0], "página"), tit] if curto
+                             else [tit, "/" + caminho, TIPO_BUSCA.get(caminho.split("/")[0], "página")])
         return u
 
     mes = mes_extenso(ag["ultimo"])
@@ -405,6 +409,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
         escrever(f"operadoras/{o['slug']}/", "operadora.html", secao="operadoras", o=o,
                  noticias=noticias_op.get(o["nome"], [])[:6],
                  titulo=f"{o['nome']}: produção de petróleo e gás",
+                 nome_busca=o["nome"],
                  descricao=f"Produção mensal de petróleo e gás da {o['nome']}, campo a campo. "
                            f"{fmt_inteligente(o['boe'])} mil boe/d operados em {mes}. Dados da ANP.")
 
@@ -423,6 +428,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                  noticias=noticias_campo.get(c["slug"], [])[:5],
                  queima=(G["historico_campo"].get(c["slug"]) if G else None),
                  titulo=f"{c['nome']} ({c['bacia']}, {c['estado']['uf']}): produção de petróleo e gás",
+                 nome_busca=f"{c['nome']} ({c['estado']['uf']})",
                  descricao=f"Produção mensal de petróleo, gás e água do {c['nome']}, campo em {lugar} na "
                            f"{titulo_bacia(c['bacia'])}"
                            + (f" operado pela {c['operador']}" if c["operador"] != DESCONHECIDO else "")
@@ -582,7 +588,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                     titulo_m = f"Preço da gasolina em {m['nome']} ({m['uf']}) nesta semana: R$ {fmt(g_s, 2)}"
                 escrever(f"precos/{e['slug']}/{m['slug']}/", "precos_municipio.html", secao="precos", P=PR, m=m, resumo=" ".join(partes),
                          royalties_path=roy.get((m["uf"], slug(m["nome"]))), sem=sem, dia=dia,
-                         titulo=titulo_m, descricao=" ".join(partes)[:300])
+                         titulo=titulo_m, descricao=" ".join(partes)[:300], nome_busca=f"{m['nome']} ({m['uf']})")
     # ---------- royalties ----------
     if R:
         prod = {e["uf"]: e["slug"] for e in ag.get("estados", []) if e.get("slug")}
@@ -629,6 +635,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
             valores, unidade = escala(m["r"])
             m["grafico"] = {"valores": valores, "unidade": unidade}
             escrever(f"royalties/{m['estado_slug']}/{m['slug']}/", "royalties_municipio.html", secao="royalties", R=R, m=m,
+                     nome_busca=f"{m['nome']} ({m['uf']})",
                      prod_estado=prod.get(m["uf"]), campos_estado=campos_uf.get(m["uf"], []),
                      preco=preco, preco_path=f"precos/{preco['estado_slug']}/{preco['slug']}/" if preco else None,
                      titulo=(f"Quanto {m['nome']} ({m['uf']}) recebe de royalties em {R['ultimo'][:4]}: {dinheiro(m['r12'])} em 12 meses"
