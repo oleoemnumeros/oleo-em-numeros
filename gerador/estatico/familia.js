@@ -161,3 +161,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", pronto); else pronto();
 })();
+/* menu: no celular, rola a lista até o item da página atual */
+(function(){var a=document.querySelector('nav a[aria-current="page"]');if(!a)return;var n=a.parentElement;if(n&&n.scrollWidth>n.clientWidth){n.scrollLeft=Math.max(0,a.offsetLeft-n.clientWidth/2+a.offsetWidth/2);}})();

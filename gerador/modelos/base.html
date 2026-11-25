@@ -35,18 +35,19 @@
 <span>{{ site.nome }}</span>
 </a>
 <nav class="nav" aria-label="Principal">
-{# Ordem padrão da Família em Números: Início, Resumos, temas do portal, lugares, ferramentas, Como funciona #}
+{# Ordem padrão da Família em Números: Início, Resumos, depois os temas pelo que o público mais procura
+   (no celular só os primeiros cabem na tela: royalties e preço dos combustíveis por cidade), lugares, ferramentas, Como funciona #}
 <a href="{{ u('') }}"{% if secao == 'inicio' %} aria-current="page"{% endif %}>Início</a>
 <a href="{{ u('resumo/') }}"{% if secao == 'resumo' %} aria-current="page"{% endif %}>Resumos</a>
+{% if tem_royalties %}<a href="{{ u('royalties/') }}"{% if secao == 'royalties' %} aria-current="page"{% endif %}>Royalties</a>
+{% endif %}{% if tem_precos %}<a href="{{ u('precos/') }}"{% if secao == 'precos' %} aria-current="page"{% endif %}>Preços</a>
+{% endif %}<a href="{{ u('campos/') }}"{% if secao == 'campos' %} aria-current="page"{% endif %}>Campos</a>
 <a href="{{ u('operadoras/') }}"{% if secao == 'operadoras' %} aria-current="page"{% endif %}>Operadoras</a>
+{% if tem_resultados %}<a href="{{ u('resultados/') }}"{% if secao == 'resultados' %} aria-current="page"{% endif %}>Listadas</a>
+{% endif %}<a href="{{ u('pocos/') }}"{% if secao == 'pocos' %} aria-current="page"{% endif %}>Poços</a>
 <a href="{{ u('bacias/') }}"{% if secao == 'bacias' %} aria-current="page"{% endif %}>Bacias</a>
-<a href="{{ u('campos/') }}"{% if secao == 'campos' %} aria-current="page"{% endif %}>Campos</a>
-<a href="{{ u('pocos/') }}"{% if secao == 'pocos' %} aria-current="page"{% endif %}>Poços</a>
 {% if tem_gas %}<a href="{{ u('gas/') }}"{% if secao == 'gas' %} aria-current="page"{% endif %}>Gás</a>
 {% endif %}{% if tem_refino %}<a href="{{ u('refino/') }}"{% if secao == 'refino' %} aria-current="page"{% endif %}>Refino</a>
-{% endif %}{% if tem_precos %}<a href="{{ u('precos/') }}"{% if secao == 'precos' %} aria-current="page"{% endif %}>Preços</a>
-{% endif %}{% if tem_royalties %}<a href="{{ u('royalties/') }}"{% if secao == 'royalties' %} aria-current="page"{% endif %}>Royalties</a>
-{% endif %}{% if tem_resultados %}<a href="{{ u('resultados/') }}"{% if secao == 'resultados' %} aria-current="page"{% endif %}>Listadas</a>
 {% endif %}<a href="{{ u('estados/') }}"{% if secao == 'estados' %} aria-current="page"{% endif %}>Estados</a>
 {% if tem_mapa %}<a href="{{ u('mapa/') }}"{% if secao == 'mapa' %} aria-current="page"{% endif %}>Mapa</a>
 {% endif %}<a href="{{ u('rankings/') }}"{% if secao == 'rankings' %} aria-current="page"{% endif %}>Rankings</a>
