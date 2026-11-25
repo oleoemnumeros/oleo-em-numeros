@@ -1,7 +1,7 @@
 // Ponte do Óleo em Números para o gov.br (Cloudflare Worker).
 // O gov.br recusa conexões dos servidores do GitHub; o robô pede o arquivo aqui e o Worker busca no gov.br.
 // Só atende quem manda o token certo (segredo TOKEN do Worker) e só busca em destinos da lista.
-const PERMITIDOS = ["www.gov.br", "ftp.ibge.gov.br"];
+const PERMITIDOS = ["www.gov.br", "ftp.ibge.gov.br", "portal.inmet.gov.br"];
 
 export default {
   async fetch(pedido, env) {
