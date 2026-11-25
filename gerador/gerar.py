@@ -348,7 +348,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     S = carregar_semanal(dados)                       # preços da semana (levantamento semanal da ANP)
     SEM = por_municipio(S) if S else {}
     NOMES_MUN = {(m["uf"], slug(m["nome"])): m for m in (PR or {}).get("municipios", [])}
-    env.globals.update(tem_precos=bool(PR))
+    env.globals.update(tem_precos=bool(PR), tem_municipios=bool(R or PR))
     env.globals.update(ufs_royalties={e["uf"] for e in R["estados"]} if R else set())
     env.globals.update(slug_royalties_uf={e["uf"]: e["slug"] for e in R["estados"]} if R else {})
     financeiro = carregar_financeiro(dados, ag)
@@ -642,6 +642,37 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                              if m["r12"] > 0 else f"Quanto {m['nome']} ({m['uf']}) recebe de royalties de petróleo em {R['ultimo'][:4]}"),
                      descricao=f"{m['nome']} ({m['uf']}) recebeu {dinheiro(m['r12'], False)} em royalties de petróleo nos "
                                f"últimos 12 meses. Valores mês a mês desde 2018, participação especial e ranking. Dados da ANP.")
+    # ---------- municípios: uma porta de entrada para royalties e preço dos combustíveis ----------
+    if R or PR:
+        mun: dict = {}
+        for m in (R["municipios"] if R else []):
+            x = mun.setdefault((m["uf"], slug(m["nome"])), {"n": m["nome"], "uf": m["uf"], "r": "", "p": "", "v": 0, "g": None})
+            x["r"] = f"royalties/{m['estado_slug']}/{m['slug']}/"
+            x["v"] = round(m.get("r12") or 0)
+        for m in (PR["municipios"] if PR else []):
+            x = mun.setdefault((m["uf"], slug(m["nome"])), {"n": m["nome"], "uf": m["uf"], "r": "", "p": "", "v": 0, "g": None})
+            x["p"] = f"precos/{m['estado_slug']}/{m['slug']}/"
+            g = (m.get("p") or {}).get("GASOLINA", {}).get("k", {}).get("valor")
+            x["g"] = round(g, 2) if g else None
+        lista_m = sorted(mun.values(), key=lambda x: (sem_acento(x["n"]).lower(), x["uf"]))
+        (saida / "municipios").mkdir(parents=True, exist_ok=True)
+        (saida / "municipios" / "indice.json").write_text(
+            json.dumps([[x["n"], x["uf"], x["r"], x["p"], x["v"], x["g"]] for x in lista_m], ensure_ascii=False, separators=(",", ":")), "utf-8")
+        est: dict = {}
+        for e in (R["estados"] if R else []):
+            est.setdefault(e["uf"], {"nome": e.get("nome") or e["uf"], "r": "", "p": "", "nr": 0, "np": 0})
+            est[e["uf"]].update(r=f"royalties/{e['slug']}/", nr=sum(1 for x in lista_m if x["uf"] == e["uf"] and x["r"]))
+        for e in (PR["estados"] if PR else []):
+            est.setdefault(e["uf"], {"nome": e.get("nome") or e["uf"], "r": "", "p": "", "nr": 0, "np": 0})
+            est[e["uf"]].update(p=f"precos/{e['slug']}/", np=len(e.get("municipios", [])))
+        estados_m = sorted(est.values(), key=lambda e: sem_acento(e["nome"]))
+        topo = sorted((x for x in lista_m if x["r"] and x["v"] > 0), key=lambda x: -x["v"])[:12]
+        n_r, n_p = sum(1 for x in lista_m if x["r"]), sum(1 for x in lista_m if x["p"])
+        escrever("municipios/", "municipios.html", secao="municipios", topo=topo, estados=estados_m, n_royalties=n_r, n_precos=n_p,
+                 titulo="Municípios: royalties do petróleo e preço da gasolina por cidade",
+                 descricao=f"Busque sua cidade: quanto ela recebe de royalties de petróleo e quanto custa a gasolina. "
+                           f"{fmt(n_r)} municípios com royalties e {fmt(n_p)} com preço de combustível, com dados da ANP.")
+
 
     escrever("noticias/", "noticias.html", secao="noticias", titulo="Notícias do setor de petróleo e gás",
              descricao="Manchetes diárias de petróleo e gás, com links para os números de cada empresa e campo.",
@@ -773,7 +804,7 @@ def com_trilha_ld(html: str, endereco: str) -> str:
     return html.replace("</head>", f'<script type="application/ld+json">{ld}</script>\n</head>', 1)
 
 
-TIPO_BUSCA = {"campos": "campo", "bacias": "bacia", "estados": "estado", "operadoras": "operadora", "resumo": "resumo",
+TIPO_BUSCA = {"campos": "campo", "municipios": "municípios", "bacias": "bacia", "estados": "estado", "operadoras": "operadora", "resumo": "resumo",
               "royalties": "royalties", "rankings": "ranking", "refino": "refino", "precos": "preços", "gas": "gás"}
 
 

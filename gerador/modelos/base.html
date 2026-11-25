@@ -39,7 +39,8 @@
    (no celular só os primeiros cabem na tela: royalties e preço dos combustíveis por cidade), lugares, ferramentas, Como funciona #}
 <a href="{{ u('') }}"{% if secao == 'inicio' %} aria-current="page"{% endif %}>Início</a>
 <a href="{{ u('resumo/') }}"{% if secao == 'resumo' %} aria-current="page"{% endif %}>Resumos</a>
-{% if tem_royalties %}<a href="{{ u('royalties/') }}"{% if secao == 'royalties' %} aria-current="page"{% endif %}>Royalties</a>
+{% if tem_municipios %}<a href="{{ u('municipios/') }}"{% if secao == 'municipios' %} aria-current="page"{% endif %}>Municípios</a>
+{% endif %}{% if tem_royalties %}<a href="{{ u('royalties/') }}"{% if secao == 'royalties' %} aria-current="page"{% endif %}>Royalties</a>
 {% endif %}{% if tem_precos %}<a href="{{ u('precos/') }}"{% if secao == 'precos' %} aria-current="page"{% endif %}>Preços</a>
 {% endif %}<a href="{{ u('campos/') }}"{% if secao == 'campos' %} aria-current="page"{% endif %}>Campos</a>
 <a href="{{ u('operadoras/') }}"{% if secao == 'operadoras' %} aria-current="page"{% endif %}>Operadoras</a>

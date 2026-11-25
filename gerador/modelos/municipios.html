@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block conteudo %}
+{% set sufixo = '' if u('x/').endswith('/') else 'index.html' %}
+<section class="miolo cabeca">
+<h1>Municípios: royalties do petróleo e preço dos combustíveis</h1>
+<p class="sub">Digite o nome da cidade para ver quanto ela recebe de royalties e quanto custa a gasolina lá. São {{ fmt(n_royalties) }} municípios com royalties{% if n_precos %} e {{ fmt(n_precos) }} com preço de combustível{% endif %}, com dados da ANP.</p>
+<div class="busca-mun">
+<label for="busca-mun" class="sr">Nome do município</label>
+<input id="busca-mun" type="search" autocomplete="off" placeholder="Ex.: Maricá, Mossoró, São Francisco do Conde" data-indice="{{ raiz }}municipios/indice.json" data-raiz="{{ raiz }}" data-sufixo="{{ sufixo }}">
+<ul id="busca-mun-res" class="busca-mun-res" aria-live="polite"></ul>
+</div>
+</section>
+
+{% if topo %}
+<section class="miolo secao">
+<div class="cartao principal">
+<h2>Os que mais recebem royalties</h2>
+<p class="legenda">Royalties e participação especial nos últimos 12 meses</p>
+<div class="tabela"><table>
+<thead><tr><th><span aria-hidden="true">#</span><span class="sr">Posição</span></th><th>Município</th><th class="n">12 meses</th></tr></thead>
+<tbody>
+{% for m in topo %}<tr><td>{{ loop.index }}</td><td><a href="{{ u(m.r) }}">{{ m.n }}</a> <span class="legenda">{{ m.uf }}</span></td><td class="n">{{ dinheiro(m.v) }}</td></tr>
+{% endfor %}</tbody></table></div>
+<p class="nota"><a href="{{ u('royalties/ranking/') }}">Ranking completo do mês</a></p>
+</div>
+</section>
+{% endif %}
+
+<section class="miolo secao">
+<div class="cartao">
+<h2>Por estado</h2>
+<p class="legenda">Cada página lista todos os municípios do estado</p>
+<div class="tabela"><table>
+<thead><tr><th>Estado</th>{% if n_royalties %}<th>Royalties</th>{% endif %}{% if n_precos %}<th>Combustíveis</th>{% endif %}</tr></thead>
+<tbody>
+{% for e in estados %}<tr><td>{{ e.nome }}</td>{% if n_royalties %}<td>{% if e.r %}<a href="{{ u(e.r) }}">{{ e.nr }} {{ 'município' if e.nr == 1 else 'municípios' }}</a>{% else %}–{% endif %}</td>{% endif %}{% if n_precos %}<td>{% if e.p %}<a href="{{ u(e.p) }}">{{ e.np }} {{ 'município' if e.np == 1 else 'municípios' }}</a>{% else %}–{% endif %}</td>{% endif %}</tr>
+{% endfor %}</tbody></table></div>
+</div>
+</section>
+<script>
+(function () {
+  var inp = document.getElementById("busca-mun"), res = document.getElementById("busca-mun-res"), dados = null, pedindo = false;
+  if (!inp) return;
+  var raiz = inp.getAttribute("data-raiz"), suf = inp.getAttribute("data-sufixo");
+  function norm(s) { return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim(); }
+  function reais(v) { return v >= 1e6 ? "R$ " + (v / 1e6).toLocaleString("pt-BR", {maximumFractionDigits: 1}) + " mi" : "R$ " + Math.round(v).toLocaleString("pt-BR"); }
+  function link(p, t) { var a = document.createElement("a"); a.href = raiz + p + suf; a.textContent = t; return a; }
+  function mostra() {
+    var q = norm(inp.value); res.innerHTML = "";
+    if (q.length < 2 || !dados) return;
+    var ini = [], meio = [];
+    for (var i = 0; i < dados.length; i++) { var k = norm(dados[i][0]); if (k.indexOf(q) === 0) ini.push(dados[i]); else if (k.indexOf(q) > 0) meio.push(dados[i]); }
+    var lst = ini.concat(meio).slice(0, 15);
+    if (!lst.length) { var li0 = document.createElement("li"); li0.textContent = "Nenhum município com royalties ou preço de combustível com esse nome."; res.appendChild(li0); return; }
+    lst.forEach(function (x) {
+      var li = document.createElement("li"), b = document.createElement("strong"); b.textContent = x[0] + " (" + x[1] + ")"; li.appendChild(b);
+      var s = document.createElement("span"); s.className = "links";
+      if (x[2]) s.appendChild(link(x[2], "Royalties" + (x[4] ? ": " + reais(x[4]) + " em 12 meses" : "")));
+      if (x[3]) s.appendChild(link(x[3], "Gasolina" + (x[5] ? ": R$ " + x[5].toLocaleString("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2}) : "")));
+      li.appendChild(s); res.appendChild(li);
+    });
+  }
+  function carrega() {
+    if (dados || pedindo) return; pedindo = true;
+    fetch(inp.getAttribute("data-indice")).then(function (r) { return r.json(); }).then(function (d) { dados = d; mostra(); }).catch(function () { pedindo = false; });
+  }
+  inp.addEventListener("focus", carrega);
+  inp.addEventListener("input", function () { carrega(); mostra(); });
+})();
+</script>
+{% endblock %}

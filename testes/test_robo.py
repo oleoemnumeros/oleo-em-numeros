@@ -995,6 +995,41 @@ def test_royalties_do_municipio_mostram_o_preco_e_ligam_a_pagina_de_precos(base,
     assert "SECRETO" not in marica and "BANDEIRA" not in marica
 
 
+def test_pagina_de_municipios_junta_royalties_e_precos_com_busca(base, tmp_path, monkeypatch):
+    """Aba Municípios: um índice com royalties e preço da gasolina de cada cidade, busca e lista por estado."""
+    import json
+    from robo import royalties as RY
+    from robo.executar import _leve
+    from robo.precos import processar, resumir
+    from gerador.gerar import gerar
+    monkeypatch.setenv("OLEO_SEM_REDE", "1")
+    proc = tmp_path / "proc"
+    (proc / "familia").mkdir(parents=True)
+    (proc / "royalties.json").write_text(json.dumps(RY.montar(_pasta_royalties(tmp_path)), ensure_ascii=False), "utf-8")
+    (proc / "agregados.json").write_text(json.dumps(_leve(agregar(base)), ensure_ascii=False, default=str), "utf-8")
+    agg = tmp_path / "agg"
+    agg.mkdir()
+    for mes in ("2026-09", "2026-10"):
+        csv = tmp_path / f"{mes}.csv"
+        _csv_precos(csv, mes)
+        csv.write_text(csv.read_text("utf-8").replace(";SP;SAO PAULO;", ";RJ;MARICA;"), "utf-8")
+        resumir(csv).to_csv(agg / f"{mes}.csv.gz", index=False, compression="gzip")
+    processar(agg, proc / "precos.json")
+    gerar(proc, tmp_path / "site", teste=True)
+    pag = (tmp_path / "site" / "municipios" / "index.html").read_text("utf-8")
+    assert 'id="busca-mun"' in pag and "Por estado" in pag
+    assert 'aria-current="page">Municípios</a>' in pag
+    idx = json.loads((tmp_path / "site" / "municipios" / "indice.json").read_text("utf-8"))
+    marica = [x for x in idx if x[0] == "Maricá"]
+    assert marica and marica[0][1] == "RJ" and marica[0][2].startswith("royalties/") and marica[0][3].startswith("precos/") and marica[0][5]
+    for x in idx:
+        for p in (x[2], x[3]):
+            if p:
+                assert (tmp_path / "site" / p / "index.html").exists(), p
+    inicio = (tmp_path / "site" / "index.html").read_text("utf-8")
+    assert 'href="municipios/index.html"' in inicio
+
+
 def test_continue_explorando_so_liga_a_paginas_que_existem_e_nunca_a_propria():
     from gerador.familia import continuar
     sem = continuar("precos", "precos/", {})
