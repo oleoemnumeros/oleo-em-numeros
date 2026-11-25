@@ -1,0 +1,31 @@
+name: Auditoria temporaria de navegacao
+on: workflow_dispatch
+permissions:
+  actions: read
+  contents: read
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Baixar o site publicado
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh run list -R ${{ github.repository }} -w atualizar.yml -s success -L 1 --json databaseId -q '.[0].databaseId')
+          mkdir site && cd site && gh run download $id -R ${{ github.repository }} -n github-pages && tar -xf artifact.tar && rm artifact.tar && ls | head -40
+      - name: Auditar
+        run: |
+          pip install -q playwright
+          python scripts/auditoria_temp.py site oleo 60 /index.html
+          M=$(ls site/royalties/*/ -d | head -1); echo $M
+          python scripts/medir_temp.py site - / /royalties/ /precos/ $(find site/royalties -mindepth 2 -maxdepth 2 -type d | head -1 | sed 's#^site##')/ $(find site/campos -mindepth 1 -maxdepth 1 -type d | head -1 | sed 's#^site##')/ $(find site/precos -mindepth 2 -maxdepth 2 -type d | head -1 | sed 's#^site##')/
+          grep -o '<nav[^>]*class="[^"]*"[^>]*>' site/index.html | head -3
+          python - <<'P'
+          import re
+          t=open('site/index.html',encoding='utf-8').read()
+          i=t.find('<nav'); print(re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>', t[i:t.find('</nav>',i)]))
+          P
