@@ -23,7 +23,8 @@
     "oleoemnumeros.com.br": ["Óleo em Números", "#17758C"],
     "comexemnumeros.com.br": ["Comex em Números", "#1F85D0"],
     "vooemnumeros.com.br": ["Voo em Números", "#4FB8EE"],
-    "economiaemnumeros.com.br": ["Economia em Números", "#D9A514"]
+    "economiaemnumeros.com.br": ["Economia em Números", "#D9A514"],
+    "imoveisemnumeros.com.br": ["Imóveis em Números", "#7A52C7"]
   };
   var host = location.hostname.replace(/^www\./, "");
   var metaNome = document.querySelector('meta[property="og:site_name"]');
