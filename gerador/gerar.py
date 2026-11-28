@@ -523,7 +523,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
     if RF:
         top = RF["ranking"][0]
         escrever("refino/", "refino.html", secao="refino", R=RF,
-                 titulo="Refino de petróleo no Brasil: refinarias, processamento e derivados",
+                 titulo=f"Quantas refinarias tem no Brasil: as {RF['n_operando']} em operação e quanto processam",
                  descricao=f"Quanto petróleo cada refinaria brasileira processa, a parte de petróleo importado e os derivados produzidos, "
                            f"mês a mês desde 1990, com mapa e ranking. {top['sigla']} lidera, com {fmt(top['proc12'], 0)} mil barris por dia. "
                            f"Dados da ANP até {mes_extenso(RF['ultimo'])}.")
@@ -608,7 +608,7 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                             + (f"{lista_mes[0]['nome']} ({lista_mes[0]['uf']}) lidera com {dinheiro(lista_mes[0]['ultimo_mes'])}. " if lista_mes else "")
                             + "Dados da ANP."))
         escrever("royalties/", "royalties_brasil.html", secao="royalties", R=R, B=R["brasil"],
-                 titulo="Royalties de petróleo por município e estado",
+                 titulo=f"Royalties do petróleo por município em {R['ultimo'][:4]}: quanto cada cidade recebe",
                  descricao=f"Quanto cada município e cada estado recebe de royalties de petróleo e participação especial, "
                            f"mês a mês, com ranking e valor por habitante. Dados da ANP até {ult}.")
         for e in R["estados"]:
@@ -640,8 +640,11 @@ def gerar(dados: Path, saida: Path, teste: bool = False, limpos: bool = False, u
                      preco=preco, preco_path=f"precos/{preco['estado_slug']}/{preco['slug']}/" if preco else None,
                      titulo=(f"Quanto {m['nome']} ({m['uf']}) recebe de royalties em {R['ultimo'][:4]}: {dinheiro(m['r12'])} em 12 meses"
                              if m["r12"] > 0 else f"Quanto {m['nome']} ({m['uf']}) recebe de royalties de petróleo em {R['ultimo'][:4]}"),
-                     descricao=f"{m['nome']} ({m['uf']}) recebeu {dinheiro(m['r12'], False)} em royalties de petróleo nos "
-                               f"últimos 12 meses. Valores mês a mês desde 2018, participação especial e ranking. Dados da ANP.")
+                     descricao=(f"{m['nome']} ({m['uf']}) recebeu {dinheiro(m['ultimo_mes'], False)} de royalties de petróleo em "
+                                f"{mes_extenso(R['ultimo'])}, cerca de {dinheiro(m['r12'] / 12, False)} por mês em média e "
+                                f"{dinheiro(m['r12'], False)} em 12 meses. Mês a mês desde 2018 e ranking. Dados da ANP."
+                                if m["r12"] > 0 else
+                                f"{m['nome']} ({m['uf']}): royalties de petróleo recebidos mês a mês desde 2018, participação especial e ranking. Dados da ANP."))
     # ---------- municípios: uma porta de entrada para royalties e preço dos combustíveis ----------
     if R or PR:
         mun: dict = {}

@@ -5,6 +5,7 @@
 <section class="miolo cabeca">
 <h1>Refino de petróleo no Brasil</h1>
 <p class="sub">Quanto petróleo cada refinaria processa, de onde vem e que derivados produz, mês a mês desde 1990 · dados da ANP até {{ mes_extenso(R.ultimo) }}</p>
+<p class="sub"><strong>O Brasil tem {{ R.n_operando }} refinarias de petróleo em operação</strong> (com processamento nos últimos 3 meses){% if R.ranking %}. A maior é a {{ R.ranking[0].sigla }}, com {{ fmt(R.ranking[0].proc12, 0) }} mil barris por dia{% endif %}.</p>
 <div class="kpis kpis-5">
 {{ kpi('Petróleo processado', fmt(R.k.proc.valor, 0), 'mil barris/dia', (fmt_var(R.k.proc.var12) ~ ' em 12 meses') if R.k.proc.var12 is not none else None, var_classe(R.k.proc.var12), principal=True) }}
 {{ kpi('Petróleo importado', fmt(R.k.imp.valor, 1) ~ '%', 'da carga processada', (fmt_pp(R.k.imp.valor - R.k.imp.antes) ~ ' em 12 meses') if R.k.imp.antes is not none else None) }}
